@@ -1106,7 +1106,7 @@ export default function App() {
 
   async function resetCourseSelection() {
     await setAllCoursesEnabled(false)
-    setMessage('対象コース設定をリセットしました。')
+    setMessage('コース選択をリセットしました。')
   }
 
   async function hideAssignment(assignmentId: string) {
@@ -1613,7 +1613,7 @@ export default function App() {
               </button>
 
               <button type="button" onClick={resetCourseSelection}>
-                対象コース設定をリセット
+                コース選択をリセット
               </button>
 
               <button type="button" onClick={resetHiddenAssignments}>
