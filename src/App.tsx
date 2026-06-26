@@ -9,16 +9,29 @@ import {
 } from 'react'
 import './App.css'
 import type { Assignment, Course } from './core/types'
-import { getAssignments, getCourses, saveCourses } from './core/storage'
+import {
+  clearAssignmentCandidates,
+  clearAssignments,
+  clearCourses,
+  getAssignments,
+  getCourses,
+  saveCourses,
+} from './core/storage'
 
 const ASSIGNMENT_SCAN_STATUS_KEY = 'assignmentScanStatus'
 const DEADLINE_SCAN_STATUS_KEY = 'deadlineScanStatus'
 const LAST_REFRESH_AT_KEY = 'lastSuccessfulRefreshAt'
 const LAST_STALE_NOTIFICATION_AT_KEY = 'lastStaleRefreshNotificationAt'
 const IGNORED_ASSIGNMENT_IDS_KEY = 'ignoredAssignmentIds'
+const NOTIFIED_DEADLINE_KEYS_KEY = 'notifiedDeadlineKeys'
 
 const AUTO_REFRESH_INTERVAL_MS = 2 * 60 * 60 * 1000
 const STALE_NOTIFICATION_INTERVAL_MS = 60 * 60 * 1000
+const THREE_HOURS_MS = 3 * 60 * 60 * 1000
+const ONE_HOUR_MS = 60 * 60 * 1000
+const ONE_DAY_MS = 24 * 60 * 60 * 1000
+const SEVEN_DAYS_MS = 7 * ONE_DAY_MS
+const OLD_PASSED_DAYS = 30
 
 type ScanState = 'idle' | 'running' | 'completed' | 'error'
 
@@ -67,11 +80,15 @@ const initialDeadlineScanStatus: DeadlineScanStatus = {
 }
 
 function formatDeadline(deadline: string | null): string {
-  if (!deadline) return '期限なし'
+  if (!deadline) {
+    return '期限なし'
+  }
 
   const date = new Date(deadline)
 
-  if (Number.isNaN(date.getTime())) return '期限なし'
+  if (Number.isNaN(date.getTime())) {
+    return '期限なし'
+  }
 
   return `${date.getMonth() + 1}/${date.getDate()} ${String(
     date.getHours(),
@@ -79,11 +96,15 @@ function formatDeadline(deadline: string | null): string {
 }
 
 function formatDateTime(value: string | null): string {
-  if (!value) return '未更新'
+  if (!value) {
+    return '未更新'
+  }
 
   const date = new Date(value)
 
-  if (Number.isNaN(date.getTime())) return '未更新'
+  if (Number.isNaN(date.getTime())) {
+    return '未更新'
+  }
 
   return `${date.getMonth() + 1}/${date.getDate()} ${String(
     date.getHours(),
@@ -91,16 +112,25 @@ function formatDateTime(value: string | null): string {
 }
 
 function getElapsedText(value: string | null): string {
-  if (!value) return '未更新'
+  if (!value) {
+    return '未更新'
+  }
 
   const diff = Date.now() - new Date(value).getTime()
 
-  if (diff < 0 || Number.isNaN(diff)) return '不明'
+  if (diff < 0 || Number.isNaN(diff)) {
+    return '不明'
+  }
 
   const minutes = Math.floor(diff / 60_000)
 
-  if (minutes < 1) return 'たった今'
-  if (minutes < 60) return `${minutes}分前`
+  if (minutes < 1) {
+    return 'たった今'
+  }
+
+  if (minutes < 60) {
+    return `${minutes}分前`
+  }
 
   const hours = Math.floor(minutes / 60)
   const remainingMinutes = minutes % 60
@@ -111,36 +141,89 @@ function getElapsedText(value: string | null): string {
       : `${hours}時間${remainingMinutes}分前`
   }
 
-  return `${Math.floor(hours / 24)}日前`
+  const days = Math.floor(hours / 24)
+
+  return `${days}日前`
 }
 
 function getRemaining(deadline: string | null): string {
-  if (!deadline) return ''
+  if (!deadline) {
+    return ''
+  }
 
   const diff = new Date(deadline).getTime() - Date.now()
 
-  if (diff <= 0) return '期限切れ'
+  if (diff <= 0) {
+    return '期限切れ'
+  }
 
   const hours = Math.floor(diff / 3_600_000)
   const minutes = Math.floor((diff % 3_600_000) / 60_000)
 
-  if (hours < 24) return `${hours}時間${minutes}分`
+  if (hours < 24) {
+    return `${hours}時間${minutes}分`
+  }
 
   return `${Math.floor(hours / 24)}日後`
 }
 
-function isWithin24Hours(deadline: string | null): boolean {
-  if (!deadline) return false
-
-  const diff = new Date(deadline).getTime() - Date.now()
-  return diff > 0 && diff <= 86_400_000
+function getEndOfTomorrow(): number {
+  const date = new Date()
+  date.setDate(date.getDate() + 1)
+  date.setHours(23, 59, 59, 999)
+  return date.getTime()
 }
 
-function isFutureAfter24Hours(deadline: string | null): boolean {
-  if (!deadline) return false
+function isWithin24Hours(deadline: string | null): boolean {
+  if (!deadline) {
+    return false
+  }
 
   const diff = new Date(deadline).getTime() - Date.now()
-  return diff > 86_400_000
+
+  return diff > 0 && diff <= ONE_DAY_MS
+}
+
+function isTomorrowOrEarlierAfter24Hours(deadline: string | null): boolean {
+  if (!deadline) {
+    return false
+  }
+
+  const time = new Date(deadline).getTime()
+  const diff = time - Date.now()
+
+  return diff > ONE_DAY_MS && time <= getEndOfTomorrow()
+}
+
+function isWithinThisWeekAfterTomorrow(deadline: string | null): boolean {
+  if (!deadline) {
+    return false
+  }
+
+  const time = new Date(deadline).getTime()
+  const diff = time - Date.now()
+
+  return diff > ONE_DAY_MS && time > getEndOfTomorrow() && diff <= SEVEN_DAYS_MS
+}
+
+function isLaterThanThisWeek(deadline: string | null): boolean {
+  if (!deadline) {
+    return false
+  }
+
+  const diff = new Date(deadline).getTime() - Date.now()
+
+  return diff > SEVEN_DAYS_MS
+}
+
+function isOldPassedAssignment(assignment: Assignment): boolean {
+  if (assignment.lifecycleStatus !== 'passed' || !assignment.deadline) {
+    return false
+  }
+
+  const diff = Date.now() - new Date(assignment.deadline).getTime()
+
+  return diff >= OLD_PASSED_DAYS * ONE_DAY_MS
 }
 
 function isSubmittedAssignment(assignment: Assignment): boolean {
@@ -164,34 +247,50 @@ function sortByDeadline(a: Assignment, b: Assignment): number {
 }
 
 function getStatusLabel(assignment: Assignment): string {
-  if (assignment.lifecycleStatus === 'before_start') return '開始前'
-  if (assignment.submissionStatus === 'completed') return '完了'
-  if (assignment.submissionStatus === 'submitted') return '提出済み'
-  if (assignment.lifecycleStatus === 'passed') return '期限切れ'
-  if (assignment.submissionStatus === 'not_submitted') return '未提出'
+  if (assignment.lifecycleStatus === 'before_start') {
+    return '開始前'
+  }
+
+  if (assignment.submissionStatus === 'completed') {
+    return '完了'
+  }
+
+  if (assignment.submissionStatus === 'submitted') {
+    return '提出済み'
+  }
+
+  if (assignment.lifecycleStatus === 'passed') {
+    return '期限切れ'
+  }
+
+  if (assignment.submissionStatus === 'not_submitted') {
+    return '未提出'
+  }
 
   return '提出状態不明'
+}
+
+function isAssignmentVisibleByCourse(
+  assignment: Assignment,
+  courses: Course[],
+): boolean {
+  const course = courses.find((candidate) => candidate.id === assignment.courseId)
+
+  if (!course) {
+    return true
+  }
+
+  return course.enabled
 }
 
 function getUrgentAssignments(
   assignments: Assignment[],
   courses: Course[],
 ): Assignment[] {
-  const enabledCourseIds = new Set(
-    courses.filter((course) => course.enabled).map((course) => course.id),
-  )
-
   return assignments
     .filter((assignment) => {
-      const courseIsKnown = courses.some(
-        (course) => course.id === assignment.courseId,
-      )
-
-      const courseIsEnabled =
-        !courseIsKnown || enabledCourseIds.has(assignment.courseId)
-
       return (
-        courseIsEnabled &&
+        isAssignmentVisibleByCourse(assignment, courses) &&
         assignment.deadline &&
         isWithin24Hours(assignment.deadline) &&
         !isSubmittedAssignment(assignment) &&
@@ -222,6 +321,32 @@ function createNotification(id: string, title: string, message: string): void {
   )
 }
 
+function normalizeUpdateError(error: unknown): string {
+  const rawMessage = String(error)
+
+  if (rawMessage.includes('already_running')) {
+    return 'すでに更新処理が実行中です。少し待ってから再度試してください。'
+  }
+
+  if (rawMessage.includes('timeout') || rawMessage.includes('タイムアウト')) {
+    return '更新が時間内に完了しませんでした。LETUSにログインしているか、通信状態を確認してください。'
+  }
+
+  if (rawMessage.includes('Failed to fetch') || rawMessage.includes('NetworkError')) {
+    return 'LETUSへの通信に失敗しました。ネットワーク接続またはLETUSのログイン状態を確認してください。'
+  }
+
+  if (rawMessage.includes('課題候補検索')) {
+    return '課題候補の検索中に問題が発生しました。対象コースやLETUSのログイン状態を確認してください。'
+  }
+
+  if (rawMessage.includes('締切読み取り')) {
+    return '締切情報の読み取り中に問題が発生しました。LETUSのページ構成が変わっている可能性があります。'
+  }
+
+  return rawMessage
+}
+
 function AssignmentCard({
   assignment,
   compact = false,
@@ -234,7 +359,9 @@ function AssignmentCard({
   onHide?: (assignmentId: string) => void
 }) {
   function openAssignmentPage() {
-    if (!assignment.url) return
+    if (!assignment.url) {
+      return
+    }
 
     chrome.tabs.create({
       url: assignment.url,
@@ -406,6 +533,20 @@ async function saveIgnoredAssignmentIds(ignoredAssignmentIds: string[]) {
   })
 }
 
+async function getNotifiedDeadlineKeys(): Promise<string[]> {
+  const result = (await chrome.storage.local.get(NOTIFIED_DEADLINE_KEYS_KEY)) as {
+    notifiedDeadlineKeys?: string[]
+  }
+
+  return result.notifiedDeadlineKeys ?? []
+}
+
+async function saveNotifiedDeadlineKeys(notifiedDeadlineKeys: string[]) {
+  await chrome.storage.local.set({
+    notifiedDeadlineKeys,
+  })
+}
+
 async function waitForAssignmentScanToFinish(
   onTick: () => Promise<void>,
 ): Promise<void> {
@@ -415,7 +556,9 @@ async function waitForAssignmentScanToFinish(
     const status = await getAssignmentScanStatus()
     await onTick()
 
-    if (status.state === 'completed') return
+    if (status.state === 'completed') {
+      return
+    }
 
     if (status.state === 'error') {
       throw new Error(status.errorMessage ?? '課題候補検索でエラー')
@@ -436,7 +579,9 @@ async function waitForDeadlineScanToFinish(
     const status = await getDeadlineScanStatus()
     await onTick()
 
-    if (status.state === 'completed') return
+    if (status.state === 'completed') {
+      return
+    }
 
     if (status.state === 'error') {
       throw new Error(status.errorMessage ?? '締切読み取りでエラー')
@@ -464,6 +609,7 @@ export default function App() {
   const [isUpdating, setIsUpdating] = useState(false)
   const [message, setMessage] = useState('')
   const hasAutoRefreshCheckedRef = useRef(false)
+  const hasCheckedDeadlineNotificationRef = useRef(false)
 
   async function refreshAll() {
     const [
@@ -490,6 +636,72 @@ export default function App() {
     setLastRefreshAt(savedLastRefreshAt)
   }
 
+  async function checkDeadlineWarningNotifications(
+    sourceAssignments: Assignment[],
+    sourceCourses: Course[],
+    sourceIgnoredIds: string[],
+  ) {
+    const ignoredSet = new Set(sourceIgnoredIds)
+    const notifiedKeys = await getNotifiedDeadlineKeys()
+    const notifiedSet = new Set(notifiedKeys)
+    const nextNotifiedKeys = new Set(notifiedKeys)
+    let changed = false
+
+    const visibleTargets = sourceAssignments
+      .filter((assignment) => {
+        return (
+          !ignoredSet.has(assignment.id) &&
+          isAssignmentVisibleByCourse(assignment, sourceCourses) &&
+          assignment.deadline &&
+          !isSubmittedAssignment(assignment) &&
+          assignment.lifecycleStatus !== 'passed'
+        )
+      })
+      .sort(sortByDeadline)
+
+    for (const assignment of visibleTargets) {
+      if (!assignment.deadline) {
+        continue
+      }
+
+      const diff = new Date(assignment.deadline).getTime() - Date.now()
+
+      if (diff <= 0) {
+        continue
+      }
+
+      const oneHourKey = `${assignment.id}:1h`
+      const threeHourKey = `${assignment.id}:3h`
+
+      if (diff <= ONE_HOUR_MS && !notifiedSet.has(oneHourKey)) {
+        createNotification(
+          `letus-task-watcher-deadline-1h-${assignment.id}-${Date.now()}`,
+          '締切まで1時間以内',
+          `${assignment.title}\n${assignment.courseName}`,
+        )
+
+        nextNotifiedKeys.add(oneHourKey)
+        changed = true
+        continue
+      }
+
+      if (diff <= THREE_HOURS_MS && !notifiedSet.has(threeHourKey)) {
+        createNotification(
+          `letus-task-watcher-deadline-3h-${assignment.id}-${Date.now()}`,
+          '締切まで3時間以内',
+          `${assignment.title}\n${assignment.courseName}`,
+        )
+
+        nextNotifiedKeys.add(threeHourKey)
+        changed = true
+      }
+    }
+
+    if (changed) {
+      await saveNotifiedDeadlineKeys(Array.from(nextNotifiedKeys))
+    }
+  }
+
   useEffect(() => {
     void refreshAll()
   }, [])
@@ -505,7 +717,29 @@ export default function App() {
   }, [])
 
   useEffect(() => {
-    if (hasAutoRefreshCheckedRef.current) return
+    if (hasCheckedDeadlineNotificationRef.current) {
+      return
+    }
+
+    hasCheckedDeadlineNotificationRef.current = true
+
+    void (async () => {
+      const savedAssignments = await getAssignments()
+      const savedCourses = await getCourses()
+      const savedIgnoredIds = await getIgnoredAssignmentIds()
+
+      await checkDeadlineWarningNotifications(
+        savedAssignments,
+        savedCourses,
+        savedIgnoredIds,
+      )
+    })()
+  }, [])
+
+  useEffect(() => {
+    if (hasAutoRefreshCheckedRef.current) {
+      return
+    }
 
     hasAutoRefreshCheckedRef.current = true
 
@@ -518,11 +752,15 @@ export default function App() {
         (course) => course.enabled,
       ).length
 
-      if (selectedCourseCount === 0 || !savedLastRefreshAt) return
+      if (selectedCourseCount === 0 || !savedLastRefreshAt) {
+        return
+      }
 
       const elapsed = Date.now() - new Date(savedLastRefreshAt).getTime()
 
-      if (elapsed < AUTO_REFRESH_INTERVAL_MS) return
+      if (elapsed < AUTO_REFRESH_INTERVAL_MS) {
+        return
+      }
 
       const lastStaleNotificationAt = await getLastStaleNotificationAt()
       const staleNotificationElapsed = lastStaleNotificationAt
@@ -549,7 +787,9 @@ export default function App() {
   }, [courses])
 
   const assignmentProgress = useMemo(() => {
-    if (assignmentScanStatus.totalCourses <= 0) return 0
+    if (assignmentScanStatus.totalCourses <= 0) {
+      return 0
+    }
 
     return Math.round(
       (assignmentScanStatus.completedCourses /
@@ -559,7 +799,9 @@ export default function App() {
   }, [assignmentScanStatus])
 
   const deadlineProgress = useMemo(() => {
-    if (deadlineScanStatus.totalItems <= 0) return 0
+    if (deadlineScanStatus.totalItems <= 0) {
+      return 0
+    }
 
     return Math.round(
       (deadlineScanStatus.completedItems / deadlineScanStatus.totalItems) * 100,
@@ -599,7 +841,9 @@ export default function App() {
       return `締切読み取り中 ${deadlineScanStatus.completedItems}/${deadlineScanStatus.totalItems}`
     }
 
-    if (isUpdating) return '更新準備中'
+    if (isUpdating) {
+      return '更新準備中'
+    }
 
     return ''
   }, [assignmentScanStatus, deadlineScanStatus, isUpdating])
@@ -608,15 +852,11 @@ export default function App() {
     const ignoredSet = new Set(ignoredAssignmentIds)
 
     return assignments.filter((assignment) => {
-      if (ignoredSet.has(assignment.id)) return false
+      if (ignoredSet.has(assignment.id)) {
+        return false
+      }
 
-      const course = courses.find(
-        (candidate) => candidate.id === assignment.courseId,
-      )
-
-      if (!course) return true
-
-      return course.enabled
+      return isAssignmentVisibleByCourse(assignment, courses)
     })
   }, [assignments, courses, ignoredAssignmentIds])
 
@@ -645,12 +885,40 @@ export default function App() {
       .sort(sortByDeadline)
   }, [visibleAssignments])
 
-  const futureAssignments = useMemo(() => {
+  const tomorrowAssignments = useMemo(() => {
     return visibleAssignments
       .filter((assignment) => {
         return (
           assignment.deadline &&
-          isFutureAfter24Hours(assignment.deadline) &&
+          isTomorrowOrEarlierAfter24Hours(assignment.deadline) &&
+          !isSubmittedAssignment(assignment) &&
+          assignment.lifecycleStatus !== 'passed' &&
+          assignment.lifecycleStatus !== 'before_start'
+        )
+      })
+      .sort(sortByDeadline)
+  }, [visibleAssignments])
+
+  const thisWeekAssignments = useMemo(() => {
+    return visibleAssignments
+      .filter((assignment) => {
+        return (
+          assignment.deadline &&
+          isWithinThisWeekAfterTomorrow(assignment.deadline) &&
+          !isSubmittedAssignment(assignment) &&
+          assignment.lifecycleStatus !== 'passed' &&
+          assignment.lifecycleStatus !== 'before_start'
+        )
+      })
+      .sort(sortByDeadline)
+  }, [visibleAssignments])
+
+  const laterAssignments = useMemo(() => {
+    return visibleAssignments
+      .filter((assignment) => {
+        return (
+          assignment.deadline &&
+          isLaterThanThisWeek(assignment.deadline) &&
           !isSubmittedAssignment(assignment) &&
           assignment.lifecycleStatus !== 'passed' &&
           assignment.lifecycleStatus !== 'before_start'
@@ -674,9 +942,20 @@ export default function App() {
     return visibleAssignments.filter(isSubmittedAssignment).sort(sortByDeadline)
   }, [visibleAssignments])
 
-  const passedAssignments = useMemo(() => {
+  const activePassedAssignments = useMemo(() => {
     return visibleAssignments
-      .filter((assignment) => assignment.lifecycleStatus === 'passed')
+      .filter((assignment) => {
+        return (
+          assignment.lifecycleStatus === 'passed' &&
+          !isOldPassedAssignment(assignment)
+        )
+      })
+      .sort(sortByDeadline)
+  }, [visibleAssignments])
+
+  const oldPassedAssignments = useMemo(() => {
+    return visibleAssignments
+      .filter((assignment) => isOldPassedAssignment(assignment))
       .sort(sortByDeadline)
   }, [visibleAssignments])
 
@@ -723,15 +1002,23 @@ export default function App() {
       const latestAssignments = await getAssignments()
       const latestCourses = await getCourses()
       const latestIgnoredIds = await getIgnoredAssignmentIds()
+
       const visibleLatestAssignments = latestAssignments.filter(
         (assignment) => !latestIgnoredIds.includes(assignment.id),
       )
+
       const urgent = getUrgentAssignments(visibleLatestAssignments, latestCourses)
 
       setAssignments(latestAssignments)
       setCourses(latestCourses)
       setIgnoredAssignmentIds(latestIgnoredIds)
       setLastRefreshAt(finishedAt)
+
+      await checkDeadlineWarningNotifications(
+        latestAssignments,
+        latestCourses,
+        latestIgnoredIds,
+      )
 
       if (urgent.length > 0) {
         const first = urgent[0]
@@ -752,6 +1039,8 @@ export default function App() {
       await refreshAll()
       setMessage('更新が完了しました。')
     } catch (error) {
+      const normalizedMessage = normalizeUpdateError(error)
+
       console.error(error)
 
       createNotification(
@@ -760,7 +1049,7 @@ export default function App() {
         '更新中にエラーが発生しました。拡張機能を開いて状態を確認してください。',
       )
 
-      setMessage(String(error))
+      setMessage(normalizedMessage)
     } finally {
       setIsUpdating(false)
     }
@@ -781,7 +1070,9 @@ export default function App() {
 
   async function toggleCourse(courseId: string) {
     const updatedCourses = courses.map((course) => {
-      if (course.id !== courseId) return course
+      if (course.id !== courseId) {
+        return course
+      }
 
       return {
         ...course,
@@ -806,7 +1097,16 @@ export default function App() {
     setCourses(updatedCourses)
     await saveCourses(updatedCourses)
 
-    setMessage(enabled ? 'すべての対象コースをONにしました。' : 'すべての対象コースをOFFにしました。')
+    setMessage(
+      enabled
+        ? 'すべての対象コースをONにしました。'
+        : 'すべての対象コースをOFFにしました。',
+    )
+  }
+
+  async function resetCourseSelection() {
+    await setAllCoursesEnabled(false)
+    setMessage('対象コース設定をリセットしました。')
   }
 
   async function hideAssignment(assignmentId: string) {
@@ -835,7 +1135,9 @@ export default function App() {
   }
 
   async function undoLastHiddenAssignment() {
-    if (!lastHiddenAssignment) return
+    if (!lastHiddenAssignment) {
+      return
+    }
 
     await restoreHiddenAssignment(lastHiddenAssignment.id)
     setLastHiddenAssignment(null)
@@ -846,6 +1148,57 @@ export default function App() {
     await saveIgnoredAssignmentIds([])
     setLastHiddenAssignment(null)
     setMessage('非表示にした課題をすべて再表示しました。')
+  }
+
+  async function clearTaskData() {
+    await clearAssignments()
+    await clearAssignmentCandidates()
+    await chrome.storage.local.remove([
+      ASSIGNMENT_SCAN_STATUS_KEY,
+      DEADLINE_SCAN_STATUS_KEY,
+      LAST_REFRESH_AT_KEY,
+      NOTIFIED_DEADLINE_KEYS_KEY,
+    ])
+
+    setAssignments([])
+    setAssignmentScanStatus(initialAssignmentScanStatus)
+    setDeadlineScanStatus(initialDeadlineScanStatus)
+    setLastRefreshAt(null)
+    setMessage('課題データと更新状態を削除しました。')
+  }
+
+  async function resetScanStatus() {
+    await chrome.storage.local.remove([
+      ASSIGNMENT_SCAN_STATUS_KEY,
+      DEADLINE_SCAN_STATUS_KEY,
+    ])
+
+    setAssignmentScanStatus(initialAssignmentScanStatus)
+    setDeadlineScanStatus(initialDeadlineScanStatus)
+    setMessage('更新状態をリセットしました。')
+  }
+
+  async function resetAllData() {
+    await clearAssignments()
+    await clearAssignmentCandidates()
+    await clearCourses()
+    await chrome.storage.local.remove([
+      ASSIGNMENT_SCAN_STATUS_KEY,
+      DEADLINE_SCAN_STATUS_KEY,
+      LAST_REFRESH_AT_KEY,
+      LAST_STALE_NOTIFICATION_AT_KEY,
+      IGNORED_ASSIGNMENT_IDS_KEY,
+      NOTIFIED_DEADLINE_KEYS_KEY,
+    ])
+
+    setAssignments([])
+    setCourses([])
+    setIgnoredAssignmentIds([])
+    setLastHiddenAssignment(null)
+    setAssignmentScanStatus(initialAssignmentScanStatus)
+    setDeadlineScanStatus(initialDeadlineScanStatus)
+    setLastRefreshAt(null)
+    setMessage('保存データをすべて初期化しました。')
   }
 
   function openDashboard() {
@@ -893,7 +1246,8 @@ export default function App() {
       {lastHiddenAssignment && (
         <div className="undoToast">
           <span>「{lastHiddenAssignment.title}」を非表示にしました。</span>
-          <button type="button" onClick={undoLastHiddenAssignment}>
+
+          <button type="button" onClick={() => void undoLastHiddenAssignment()}>
             元に戻す
           </button>
         </div>
@@ -904,9 +1258,11 @@ export default function App() {
           {selectedCourseCount === 0 && (
             <section className="warningCard">
               <strong>対象コースが選択されていません</strong>
+
               <span>
                 ダッシュボードから読み込む対象コースを選択してください。
               </span>
+
               <button type="button" onClick={openDashboard}>
                 ダッシュボードを開く
               </button>
@@ -920,8 +1276,10 @@ export default function App() {
             </div>
 
             <div>
-              <span>今後</span>
-              <strong>{futureAssignments.length}</strong>
+              <span>今週</span>
+              <strong>
+                {tomorrowAssignments.length + thisWeekAssignments.length}
+              </strong>
             </div>
 
             <div>
@@ -944,19 +1302,24 @@ export default function App() {
             ))}
           </Section>
 
-          {futureAssignments.length > 0 && (
+          {tomorrowAssignments.length + thisWeekAssignments.length > 0 && (
             <Section
               title="次の課題"
-              count={Math.min(futureAssignments.length, 3)}
+              count={Math.min(
+                tomorrowAssignments.length + thisWeekAssignments.length,
+                3,
+              )}
               emptyText="今後の課題はありません。"
             >
-              {futureAssignments.slice(0, 3).map((assignment) => (
-                <AssignmentCard
-                  key={assignment.id}
-                  assignment={assignment}
-                  compact
-                />
-              ))}
+              {[...tomorrowAssignments, ...thisWeekAssignments]
+                .slice(0, 3)
+                .map((assignment) => (
+                  <AssignmentCard
+                    key={assignment.id}
+                    assignment={assignment}
+                    compact
+                  />
+                ))}
             </Section>
           )}
 
@@ -991,13 +1354,13 @@ export default function App() {
             </div>
 
             <div>
-              <span>今後</span>
-              <strong>{futureAssignments.length}</strong>
+              <span>明日まで</span>
+              <strong>{tomorrowAssignments.length}</strong>
             </div>
 
             <div>
-              <span>開始前</span>
-              <strong>{beforeStartAssignments.length}</strong>
+              <span>今週</span>
+              <strong>{thisWeekAssignments.length}</strong>
             </div>
 
             <div>
@@ -1007,7 +1370,9 @@ export default function App() {
 
             <div>
               <span>期限切れ</span>
-              <strong>{passedAssignments.length}</strong>
+              <strong>
+                {activePassedAssignments.length + oldPassedAssignments.length}
+              </strong>
             </div>
           </section>
 
@@ -1027,11 +1392,11 @@ export default function App() {
           </Section>
 
           <Section
-            title="今後（近い順）"
-            count={futureAssignments.length}
-            emptyText="今後の課題はありません。"
+            title="明日まで"
+            count={tomorrowAssignments.length}
+            emptyText="明日までの課題はありません。"
           >
-            {futureAssignments.map((assignment) => (
+            {tomorrowAssignments.map((assignment) => (
               <AssignmentCard
                 key={assignment.id}
                 assignment={assignment}
@@ -1042,6 +1407,36 @@ export default function App() {
           </Section>
 
           <Section
+            title="今週"
+            count={thisWeekAssignments.length}
+            emptyText="今週中の課題はありません。"
+          >
+            {thisWeekAssignments.map((assignment) => (
+              <AssignmentCard
+                key={assignment.id}
+                assignment={assignment}
+                canHide
+                onHide={hideAssignment}
+              />
+            ))}
+          </Section>
+
+          <Section
+            title="それ以降"
+            count={laterAssignments.length}
+            emptyText="それ以降の課題はありません。"
+          >
+            {laterAssignments.map((assignment) => (
+              <AssignmentCard
+                key={assignment.id}
+                assignment={assignment}
+                canHide
+                onHide={hideAssignment}
+              />
+            ))}
+          </Section>
+
+          <CollapsibleSection
             title="開始前"
             count={beforeStartAssignments.length}
             emptyText="開始前の課題はありません。"
@@ -1054,7 +1449,7 @@ export default function App() {
                 onHide={hideAssignment}
               />
             ))}
-          </Section>
+          </CollapsibleSection>
 
           <CollapsibleSection
             title="提出済み・完了"
@@ -1073,10 +1468,25 @@ export default function App() {
 
           <CollapsibleSection
             title="期限切れ"
-            count={passedAssignments.length}
+            count={activePassedAssignments.length}
             emptyText="期限切れの課題はありません。"
           >
-            {passedAssignments.map((assignment) => (
+            {activePassedAssignments.map((assignment) => (
+              <AssignmentCard
+                key={assignment.id}
+                assignment={assignment}
+                canHide
+                onHide={hideAssignment}
+              />
+            ))}
+          </CollapsibleSection>
+
+          <CollapsibleSection
+            title={`${OLD_PASSED_DAYS}日以上前の期限切れ`}
+            count={oldPassedAssignments.length}
+            emptyText={`${OLD_PASSED_DAYS}日以上前の期限切れ課題はありません。`}
+          >
+            {oldPassedAssignments.map((assignment) => (
               <AssignmentCard
                 key={assignment.id}
                 assignment={assignment}
@@ -1094,10 +1504,17 @@ export default function App() {
             </div>
 
             <div className="courseBulkActions">
-              <button type="button" onClick={() => void setAllCoursesEnabled(true)}>
+              <button
+                type="button"
+                onClick={() => void setAllCoursesEnabled(true)}
+              >
                 すべてON
               </button>
-              <button type="button" onClick={() => void setAllCoursesEnabled(false)}>
+
+              <button
+                type="button"
+                onClick={() => void setAllCoursesEnabled(false)}
+              >
                 すべてOFF
               </button>
             </div>
@@ -1161,6 +1578,7 @@ export default function App() {
                         <span className="hiddenAssignmentTitle">
                           {assignment.title}
                         </span>
+
                         <span className="hiddenAssignmentMeta">
                           {assignment.courseName}・{formatDeadline(assignment.deadline)}
                         </span>
@@ -1169,7 +1587,9 @@ export default function App() {
                       <button
                         type="button"
                         className="restoreHiddenButton"
-                        onClick={() => void restoreHiddenAssignment(assignment.id)}
+                        onClick={() =>
+                          void restoreHiddenAssignment(assignment.id)
+                        }
                       >
                         戻す
                       </button>
@@ -1179,6 +1599,36 @@ export default function App() {
               )}
             </div>
           </CollapsibleSection>
+
+          <details className="settings">
+            <summary>データ管理</summary>
+
+            <div className="dataManagement">
+              <button type="button" onClick={clearTaskData}>
+                課題データを削除
+              </button>
+
+              <button type="button" onClick={resetScanStatus}>
+                更新状態をリセット
+              </button>
+
+              <button type="button" onClick={resetCourseSelection}>
+                対象コース設定をリセット
+              </button>
+
+              <button type="button" onClick={resetHiddenAssignments}>
+                非表示リストをリセット
+              </button>
+
+              <button
+                type="button"
+                className="dangerDataButton"
+                onClick={resetAllData}
+              >
+                すべての保存データを初期化
+              </button>
+            </div>
+          </details>
         </>
       )}
     </main>
