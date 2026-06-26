@@ -1,12 +1,10 @@
 {
   "manifest_version": 3,
   "name": "LETUS Task Watcher",
-  "version": "1.0.0",
-  "description": "LETUSの授業ページから課題締切と提出状況を整理する学生向け拡張機能です。",
+  "version": "1.0.3",
+  "description": "Organize LETUS assignment deadlines and submission status in your browser.",
   "permissions": [
     "storage",
-    "activeTab",
-    "scripting",
     "notifications"
   ],
   "host_permissions": [

@@ -28,13 +28,28 @@ button {
   border: none;
 }
 
+button:disabled {
+  cursor: not-allowed;
+  opacity: 0.58;
+}
+
 .app {
-  width: 500px;
-  min-height: 760px;
+  min-height: 100vh;
   padding: 18px;
   background:
     radial-gradient(circle at top left, rgba(99, 102, 241, 0.16), transparent 34%),
+    radial-gradient(circle at top right, rgba(14, 165, 233, 0.12), transparent 32%),
     linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
+}
+
+.app.popup {
+  width: 390px;
+  min-height: 520px;
+}
+
+.app.dashboard {
+  width: min(1040px, 100vw);
+  margin: 0 auto;
 }
 
 .top {
@@ -46,35 +61,37 @@ button {
   gap: 10px;
   margin: -18px -18px 16px;
   padding: 14px 18px;
-  background: rgba(255, 255, 255, 0.9);
+  background: rgba(255, 255, 255, 0.92);
   backdrop-filter: blur(16px);
-  border-bottom: 1px solid rgba(226, 232, 240, 0.86);
+  border-bottom: 1px solid rgba(226, 232, 240, 0.9);
 }
 
-.updateBtn {
-  min-height: 40px;
-  padding: 9px 18px;
+.updateBtn,
+.dashboardBtn {
+  min-height: 38px;
+  padding: 9px 16px;
   border-radius: 999px;
   background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
   color: #ffffff;
   font-size: 13px;
   font-weight: 900;
   cursor: pointer;
-  box-shadow: 0 12px 28px rgba(99, 102, 241, 0.3);
+  box-shadow: 0 12px 28px rgba(99, 102, 241, 0.28);
   transition:
     transform 0.14s ease,
     box-shadow 0.14s ease,
     opacity 0.14s ease;
 }
 
-.updateBtn:hover {
+.updateBtn:hover,
+.dashboardBtn:hover {
   transform: translateY(-1px);
-  box-shadow: 0 16px 34px rgba(99, 102, 241, 0.36);
+  box-shadow: 0 16px 34px rgba(99, 102, 241, 0.34);
 }
 
-.updateBtn:disabled {
-  cursor: not-allowed;
-  opacity: 0.72;
+.dashboardBtn {
+  width: 100%;
+  margin-top: 16px;
 }
 
 .stopBtn {
@@ -86,6 +103,10 @@ button {
   font-size: 12px;
   font-weight: 900;
   cursor: pointer;
+}
+
+.stopBtn:hover {
+  background: #fecaca;
 }
 
 .spinner {
@@ -108,7 +129,7 @@ button {
   display: grid;
   gap: 5px;
   flex: 1;
-  min-width: 120px;
+  min-width: 90px;
 }
 
 .progressText {
@@ -136,6 +157,28 @@ button {
   transition: width 0.22s ease;
 }
 
+.refreshInfo {
+  display: grid;
+  gap: 2px;
+  min-width: 78px;
+  padding: 6px 9px;
+  border-radius: 14px;
+  background: #f8fafc;
+  color: #475569;
+  font-size: 10px;
+  font-weight: 850;
+  line-height: 1.25;
+  border: 1px solid #e2e8f0;
+}
+
+.refreshInfo span:first-child {
+  color: #334155;
+}
+
+.refreshInfo span:last-child {
+  color: #6366f1;
+}
+
 .message {
   margin: 0 0 12px;
   padding: 10px 12px;
@@ -144,10 +187,149 @@ button {
   color: #3730a3;
   font-size: 12px;
   font-weight: 800;
+  border: 1px solid #e0e7ff;
+}
+
+.undoToast {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin: 0 0 12px;
+  padding: 10px 12px;
+  border-radius: 18px;
+  background: #fff7ed;
+  border: 1px solid #fed7aa;
+  color: #9a3412;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.undoToast span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.undoToast button {
+  flex: 0 0 auto;
+  padding: 6px 10px;
+  border-radius: 999px;
+  background: #ffffff;
+  color: #ea580c;
+  font-size: 11px;
+  font-weight: 900;
+  cursor: pointer;
+}
+
+.warningCard {
+  display: grid;
+  gap: 8px;
+  margin-bottom: 14px;
+  padding: 14px;
+  border-radius: 22px;
+  background: #fff7ed;
+  border: 1px solid #fed7aa;
+  box-shadow: 0 8px 18px rgba(15, 23, 42, 0.045);
+}
+
+.warningCard strong {
+  color: #9a3412;
+  font-size: 13px;
+  font-weight: 950;
+}
+
+.warningCard span {
+  color: #9a3412;
+  font-size: 12px;
+  font-weight: 750;
+  line-height: 1.55;
+}
+
+.warningCard button {
+  width: fit-content;
+  padding: 8px 12px;
+  border-radius: 999px;
+  background: #ffffff;
+  color: #ea580c;
+  font-size: 12px;
+  font-weight: 900;
+  cursor: pointer;
+}
+
+.dashboardHeader {
+  display: grid;
+  gap: 8px;
+  margin: 8px 0 18px;
+  padding: 20px;
+  border-radius: 28px;
+  background: rgba(255, 255, 255, 0.9);
+  border: 1px solid #e2e8f0;
+  box-shadow:
+    0 12px 28px rgba(15, 23, 42, 0.06),
+    0 1px 0 rgba(255, 255, 255, 0.9) inset;
+}
+
+.dashboardHeader h1 {
+  margin: 0;
+  color: #0f172a;
+  font-size: 28px;
+  letter-spacing: -0.04em;
+}
+
+.dashboardHeader p {
+  margin: 0;
+  color: #475569;
+  font-size: 13px;
+  font-weight: 750;
+  line-height: 1.65;
+}
+
+.eyebrow {
+  margin: 0 0 4px;
+  color: #6366f1;
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.miniSummary {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+  margin-bottom: 14px;
+}
+
+.dashboardSummary {
+  grid-template-columns: repeat(5, 1fr);
+}
+
+.miniSummary div {
+  padding: 12px;
+  border-radius: 20px;
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  box-shadow:
+    0 8px 18px rgba(15, 23, 42, 0.045),
+    0 1px 0 rgba(255, 255, 255, 0.9) inset;
+}
+
+.miniSummary span {
+  display: block;
+  margin-bottom: 6px;
+  color: #475569;
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.miniSummary strong {
+  color: #0f172a;
+  font-size: 24px;
+  line-height: 1;
 }
 
 .section {
-  margin-top: 18px;
+  margin-top: 16px;
 }
 
 .sectionHeader {
@@ -160,7 +342,7 @@ button {
 
 h2 {
   margin: 0;
-  color: #111827;
+  color: #0f172a;
   font-size: 18px;
   line-height: 1.3;
   letter-spacing: -0.02em;
@@ -175,6 +357,49 @@ h2 {
   font-weight: 900;
 }
 
+.collapsibleSection {
+  margin-top: 16px;
+  padding: 12px;
+  border-radius: 22px;
+  border: 1px solid #e2e8f0;
+  background: rgba(255, 255, 255, 0.86);
+  box-shadow:
+    0 10px 24px rgba(15, 23, 42, 0.045),
+    0 1px 0 rgba(255, 255, 255, 0.9) inset;
+}
+
+.collapsibleSection summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  cursor: pointer;
+  list-style: none;
+}
+
+.collapsibleSection summary::-webkit-details-marker {
+  display: none;
+}
+
+.collapsibleSection summary span:first-child {
+  color: #0f172a;
+  font-size: 15px;
+  font-weight: 950;
+}
+
+.collapsibleSection summary span:last-child {
+  padding: 4px 8px;
+  border-radius: 999px;
+  background: #f1f5f9;
+  color: #475569;
+  font-size: 11px;
+  font-weight: 900;
+}
+
+.collapsibleSection[open] summary {
+  margin-bottom: 10px;
+}
+
 .card {
   position: relative;
   display: grid;
@@ -183,10 +408,29 @@ h2 {
   padding: 15px 16px;
   border: 1px solid rgba(226, 232, 240, 0.95);
   border-radius: 24px;
-  background: rgba(255, 255, 255, 0.94);
+  background: rgba(255, 255, 255, 0.96);
   box-shadow:
     0 12px 28px rgba(15, 23, 42, 0.06),
     0 1px 0 rgba(255, 255, 255, 0.9) inset;
+  cursor: pointer;
+  transition:
+    transform 0.14s ease,
+    border-color 0.14s ease,
+    box-shadow 0.14s ease;
+}
+
+.card:hover {
+  transform: translateY(-1px);
+  border-color: rgba(99, 102, 241, 0.35);
+  box-shadow:
+    0 16px 36px rgba(15, 23, 42, 0.08),
+    0 1px 0 rgba(255, 255, 255, 0.9) inset;
+}
+
+.compactCard {
+  padding: 12px 13px;
+  border-radius: 20px;
+  gap: 5px;
 }
 
 .topRow {
@@ -206,6 +450,7 @@ h2 {
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  min-width: fit-content;
   padding: 4px 9px;
   border-radius: 999px;
   background: #fff7ed;
@@ -221,11 +466,24 @@ h2 {
   line-height: 1.45;
 }
 
+.compactCard .title {
+  font-size: 13px;
+  line-height: 1.35;
+}
+
 .course {
-  color: #64748b;
+  color: #475569;
   font-size: 12px;
   font-weight: 700;
   line-height: 1.45;
+}
+
+.cardFooter {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-top: 2px;
 }
 
 .statusPill {
@@ -278,18 +536,40 @@ h2 {
   border-color: #ddd6fe;
 }
 
+.hideAssignmentButton {
+  padding: 5px 10px;
+  border-radius: 999px;
+  background: #fff1f2;
+  color: #be123c;
+  font-size: 11px;
+  font-weight: 900;
+  cursor: pointer;
+  transition:
+    background 0.14s ease,
+    transform 0.14s ease,
+    box-shadow 0.14s ease;
+}
+
+.hideAssignmentButton:hover {
+  transform: translateY(-1px);
+  background: #ffe4e6;
+  box-shadow: 0 8px 18px rgba(190, 18, 60, 0.12);
+}
+
 .settings {
   margin-top: 24px;
   padding: 14px;
   border: 1px solid rgba(226, 232, 240, 0.95);
   border-radius: 24px;
-  background: rgba(255, 255, 255, 0.86);
-  box-shadow: 0 10px 24px rgba(15, 23, 42, 0.05);
+  background: rgba(255, 255, 255, 0.9);
+  box-shadow:
+    0 10px 24px rgba(15, 23, 42, 0.05),
+    0 1px 0 rgba(255, 255, 255, 0.9) inset;
 }
 
 .settings summary {
   cursor: pointer;
-  color: #111827;
+  color: #0f172a;
   font-size: 14px;
   font-weight: 950;
   list-style: none;
@@ -310,9 +590,29 @@ h2 {
 
 .settingsMeta {
   margin-bottom: 10px;
-  color: #64748b;
+  color: #475569;
   font-size: 12px;
   font-weight: 800;
+}
+
+.courseBulkActions {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.courseBulkActions button {
+  padding: 7px 11px;
+  border-radius: 999px;
+  background: #eef2ff;
+  color: #4338ca;
+  font-size: 12px;
+  font-weight: 900;
+  cursor: pointer;
+}
+
+.courseBulkActions button:hover {
+  background: #e0e7ff;
 }
 
 .courseList {
@@ -335,6 +635,16 @@ h2 {
   font-weight: 750;
   line-height: 1.45;
   cursor: pointer;
+  transition:
+    border-color 0.14s ease,
+    background 0.14s ease,
+    transform 0.14s ease;
+}
+
+.courseRow:hover {
+  transform: translateY(-1px);
+  border-color: #c7d2fe;
+  background: #f8fafc;
 }
 
 .courseRow input {
@@ -344,46 +654,135 @@ h2 {
   cursor: pointer;
 }
 
-.emptyText {
-  margin: 8px 0 0;
+.hiddenPanel {
+  display: grid;
+  gap: 12px;
+}
+
+.hiddenPanelHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
   padding: 12px;
+  border: 1px solid #e2e8f0;
   border-radius: 18px;
   background: #f8fafc;
+}
+
+.hiddenPanelHeader div {
+  display: grid;
+  gap: 3px;
+}
+
+.hiddenPanelHeader strong {
+  color: #0f172a;
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.hiddenPanelHeader span {
+  color: #64748b;
+  font-size: 11px;
+  font-weight: 800;
+  line-height: 1.45;
+}
+
+.hiddenEmptyText {
+  margin: 0;
+  padding: 10px 12px;
+  border-radius: 16px;
+  background: #ffffff;
   color: #64748b;
   font-size: 12px;
   font-weight: 700;
 }
 
-.refreshInfo {
+.hiddenAssignmentList {
   display: grid;
-  gap: 2px;
-  min-width: 86px;
-  padding: 6px 9px;
-  border-radius: 14px;
+  gap: 8px;
+  padding: 0;
+  margin: 0;
+  list-style: none;
+}
+
+.hiddenAssignmentItem {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 11px;
+  border: 1px solid #e2e8f0;
+  border-radius: 18px;
+  background: #ffffff;
+  box-shadow:
+    0 6px 14px rgba(15, 23, 42, 0.035),
+    0 1px 0 rgba(255, 255, 255, 0.9) inset;
+}
+
+.hiddenAssignmentText {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}
+
+.hiddenAssignmentTitle {
+  color: #0f172a;
+  font-size: 12px;
+  font-weight: 900;
+  line-height: 1.45;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.hiddenAssignmentMeta {
+  color: #64748b;
+  font-size: 11px;
+  font-weight: 750;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.restoreHiddenButton,
+.resetHiddenButton {
+  padding: 7px 11px;
+  border-radius: 999px;
+  background: #ecfdf3;
+  color: #15803d;
+  font-size: 11px;
+  font-weight: 900;
+  cursor: pointer;
+  transition:
+    background 0.14s ease,
+    transform 0.14s ease,
+    box-shadow 0.14s ease;
+}
+
+.resetHiddenButton {
+  background: #eef2ff;
+  color: #4338ca;
+}
+
+.restoreHiddenButton:hover {
+  transform: translateY(-1px);
+  background: #dcfce7;
+  box-shadow: 0 8px 18px rgba(21, 128, 61, 0.12);
+}
+
+.resetHiddenButton:hover:not(:disabled) {
+  transform: translateY(-1px);
+  background: #e0e7ff;
+}
+
+.emptyText {
+  margin: 8px 0 0;
+  padding: 12px;
+  border-radius: 18px;
   background: #f8fafc;
   color: #475569;
-  font-size: 10px;
-  font-weight: 850;
-  line-height: 1.25;
-}
-
-.refreshInfo span:first-child {
-  color: #334155;
-}
-
-.refreshInfo span:last-child {
-  color: #6366f1;
-}
-
-.card {
-  cursor: pointer;
-}
-
-.card:focus {
-  outline: 3px solid rgba(99, 102, 241, 0.35);
-  outline-offset: 2px;
-}
-
-.card:active {
-  transform: scale(0.995);
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1.55;
 }
