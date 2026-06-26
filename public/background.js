@@ -548,7 +548,7 @@ async function createNotification({ id, title, message, url }) {
 
   chrome.notifications.create(id, {
     type: 'basic',
-    iconUrl: 'vite.svg',
+    iconUrl: 'icons/icon-128.png',
     title,
     message,
     priority: 2,
@@ -584,7 +584,7 @@ async function notifyDeadlineSummary(assignments) {
   if (urgentAssignments.length === 0) {
     chrome.notifications.create('task-watcher-refresh-completed', {
       type: 'basic',
-      iconUrl: 'vite.svg',
+      iconUrl: 'icons/icon-128.png',
       title: 'LMS Task Watcher',
       message: '更新が完了しました。24時間以内の未提出課題はありません。',
       priority: 1,
