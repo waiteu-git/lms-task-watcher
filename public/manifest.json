@@ -1,0 +1,15 @@
+{
+  "manifest_version": 3,
+  "name": "LMS Task Watcher",
+  "version": "0.1.0",
+  "description": "大学LMSの授業と課題締切を管理する拡張機能です。",
+  "permissions": ["storage", "activeTab", "scripting", "notifications"],
+  "host_permissions": ["https://letus.ed.tus.ac.jp/*"],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "action": {
+    "default_title": "LMS Task Watcher",
+    "default_popup": "index.html"
+  }
+}

@@ -1,0 +1,8 @@
+node_modules
+dist
+*.zip
+.env
+.DS_Store
+.vscode/*
+!.vscode/extensions.json
+``
