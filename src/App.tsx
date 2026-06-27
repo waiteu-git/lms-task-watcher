@@ -13,6 +13,7 @@ import {
   ASSIGNMENT_SCAN_STATUS_KEY,
   AUTO_REFRESH_INTERVAL_MS,
   DEADLINE_SCAN_STATUS_KEY,
+  FEEDBACK_FORM_URL,
   IGNORED_ASSIGNMENT_IDS_KEY,
   LAST_REFRESH_AT_KEY,
   LAST_STALE_NOTIFICATION_AT_KEY,
@@ -60,6 +61,13 @@ import {
 import { createNotification, normalizeUpdateError } from './utils/notification'
 import { AssignmentCard } from './components/AssignmentCard'
 import { CollapsibleSection, Section } from './components/Section'
+import { getTheme, saveTheme } from './core/premium'
+import { isSubscriptionActive } from './core/auth'
+import { PremiumGate } from './components/PremiumGate'
+import { AssignmentMemo } from './components/AssignmentMemo'
+import { SubscriberBadge } from './components/SubscriberBadge'
+
+const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL as string) ?? ''
 
 export default function App() {
   const isDashboard = window.location.hash === '#dashboard'
@@ -75,6 +83,8 @@ export default function App() {
     useState<DeadlineScanStatus>(initialDeadlineScanStatus)
   const [lastRefreshAt, setLastRefreshAt] = useState<string | null>(null)
   const [isUpdating, setIsUpdating] = useState(false)
+  const [theme, setTheme] = useState('default')
+  const [isSubscriber, setIsSubscriber] = useState(false)
   const [message, setMessage] = useState('')
   const hasAutoRefreshCheckedRef = useRef(false)
   const hasCheckedDeadlineNotificationRef = useRef(false)
@@ -186,6 +196,18 @@ export default function App() {
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     void refreshAll()
+  }, [])
+
+  useEffect(() => {
+    void (async () => {
+      const [savedTheme, subscriberStatus] = await Promise.all([
+        getTheme(),
+        isSubscriptionActive(),
+      ])
+      setTheme(savedTheme)
+      setIsSubscriber(subscriberStatus)
+      document.documentElement.setAttribute('data-theme', savedTheme)
+    })()
   }, [])
 
   useEffect(() => {
@@ -689,6 +711,10 @@ export default function App() {
     })
   }
 
+  function openFeedbackForm() {
+    void chrome.tabs.create({ url: FEEDBACK_FORM_URL })
+  }
+
   return (
     <main className={`app ${isDashboard ? 'dashboard' : 'popup'}`}>
       <div className="top">
@@ -812,6 +838,12 @@ export default function App() {
           >
             ダッシュボードを開く
           </button>
+
+          <footer className="feedbackFooter">
+            <button type="button" onClick={openFeedbackForm}>
+              バグ報告・ご意見
+            </button>
+          </footer>
         </>
       )}
 
@@ -864,12 +896,16 @@ export default function App() {
             emptyText="24時間以内の提出物はありません。"
           >
             {urgentAssignments.map((assignment) => (
-              <AssignmentCard
-                key={assignment.id}
-                assignment={assignment}
-                canHide
-                onHide={hideAssignment}
-              />
+              <div key={assignment.id}>
+                <AssignmentCard
+                  assignment={assignment}
+                  canHide
+                  onHide={hideAssignment}
+                />
+                <PremiumGate apiBaseUrl={API_BASE_URL}>
+                  <AssignmentMemo assignmentId={assignment.id} apiBaseUrl={API_BASE_URL} />
+                </PremiumGate>
+              </div>
             ))}
           </Section>
 
@@ -879,12 +915,16 @@ export default function App() {
             emptyText="明日までの課題はありません。"
           >
             {tomorrowAssignments.map((assignment) => (
-              <AssignmentCard
-                key={assignment.id}
-                assignment={assignment}
-                canHide
-                onHide={hideAssignment}
-              />
+              <div key={assignment.id}>
+                <AssignmentCard
+                  assignment={assignment}
+                  canHide
+                  onHide={hideAssignment}
+                />
+                <PremiumGate apiBaseUrl={API_BASE_URL}>
+                  <AssignmentMemo assignmentId={assignment.id} apiBaseUrl={API_BASE_URL} />
+                </PremiumGate>
+              </div>
             ))}
           </Section>
 
@@ -894,12 +934,16 @@ export default function App() {
             emptyText="今週中の課題はありません。"
           >
             {thisWeekAssignments.map((assignment) => (
-              <AssignmentCard
-                key={assignment.id}
-                assignment={assignment}
-                canHide
-                onHide={hideAssignment}
-              />
+              <div key={assignment.id}>
+                <AssignmentCard
+                  assignment={assignment}
+                  canHide
+                  onHide={hideAssignment}
+                />
+                <PremiumGate apiBaseUrl={API_BASE_URL}>
+                  <AssignmentMemo assignmentId={assignment.id} apiBaseUrl={API_BASE_URL} />
+                </PremiumGate>
+              </div>
             ))}
           </Section>
 
@@ -909,12 +953,16 @@ export default function App() {
             emptyText="それ以降の課題はありません。"
           >
             {laterAssignments.map((assignment) => (
-              <AssignmentCard
-                key={assignment.id}
-                assignment={assignment}
-                canHide
-                onHide={hideAssignment}
-              />
+              <div key={assignment.id}>
+                <AssignmentCard
+                  assignment={assignment}
+                  canHide
+                  onHide={hideAssignment}
+                />
+                <PremiumGate apiBaseUrl={API_BASE_URL}>
+                  <AssignmentMemo assignmentId={assignment.id} apiBaseUrl={API_BASE_URL} />
+                </PremiumGate>
+              </div>
             ))}
           </Section>
 
@@ -977,6 +1025,33 @@ export default function App() {
               />
             ))}
           </CollapsibleSection>
+
+          <details className="settings" open>
+            <summary>
+              プレミアム設定
+              {isSubscriber && <SubscriberBadge />}
+            </summary>
+
+            <PremiumGate apiBaseUrl={API_BASE_URL}>
+              <div className="themeSelector">
+                <span>テーマ:</span>
+                {['default', 'dark'].map((t) => (
+                  <button
+                    key={t}
+                    type="button"
+                    className={`priorityBtn ${theme === t ? 'active priority2' : ''}`}
+                    onClick={() => {
+                      setTheme(t)
+                      document.documentElement.setAttribute('data-theme', t)
+                      void saveTheme(t)
+                    }}
+                  >
+                    {t === 'default' ? '標準' : 'ダーク'}
+                  </button>
+                ))}
+              </div>
+            </PremiumGate>
+          </details>
 
           <details className="settings" open>
             <summary>対象コースの選択</summary>
@@ -1111,6 +1186,12 @@ export default function App() {
               </button>
             </div>
           </details>
+
+          <footer className="feedbackFooter">
+            <button type="button" onClick={openFeedbackForm}>
+              バグ報告・ご意見
+            </button>
+          </footer>
         </>
       )}
     </main>
