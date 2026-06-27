@@ -847,17 +847,41 @@ async function checkDeadlineWarningNotifications(): Promise<void> {
 // ─── Alarm-based auto scan ────────────────────────────────────────────────────
 
 const ALARM_NAME = 'auto-scan'
-const ALARM_PERIOD_MINUTES = 120
+const ALARM_PERIOD_MINUTES = 720
+
+const LETUS_LOGIN_URL = 'https://letus.ed.tus.ac.jp/login/index.php'
+
+async function checkIsLoggedIn(courses: Course[]): Promise<boolean> {
+  const course = courses.find((c) => c.enabled)
+  if (!course) return false
+  try {
+    const response = await fetch(course.url, { credentials: 'include' })
+    if (!response.ok) return false
+    return !response.url.includes('/login/')
+  } catch {
+    return false
+  }
+}
 
 async function runAutoScan(): Promise<void> {
   const courses = await getCourses()
-  const hasEnabledCourse = courses.some((c) => c.enabled)
+  const enabledCourses = courses.filter((c) => c.enabled)
 
-  if (!hasEnabledCourse) return
+  if (enabledCourses.length === 0) return
+
+  const loggedIn = await checkIsLoggedIn(enabledCourses)
+  if (!loggedIn) {
+    await createNotification({
+      id: 'task-watcher-login-required',
+      title: 'LETUS Task Watcher',
+      message: 'LETUSにログインしてください。クリックするとログイン画面が開きます。',
+      url: LETUS_LOGIN_URL,
+    })
+    return
+  }
 
   await scanAssignmentCandidatesInBackground('standard')
   await scanDeadlinesInBackground()
-
   await saveLastRefreshAt(new Date().toISOString())
   await checkDeadlineWarningNotifications()
 }
