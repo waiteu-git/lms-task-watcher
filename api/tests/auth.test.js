@@ -47,3 +47,28 @@ describe('POST /api/auth/login', () => {
     expect(res.status).toBe(401)
   })
 })
+
+describe('GET /api/subscription/status', () => {
+  let token
+
+  beforeAll(async () => {
+    const res = await request(app)
+      .post('/api/auth/register')
+      .send({ email: 'sub@example.com', password: 'password123' })
+    token = res.body.token
+  })
+
+  it('新規ユーザーのサブスク状態はinactiveになる', async () => {
+    const res = await request(app)
+      .get('/api/subscription/status')
+      .set('Authorization', `Bearer ${token}`)
+    expect(res.status).toBe(200)
+    expect(res.body.status).toBe('inactive')
+    expect(res.body.currentPeriodEnd).toBeNull()
+  })
+
+  it('トークンなしでは401になる', async () => {
+    const res = await request(app).get('/api/subscription/status')
+    expect(res.status).toBe(401)
+  })
+})
