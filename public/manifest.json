@@ -6,10 +6,12 @@
   "permissions": [
     "storage",
     "notifications",
-    "alarms"
+    "alarms",
+    "tabs"
   ],
   "host_permissions": [
-    "https://letus.ed.tus.ac.jp/*"
+    "https://letus.ed.tus.ac.jp/*",
+    "https://your-domain.com/*"
   ],
   "background": {
     "service_worker": "background.js",
