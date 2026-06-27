@@ -7,3 +7,4 @@ dist
 !.vscode/extensions.json
 .mcp.json
 .superpowers/
+data/
