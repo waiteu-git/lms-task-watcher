@@ -23,7 +23,6 @@ vi.stubGlobal('chrome', {
 import {
   getAuthToken,
   saveAuthSession,
-  clearAuthSession,
   isSubscriptionActive,
   saveSubscriptionCache,
 } from './auth'
