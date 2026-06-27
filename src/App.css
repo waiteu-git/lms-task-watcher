@@ -133,6 +133,58 @@
   align-items: center;
 }
 
+.memoToggle {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 11px;
+  color: #9ca3af;
+  padding: 2px 0;
+  width: 100%;
+  text-align: left;
+}
+
+.memoToggleHasData {
+  color: var(--color-text);
+}
+
+.memoTogglePriority {
+  padding: 1px 6px;
+  border-radius: 3px;
+  font-size: 10px;
+  font-weight: bold;
+}
+
+.memoTogglePriority.priority1 { background: #d1fae5; color: #065f46; }
+.memoTogglePriority.priority2 { background: #fef3c7; color: #92400e; }
+.memoTogglePriority.priority3 { background: #fee2e2; color: #991b1b; }
+
+.memoToggleSnippet {
+  color: #6b7280;
+  font-size: 11px;
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.memoToggleLabel {
+  font-size: 11px;
+}
+
+.memoToggleArrow {
+  margin-left: auto;
+  font-size: 9px;
+  color: #9ca3af;
+}
+
+.memoBody {
+  margin-top: 6px;
+}
+
 * {
   box-sizing: border-box;
 }
