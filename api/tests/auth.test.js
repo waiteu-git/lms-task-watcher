@@ -29,13 +29,13 @@ describe('POST /api/auth/login', () => {
   beforeAll(async () => {
     await request(app)
       .post('/api/auth/register')
-      .send({ email: 'login@example.com', password: 'correct' })
+      .send({ email: 'login@example.com', password: 'correct1' })
   })
 
   it('正しいパスワードでログインできる', async () => {
     const res = await request(app)
       .post('/api/auth/login')
-      .send({ email: 'login@example.com', password: 'correct' })
+      .send({ email: 'login@example.com', password: 'correct1' })
     expect(res.status).toBe(200)
     expect(res.body).toHaveProperty('token')
   })
