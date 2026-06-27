@@ -6,3 +6,4 @@ dist
 .vscode/*
 !.vscode/extensions.json
 .mcp.json
+.superpowers/
