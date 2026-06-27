@@ -37,7 +37,6 @@ export async function getTheme(): Promise<string> {
 
 export async function saveTheme(theme: string): Promise<void> {
   await chrome.storage.local.set({ [THEME_KEY]: theme })
-  void syncToServer(import.meta.env.VITE_API_BASE_URL ?? '')
 }
 
 export async function syncToServer(apiBaseUrl: string): Promise<void> {
