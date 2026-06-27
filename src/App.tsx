@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import './App.css'
 import type { Assignment, Course } from './core/types'
 import {
@@ -18,6 +18,7 @@ import {
   LAST_STALE_NOTIFICATION_AT_KEY,
   NOTIFIED_DEADLINE_KEYS_KEY,
   OLD_PASSED_DAYS,
+  ONE_DAY_MS,
   ONE_HOUR_MS,
   STALE_NOTIFICATION_INTERVAL_MS,
   THREE_HOURS_MS,
@@ -139,6 +140,7 @@ export default function App() {
 
       const oneHourKey = `${assignment.id}:1h`
       const threeHourKey = `${assignment.id}:3h`
+      const oneDayKey = `${assignment.id}:24h`
 
       if (diff <= ONE_HOUR_MS && !notifiedSet.has(oneHourKey)) {
         createNotification(
@@ -161,6 +163,18 @@ export default function App() {
 
         nextNotifiedKeys.add(threeHourKey)
         changed = true
+        continue
+      }
+
+      if (diff <= ONE_DAY_MS && !notifiedSet.has(oneDayKey)) {
+        createNotification(
+          `letus-task-watcher-deadline-24h-${assignment.id}-${Date.now()}`,
+          '締切まで24時間以内',
+          `${assignment.title}\n${assignment.courseName}`,
+        )
+
+        nextNotifiedKeys.add(oneDayKey)
+        changed = true
       }
     }
 
@@ -170,6 +184,7 @@ export default function App() {
   }
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     void refreshAll()
   }, [])
 
@@ -201,6 +216,98 @@ export default function App() {
         savedIgnoredIds,
       )
     })()
+  }, [])
+
+  const updateNow = useCallback(async () => {
+    const currentCourses = await getCourses()
+    const currentSelectedCourseCount = currentCourses.filter(
+      (course) => course.enabled,
+    ).length
+
+    if (currentSelectedCourseCount === 0) {
+      setMessage('対象コースを選択してください。')
+      return
+    }
+
+    try {
+      setIsUpdating(true)
+      setMessage('更新を開始しました。')
+
+      await chrome.storage.local.remove([
+        ASSIGNMENT_SCAN_STATUS_KEY,
+        DEADLINE_SCAN_STATUS_KEY,
+      ])
+
+      await chrome.runtime.sendMessage({
+        type: 'START_ASSIGNMENT_SCAN',
+        scanLevel: 'standard',
+      })
+
+      await waitForAssignmentScanToFinish(refreshAll)
+
+      await chrome.runtime.sendMessage({
+        type: 'START_DEADLINE_SCAN',
+      })
+
+      await waitForDeadlineScanToFinish(refreshAll)
+
+      const finishedAt = new Date().toISOString()
+      await saveLastRefreshAt(finishedAt)
+
+      const latestAssignments = await getAssignments()
+      const latestCourses = await getCourses()
+      const latestIgnoredIds = await getIgnoredAssignmentIds()
+
+      const visibleLatestAssignments = latestAssignments.filter(
+        (assignment) => !latestIgnoredIds.includes(assignment.id),
+      )
+
+      const urgent = getUrgentAssignments(visibleLatestAssignments, latestCourses)
+
+      setAssignments(latestAssignments)
+      setCourses(latestCourses)
+      setIgnoredAssignmentIds(latestIgnoredIds)
+      setLastRefreshAt(finishedAt)
+
+      await checkDeadlineWarningNotifications(
+        latestAssignments,
+        latestCourses,
+        latestIgnoredIds,
+      )
+
+      if (urgent.length > 0) {
+        const first = urgent[0]
+
+        createNotification(
+          `letus-task-watcher-update-urgent-${Date.now()}`,
+          `24時間以内の課題: ${urgent.length}件`,
+          `${first.title}\n${first.courseName}`,
+        )
+      } else {
+        createNotification(
+          `letus-task-watcher-update-completed-${Date.now()}`,
+          'LETUS Task Watcher',
+          '更新が完了しました。24時間以内の未提出課題はありません。',
+        )
+      }
+
+      await refreshAll()
+      setMessage('更新が完了しました。')
+    } catch (error) {
+      const normalizedMessage = normalizeUpdateError(error)
+
+      console.error(error)
+
+      createNotification(
+        `letus-task-watcher-update-error-${Date.now()}`,
+        'LETUS Task Watcher',
+        '更新中にエラーが発生しました。拡張機能を開いて状態を確認してください。',
+      )
+
+      setMessage(normalizedMessage)
+    } finally {
+      setIsUpdating(false)
+    }
   }, [])
 
   useEffect(() => {
@@ -247,7 +354,7 @@ export default function App() {
       setMessage('前回更新から2時間以上経過したため、自動更新します。')
       await updateNow()
     })()
-  }, [])
+  }, [updateNow])
 
   const selectedCourseCount = useMemo(() => {
     return courses.filter((course) => course.enabled).length
@@ -429,98 +536,6 @@ export default function App() {
   const isBackgroundRunning =
     assignmentScanStatus.state === 'running' ||
     deadlineScanStatus.state === 'running'
-
-  async function updateNow() {
-    const currentCourses = await getCourses()
-    const currentSelectedCourseCount = currentCourses.filter(
-      (course) => course.enabled,
-    ).length
-
-    if (currentSelectedCourseCount === 0) {
-      setMessage('対象コースを選択してください。')
-      return
-    }
-
-    try {
-      setIsUpdating(true)
-      setMessage('更新を開始しました。')
-
-      await chrome.storage.local.remove([
-        ASSIGNMENT_SCAN_STATUS_KEY,
-        DEADLINE_SCAN_STATUS_KEY,
-      ])
-
-      await chrome.runtime.sendMessage({
-        type: 'START_ASSIGNMENT_SCAN',
-        scanLevel: 'standard',
-      })
-
-      await waitForAssignmentScanToFinish(refreshAll)
-
-      await chrome.runtime.sendMessage({
-        type: 'START_DEADLINE_SCAN',
-      })
-
-      await waitForDeadlineScanToFinish(refreshAll)
-
-      const finishedAt = new Date().toISOString()
-      await saveLastRefreshAt(finishedAt)
-
-      const latestAssignments = await getAssignments()
-      const latestCourses = await getCourses()
-      const latestIgnoredIds = await getIgnoredAssignmentIds()
-
-      const visibleLatestAssignments = latestAssignments.filter(
-        (assignment) => !latestIgnoredIds.includes(assignment.id),
-      )
-
-      const urgent = getUrgentAssignments(visibleLatestAssignments, latestCourses)
-
-      setAssignments(latestAssignments)
-      setCourses(latestCourses)
-      setIgnoredAssignmentIds(latestIgnoredIds)
-      setLastRefreshAt(finishedAt)
-
-      await checkDeadlineWarningNotifications(
-        latestAssignments,
-        latestCourses,
-        latestIgnoredIds,
-      )
-
-      if (urgent.length > 0) {
-        const first = urgent[0]
-
-        createNotification(
-          `letus-task-watcher-update-urgent-${Date.now()}`,
-          `24時間以内の課題: ${urgent.length}件`,
-          `${first.title}\n${first.courseName}`,
-        )
-      } else {
-        createNotification(
-          `letus-task-watcher-update-completed-${Date.now()}`,
-          'LETUS Task Watcher',
-          '更新が完了しました。24時間以内の未提出課題はありません。',
-        )
-      }
-
-      await refreshAll()
-      setMessage('更新が完了しました。')
-    } catch (error) {
-      const normalizedMessage = normalizeUpdateError(error)
-
-      console.error(error)
-
-      createNotification(
-        `letus-task-watcher-update-error-${Date.now()}`,
-        'LETUS Task Watcher',
-        '更新中にエラーが発生しました。拡張機能を開いて状態を確認してください。',
-      )
-
-      setMessage(normalizedMessage)
-    } finally {
-      setIsUpdating(false)
-    }
-  }
 
   async function stopUpdating() {
     setIsUpdating(false)
