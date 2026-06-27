@@ -23,19 +23,22 @@ function generateToken(userId, email) {
 router.post('/register', async (req, res) => {
   const { email, password } = req.body
 
-  if (!email || !password) {
+  if (!email || !password || password.length < 8) {
     return res.status(400).json({ error: 'メールアドレスとパスワードが必要です' })
   }
 
   try {
     const passwordHash = await bcrypt.hash(password, SALT_ROUNDS)
-    const result = db.prepare(
-      'INSERT INTO users (email, password_hash) VALUES (?, ?)'
-    ).run(email, passwordHash)
-
-    db.prepare(
-      'INSERT INTO subscriptions (user_id) VALUES (?)'
-    ).run(result.lastInsertRowid)
+    const insertUserWithSub = db.transaction((em, hash) => {
+      const r = db.prepare(
+        'INSERT INTO users (email, password_hash) VALUES (?, ?)'
+      ).run(em, hash)
+      db.prepare(
+        'INSERT INTO subscriptions (user_id) VALUES (?)'
+      ).run(r.lastInsertRowid)
+      return r
+    })
+    const result = insertUserWithSub(email, passwordHash)
 
     const { token, expiresAt } = generateToken(result.lastInsertRowid, email)
     return res.status(201).json({ token, expiresAt })
