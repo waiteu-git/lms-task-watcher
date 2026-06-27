@@ -1,0 +1,8 @@
+export const COURSES_KEY = 'courses'
+export const ASSIGNMENT_CANDIDATES_KEY = 'assignmentCandidates'
+export const ASSIGNMENTS_KEY = 'assignments'
+export const ASSIGNMENT_SCAN_STATUS_KEY = 'assignmentScanStatus'
+export const DEADLINE_SCAN_STATUS_KEY = 'deadlineScanStatus'
+export const NOTIFIED_DEADLINE_KEYS_KEY = 'notifiedDeadlineKeys'
+export const IGNORED_ASSIGNMENT_IDS_KEY = 'ignoredAssignmentIds'
+export const LAST_REFRESH_AT_KEY = 'lastSuccessfulRefreshAt'
