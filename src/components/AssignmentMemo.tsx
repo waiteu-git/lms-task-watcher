@@ -48,11 +48,11 @@ export function AssignmentMemo({ assignmentId, apiBaseUrl }: Props) {
   const hasData = memo.priority > 0 || memo.memo.trim().length > 0
 
   return (
-    <div className="assignmentMemo">
+    <div className="assignmentMemo" onClick={(e) => e.stopPropagation()}>
       <button
         type="button"
         className={`memoToggle ${hasData ? 'memoToggleHasData' : ''}`}
-        onClick={() => setOpen((v) => !v)}
+        onClick={(e) => { e.stopPropagation(); setOpen((v) => !v) }}
       >
         {hasData && memo.priority > 0 && (
           <span className={`memoTogglePriority ${PRIORITY_CLASS[memo.priority]}`}>
@@ -69,7 +69,7 @@ export function AssignmentMemo({ assignmentId, apiBaseUrl }: Props) {
       </button>
 
       {open && (
-        <div className="memoBody">
+        <div className="memoBody" onClick={(e) => e.stopPropagation()}>
           <div className="prioritySelector">
             {([0, 1, 2, 3] as const).map((p) => (
               <button
