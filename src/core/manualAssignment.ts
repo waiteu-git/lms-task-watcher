@@ -8,6 +8,7 @@ export type ManualAssignment = {
   letusUrl: string | null
   deadline: string
   memo: string
+  submitted: boolean
   createdAt: string
 }
 
@@ -38,4 +39,11 @@ export async function addManualAssignment(
 export async function deleteManualAssignment(id: string): Promise<void> {
   const current = await getManualAssignments()
   await saveManualAssignments(current.filter((a) => a.id !== id))
+}
+
+export async function toggleManualAssignmentSubmitted(id: string): Promise<void> {
+  const current = await getManualAssignments()
+  await saveManualAssignments(
+    current.map((a) => (a.id === id ? { ...a, submitted: !a.submitted } : a)),
+  )
 }

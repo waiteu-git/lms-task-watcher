@@ -1,6 +1,7 @@
 import type { Course } from '../core/types'
 import { getCourses, getAssignments } from '../core/storage'
 import { addManualAssignment, type ManualAssignment } from '../core/manualAssignment'
+import { initActivityWidget } from './activityWidget'
 
 function createId(): string {
   return crypto.randomUUID()
@@ -146,6 +147,7 @@ function buildWidget(courses: Course[]): void {
       letusUrl: location.href,
       deadline: new Date(deadline).toISOString(),
       memo,
+      submitted: false,
       createdAt: new Date().toISOString(),
     }
 
@@ -159,17 +161,11 @@ function buildWidget(courses: Course[]): void {
   })
 }
 
-function isCourseOrActivityPage(): boolean {
-  const path = location.pathname
-  return (
-    path.startsWith('/course/view.php') ||
-    path.startsWith('/mod/')
-  )
-}
-
 export async function initManualTaskWidget(): Promise<void> {
-  if (!isCourseOrActivityPage()) return
-  if (document.getElementById('letus-task-watcher-widget')) return
+  const path = location.pathname
+  const isCourseView = path.startsWith('/course/view.php')
+  const isModPage = path.startsWith('/mod/')
+  if (!isCourseView && !isModPage) return
 
   const [courses, assignments] = await Promise.all([
     getCourses(),
@@ -179,11 +175,17 @@ export async function initManualTaskWidget(): Promise<void> {
   const enabledCourses = courses.filter((c) => c.enabled)
   if (enabledCourses.length === 0) return
 
+  if (isCourseView) {
+    await initActivityWidget(enabledCourses)
+    return
+  }
+
+  // /mod/ pages: floating scanned indicator or add button
+  if (document.getElementById('letus-task-watcher-widget')) return
   const currentUrl = location.href.split('#')[0]
   const matchedAssignment = assignments.find((a) => {
     if (!a.url) return false
-    const assignmentUrl = a.url.split('#')[0]
-    return assignmentUrl === currentUrl
+    return a.url.split('#')[0] === currentUrl
   })
 
   if (matchedAssignment) {

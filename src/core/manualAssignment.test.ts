@@ -34,6 +34,7 @@ function makeAssignment(overrides?: Partial<ManualAssignment>): ManualAssignment
     letusUrl: 'https://letus.ed.tus.ac.jp/mod/forum/discuss.php?d=123',
     deadline: '2026-07-05T23:59:00.000Z',
     memo: '',
+    submitted: false,
     createdAt: '2026-06-28T00:00:00.000Z',
     ...overrides,
   }
