@@ -65,6 +65,13 @@ import { getTheme } from './core/premium'
 import { saveSubscriptionCache } from './core/auth'
 import { getOnboardingCompleted, setOnboardingCompleted } from './core/onboarding'
 import { OnboardingBanner } from './components/OnboardingBanner'
+import {
+  getManualAssignments,
+  deleteManualAssignment,
+  type ManualAssignment,
+} from './core/manualAssignment'
+import { MANUAL_ASSIGNMENTS_KEY } from './background/storageKeys'
+import { ManualAssignmentSection } from './components/ManualAssignmentSection'
 
 export default function App() {
   const isDashboard = window.location.hash === '#dashboard'
@@ -83,6 +90,7 @@ export default function App() {
   const [isSubscriber, setIsSubscriber] = useState(false)
   const [message, setMessage] = useState('')
   const [showOnboarding, setShowOnboarding] = useState(false)
+  const [manualAssignments, setManualAssignments] = useState<ManualAssignment[]>([])
   const hasAutoRefreshCheckedRef = useRef(false)
   const hasCheckedDeadlineNotificationRef = useRef(false)
 
@@ -94,6 +102,7 @@ export default function App() {
       savedAssignmentScanStatus,
       savedDeadlineScanStatus,
       savedLastRefreshAt,
+      savedManualAssignments,
     ] = await Promise.all([
       getAssignments(),
       getCourses(),
@@ -101,6 +110,7 @@ export default function App() {
       getAssignmentScanStatus(),
       getDeadlineScanStatus(),
       getLastRefreshAt(),
+      getManualAssignments(),
     ])
 
     setAssignments(savedAssignments)
@@ -109,6 +119,7 @@ export default function App() {
     setAssignmentScanStatus(savedAssignmentScanStatus)
     setDeadlineScanStatus(savedDeadlineScanStatus)
     setLastRefreshAt(savedLastRefreshAt)
+    setManualAssignments(savedManualAssignments)
   }
 
   async function checkDeadlineWarningNotifications(
@@ -215,6 +226,18 @@ export default function App() {
     return () => {
       window.clearInterval(timerId)
     }
+  }, [])
+
+  useEffect(() => {
+    function onStorageChanged(changes: Record<string, chrome.storage.StorageChange>) {
+      if (MANUAL_ASSIGNMENTS_KEY in changes) {
+        const newValue = changes[MANUAL_ASSIGNMENTS_KEY].newValue as ManualAssignment[] | undefined
+        setManualAssignments(newValue ?? [])
+      }
+    }
+
+    chrome.storage.local.onChanged.addListener(onStorageChanged)
+    return () => chrome.storage.local.onChanged.removeListener(onStorageChanged)
   }, [])
 
   useEffect(() => {
@@ -620,6 +643,11 @@ export default function App() {
   async function resetCourseSelection() {
     await setAllCoursesEnabled(false)
     setMessage('コース選択をリセットしました。')
+  }
+
+  async function handleDeleteManualAssignment(id: string) {
+    await deleteManualAssignment(id)
+    setManualAssignments((prev) => prev.filter((a) => a.id !== id))
   }
 
   async function hideAssignment(assignmentId: string) {
@@ -1028,6 +1056,11 @@ export default function App() {
               />
             ))}
           </CollapsibleSection>
+
+          <ManualAssignmentSection
+            assignments={manualAssignments}
+            onDelete={(id) => void handleDeleteManualAssignment(id)}
+          />
 
           <details className="settings" open>
             <summary>対象コースの選択</summary>
