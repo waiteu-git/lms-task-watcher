@@ -886,11 +886,15 @@ async function runAutoScan(): Promise<void> {
   await checkDeadlineWarningNotifications()
 }
 
-chrome.runtime.onInstalled.addListener(() => {
+chrome.runtime.onInstalled.addListener((details) => {
   chrome.alarms.create(ALARM_NAME, {
     delayInMinutes: ALARM_PERIOD_MINUTES,
     periodInMinutes: ALARM_PERIOD_MINUTES,
   })
+
+  if (details.reason === 'update') {
+    void chrome.tabs.create({ url: chrome.runtime.getURL('changelog.html') })
+  }
 })
 
 chrome.runtime.onStartup.addListener(() => {
