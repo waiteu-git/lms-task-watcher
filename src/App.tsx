@@ -802,11 +802,13 @@ export default function App() {
             emptyText="24時間以内の提出物はありません。"
           >
             {urgentAssignments.slice(0, 3).map((assignment) => (
-              <AssignmentCard
-                key={assignment.id}
-                assignment={assignment}
-                compact
-              />
+              <div key={assignment.id}>
+                <AssignmentCard
+                  assignment={assignment}
+                  compact
+                />
+                <AssignmentMemo assignmentId={assignment.id} apiBaseUrl={API_BASE_URL} isSubscriber={isSubscriber} />
+              </div>
             ))}
           </Section>
 
@@ -822,11 +824,13 @@ export default function App() {
               {[...tomorrowAssignments, ...thisWeekAssignments]
                 .slice(0, 3)
                 .map((assignment) => (
-                  <AssignmentCard
-                    key={assignment.id}
-                    assignment={assignment}
-                    compact
-                  />
+                  <div key={assignment.id}>
+                    <AssignmentCard
+                      assignment={assignment}
+                      compact
+                    />
+                    <AssignmentMemo assignmentId={assignment.id} apiBaseUrl={API_BASE_URL} isSubscriber={isSubscriber} />
+                  </div>
                 ))}
             </Section>
           )}
