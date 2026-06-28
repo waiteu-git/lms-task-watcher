@@ -14,55 +14,37 @@ type Props = {
 
 type GateState = 'loading' | 'no-login' | 'no-subscription' | 'grace' | 'active' | 'server-error'
 
+async function computeAccess(apiBaseUrl: string): Promise<GateState> {
+  const token = await getAuthToken()
+  if (!token) return 'no-login'
+
+  const subState = await getSubscriptionState()
+  if (subState === 'active') return 'active'
+  if (subState === 'grace') return 'grace'
+
+  try {
+    const res = await fetch(`${apiBaseUrl}/api/subscription/status`, {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+
+    if (!res.ok) return 'no-subscription'
+
+    const data = await res.json() as { status: string; currentPeriodEnd: string | null }
+    await saveSubscriptionCache(data.status, data.currentPeriodEnd)
+    return data.status === 'active' ? 'active' : 'no-subscription'
+  } catch {
+    const active = await isSubscriptionActive()
+    return active ? 'grace' : 'server-error'
+  }
+}
+
 export function PremiumGate({ apiBaseUrl, children }: Props) {
   const [state, setState] = useState<GateState>('loading')
   const [showLogin, setShowLogin] = useState(false)
 
-  async function checkAccess() {
-    setState('loading')
-
-    const token = await getAuthToken()
-    if (!token) {
-      setState('no-login')
-      return
-    }
-
-    // キャッシュが有効なら即時判定
-    const subState = await getSubscriptionState()
-    if (subState === 'active') {
-      setState('active')
-      return
-    }
-    if (subState === 'grace') {
-      setState('grace')
-      return
-    }
-
-    // サーバーに問い合わせ
-    try {
-      const res = await fetch(`${apiBaseUrl}/api/subscription/status`, {
-        headers: { Authorization: `Bearer ${token}` },
-      })
-
-      if (!res.ok) {
-        setState('no-subscription')
-        return
-      }
-
-      const data = await res.json() as { status: string; currentPeriodEnd: string | null }
-      await saveSubscriptionCache(data.status, data.currentPeriodEnd)
-
-      setState(data.status === 'active' ? 'active' : 'no-subscription')
-    } catch {
-      // ネットワークエラー: キャッシュベースで判断
-      const active = await isSubscriptionActive()
-      setState(active ? 'grace' : 'server-error')
-    }
-  }
-
   useEffect(() => {
-    void checkAccess()
-  }, [])
+    void computeAccess(apiBaseUrl).then(setState)
+  }, [apiBaseUrl])
 
   async function handleCheckout() {
     const token = await getAuthToken()
@@ -97,7 +79,7 @@ export function PremiumGate({ apiBaseUrl, children }: Props) {
         {showLogin && (
           <LoginModal
             apiBaseUrl={apiBaseUrl}
-            onSuccess={() => { setShowLogin(false); void checkAccess() }}
+            onSuccess={() => { setShowLogin(false); setState('loading'); void computeAccess(apiBaseUrl).then(setState) }}
             onClose={() => setShowLogin(false)}
           />
         )}

@@ -96,15 +96,14 @@
 
 ## P5: コード品質
 
-- [ ] **TypeScript型エラーがゼロであることの確認**
+- [x] **TypeScript型エラーがゼロであることの確認**
   - `pnpm tsc --noEmit` でエラーなし
 
-- [ ] **ESLintエラーがゼロであることの確認**
-  - `pnpm lint` でエラーなし
+- [x] **ESLintエラーがゼロであることの確認**
+  - `pnpm lint` でエラーなし（PremiumGate.tsx の set-state-in-effect を修正）
 
-- [ ] **`src/core/assignmentScanner.ts` の整理**
-  - background.jsと重複したロジックがある（`isTargetActivityUrl`等）
-  - background.tsへの移行完了後に削除またはbackground側に統合
+- [x] **`src/core/assignmentScanner.ts` の整理**
+  - background/index.ts に全ロジックが実装済みでどこからも import されていないため削除
 
 ---
 
