@@ -159,7 +159,16 @@ function buildWidget(courses: Course[]): void {
   })
 }
 
+function isCourseOrActivityPage(): boolean {
+  const path = location.pathname
+  return (
+    path.startsWith('/course/view.php') ||
+    path.startsWith('/mod/')
+  )
+}
+
 export async function initManualTaskWidget(): Promise<void> {
+  if (!isCourseOrActivityPage()) return
   if (document.getElementById('letus-task-watcher-widget')) return
 
   const [courses, assignments] = await Promise.all([
