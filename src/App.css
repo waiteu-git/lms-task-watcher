@@ -216,6 +216,61 @@
   gap: 8px;
 }
 
+/* ポップアップ: カードラッパー */
+.popupCardWrap {
+  position: relative;
+}
+
+/* ポップアップ: メモボタンをカード右下に絶対配置 */
+.memoContainerPopup {
+  position: absolute;
+  bottom: 8px;
+  right: 10px;
+  margin: 0;
+}
+
+/* ポップアップ: ✎ アイコンのみの小さなボタン */
+.memoToggleBtnPopup {
+  padding: 2px 6px;
+  font-size: 12px;
+  gap: 3px;
+  border-color: transparent;
+  background: rgba(255,255,255,0.7);
+  backdrop-filter: blur(2px);
+}
+
+.memoToggleBtnPopup:hover {
+  border-color: var(--color-border);
+  background: var(--color-surface);
+}
+
+/* 優先度インジケーター（ポップアップ用ドット） */
+.memoPriorityDot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.memoPriorityDot.priority1 { background: #10b981; }
+.memoPriorityDot.priority2 { background: #f59e0b; }
+.memoPriorityDot.priority3 { background: #ef4444; }
+
+/* ポップアップ: パネルは右寄せで展開 */
+.memoPanelPopup {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 4px);
+  width: 240px;
+  z-index: 10;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.12);
+}
+
+/* ポップアップ: カード間の隙間を縮小 */
+.app.popup .sectionBody {
+  gap: 4px;
+}
+
 .memoLocked {
   display: flex;
   align-items: center;

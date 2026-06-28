@@ -802,12 +802,12 @@ export default function App() {
             emptyText="24時間以内の提出物はありません。"
           >
             {urgentAssignments.slice(0, 3).map((assignment) => (
-              <div key={assignment.id}>
+              <div key={assignment.id} className="popupCardWrap">
                 <AssignmentCard
                   assignment={assignment}
                   compact
                 />
-                <AssignmentMemo assignmentId={assignment.id} apiBaseUrl={API_BASE_URL} isSubscriber={isSubscriber} />
+                <AssignmentMemo assignmentId={assignment.id} apiBaseUrl={API_BASE_URL} isSubscriber={isSubscriber} popup />
               </div>
             ))}
           </Section>
@@ -824,12 +824,12 @@ export default function App() {
               {[...tomorrowAssignments, ...thisWeekAssignments]
                 .slice(0, 3)
                 .map((assignment) => (
-                  <div key={assignment.id}>
+                  <div key={assignment.id} className="popupCardWrap">
                     <AssignmentCard
                       assignment={assignment}
                       compact
                     />
-                    <AssignmentMemo assignmentId={assignment.id} apiBaseUrl={API_BASE_URL} isSubscriber={isSubscriber} />
+                    <AssignmentMemo assignmentId={assignment.id} apiBaseUrl={API_BASE_URL} isSubscriber={isSubscriber} popup />
                   </div>
                 ))}
             </Section>
