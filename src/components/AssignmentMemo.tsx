@@ -60,28 +60,84 @@ export function AssignmentMemo({ assignmentId, apiBaseUrl, isSubscriber, popup =
   // ポップアップ・非サブスクは表示しない
   if (popup && !isSubscriber) return null
 
+  // ポップアップ表示
+  if (popup) {
+    return (
+      <>
+        {/* メモ内容をカード下に表示（内容がある場合のみ） */}
+        {(hasPriority || hasMemoText) && (
+          <div className="popupMemoPreview" onClick={stopProp}>
+            {hasPriority && (
+              <span className={`memoPriorityChip ${PRIORITY_CLASS[memo.priority as 0|1|2|3]}`}>
+                {PRIORITY_LABELS[memo.priority as 0|1|2|3]}
+              </span>
+            )}
+            {hasMemoText && (
+              <span className="popupMemoText">{memo.memo.trim()}</span>
+            )}
+          </div>
+        )}
+
+        {/* 編集ボタン（カード右下に絶対配置） */}
+        <div
+          ref={containerRef}
+          className="memoContainerPopup"
+          onClick={stopProp}
+        >
+          <button
+            type="button"
+            className="memoToggleBtnPopup"
+            onClick={(e) => { stopProp(e); setOpen((v) => !v) }}
+            aria-expanded={open}
+            title="メモ・優先度を編集"
+          >
+            <span className="memoToggleBtnIcon">✎</span>
+          </button>
+
+          {open && (
+            <div className="memoPanel memoPanelPopup" onClick={stopProp}>
+              <div className="prioritySelector">
+                {([0, 1, 2, 3] as const).map((p) => (
+                  <button
+                    key={p}
+                    type="button"
+                    className={`priorityBtn priority${p} ${memo.priority === p ? 'active' : ''}`}
+                    onClick={(e) => { stopProp(e); void handlePriorityChange(p) }}
+                  >
+                    {PRIORITY_LABELS[p]}
+                  </button>
+                ))}
+                {saving && <span className="savingIndicator">保存中…</span>}
+              </div>
+              <textarea
+                className="memoInput"
+                placeholder="メモを入力..."
+                value={memo.memo}
+                onChange={handleMemoChange}
+                onClick={stopProp}
+                rows={3}
+              />
+            </div>
+          )}
+        </div>
+      </>
+    )
+  }
+
   return (
     <div
       ref={containerRef}
-      className={`memoContainer ${popup ? 'memoContainerPopup' : ''}`}
+      className="memoContainer"
       onClick={stopProp}
     >
       <button
         type="button"
-        className={`memoToggleBtn ${popup ? 'memoToggleBtnPopup' : ''}`}
+        className="memoToggleBtn"
         onClick={(e) => { stopProp(e); setOpen((v) => !v) }}
         aria-expanded={open}
         title="メモ・優先度"
       >
-        {popup ? (
-          <>
-            <span className="memoToggleBtnIcon">✎</span>
-            {hasPriority && (
-              <span className={`memoPriorityDot ${PRIORITY_CLASS[memo.priority as 0|1|2|3]}`} />
-            )}
-          </>
-        ) : (
-          <>
+        <>
             <span className="memoToggleBtnIcon">{isSubscriber ? '✎' : '🔒'}</span>
             {isSubscriber && hasPriority && (
               <span className={`memoPriorityChip ${PRIORITY_CLASS[memo.priority as 0|1|2|3]}`}>
@@ -96,7 +152,6 @@ export function AssignmentMemo({ assignmentId, apiBaseUrl, isSubscriber, popup =
             {!isSubscriber && <span className="memoToggleLockLabel">メモ・優先度</span>}
             <span className="memoToggleBtnArrow">{open ? '▲' : '▼'}</span>
           </>
-        )}
       </button>
 
       {open && (
