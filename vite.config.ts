@@ -2,8 +2,11 @@ import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import { resolve } from 'path'
 
-export default defineConfig({
+export default defineConfig(({ mode }) => ({
   base: './',
+  define: {
+    __DEV_TOOLS__: mode === 'development',
+  },
   plugins: [react()],
   build: {
     rollupOptions: {
@@ -29,4 +32,4 @@ export default defineConfig({
       },
     },
   },
-})
+}))

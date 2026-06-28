@@ -1153,7 +1153,7 @@ export default function App() {
             </div>
           </CollapsibleSection>
 
-          {import.meta.env.DEV && (
+          {__DEV_TOOLS__ && (
             <details className="settings devPanel">
               <summary>🛠 開発用: サブスク状態</summary>
               <div className="devPanelBody">
