@@ -5,6 +5,7 @@ type Props = {
   assignmentId: string
   apiBaseUrl: string
   isSubscriber: boolean
+  popup?: boolean
 }
 
 const PRIORITY_LABELS: Record<0 | 1 | 2 | 3, string> = {
@@ -21,7 +22,7 @@ const PRIORITY_CLASS: Record<0 | 1 | 2 | 3, string> = {
   3: 'priority3',
 }
 
-export function AssignmentMemo({ assignmentId, apiBaseUrl, isSubscriber }: Props) {
+export function AssignmentMemo({ assignmentId, apiBaseUrl, isSubscriber, popup = false }: Props) {
   const [memo, setMemo] = useState<MemoData>({ priority: 0, memo: '' })
   const [open, setOpen] = useState(false)
   const [saving, setSaving] = useState(false)
@@ -56,31 +57,50 @@ export function AssignmentMemo({ assignmentId, apiBaseUrl, isSubscriber }: Props
   const hasPriority = memo.priority > 0
   const hasMemoText = memo.memo.trim().length > 0
 
+  // ポップアップ・非サブスクは表示しない
+  if (popup && !isSubscriber) return null
+
   return (
-    <div ref={containerRef} className="memoContainer" onClick={stopProp}>
+    <div
+      ref={containerRef}
+      className={`memoContainer ${popup ? 'memoContainerPopup' : ''}`}
+      onClick={stopProp}
+    >
       <button
         type="button"
-        className="memoToggleBtn"
+        className={`memoToggleBtn ${popup ? 'memoToggleBtnPopup' : ''}`}
         onClick={(e) => { stopProp(e); setOpen((v) => !v) }}
         aria-expanded={open}
+        title="メモ・優先度"
       >
-        <span className="memoToggleBtnIcon">{isSubscriber ? '✎' : '🔒'}</span>
-        {isSubscriber && hasPriority && (
-          <span className={`memoPriorityChip ${PRIORITY_CLASS[memo.priority as 0|1|2|3]}`}>
-            {PRIORITY_LABELS[memo.priority as 0|1|2|3]}
-          </span>
+        {popup ? (
+          <>
+            <span className="memoToggleBtnIcon">✎</span>
+            {hasPriority && (
+              <span className={`memoPriorityDot ${PRIORITY_CLASS[memo.priority as 0|1|2|3]}`} />
+            )}
+          </>
+        ) : (
+          <>
+            <span className="memoToggleBtnIcon">{isSubscriber ? '✎' : '🔒'}</span>
+            {isSubscriber && hasPriority && (
+              <span className={`memoPriorityChip ${PRIORITY_CLASS[memo.priority as 0|1|2|3]}`}>
+                {PRIORITY_LABELS[memo.priority as 0|1|2|3]}
+              </span>
+            )}
+            {isSubscriber && hasMemoText && !open && (
+              <span className="memoSnippet">
+                {memo.memo.trim().slice(0, 24)}{memo.memo.trim().length > 24 ? '…' : ''}
+              </span>
+            )}
+            {!isSubscriber && <span className="memoToggleLockLabel">メモ・優先度</span>}
+            <span className="memoToggleBtnArrow">{open ? '▲' : '▼'}</span>
+          </>
         )}
-        {isSubscriber && hasMemoText && !open && (
-          <span className="memoSnippet">
-            {memo.memo.trim().slice(0, 24)}{memo.memo.trim().length > 24 ? '…' : ''}
-          </span>
-        )}
-        {!isSubscriber && <span className="memoToggleLockLabel">メモ・優先度</span>}
-        <span className="memoToggleBtnArrow">{open ? '▲' : '▼'}</span>
       </button>
 
       {open && (
-        <div className="memoPanel" onClick={stopProp}>
+        <div className={`memoPanel ${popup ? 'memoPanelPopup' : ''}`} onClick={stopProp}>
           {!isSubscriber ? (
             <div className="memoLocked">
               <p className="memoLockedText">メモ・優先度はサブスクライバー限定機能です。</p>
