@@ -86,7 +86,6 @@ function buildWidget(courses: Course[]): void {
     <div class="field">
       <select id="wt-course">
         <option value="">コースを選択</option>
-        ${courses.map((c) => `<option value="${c.id}" data-name="${c.name}">${c.name}</option>`).join('')}
       </select>
     </div>
     <div class="field">
@@ -102,6 +101,15 @@ function buildWidget(courses: Course[]): void {
     <div class="error" id="wt-error"></div>
   `
   shadow.appendChild(panel)
+
+  const courseSelect = shadow.getElementById('wt-course') as HTMLSelectElement
+  for (const c of courses) {
+    const opt = document.createElement('option')
+    opt.value = c.id
+    opt.dataset.name = c.name
+    opt.textContent = c.name
+    courseSelect.appendChild(opt)
+  }
 
   function openPanel(): void {
     panel.classList.add('open')
@@ -144,6 +152,7 @@ function buildWidget(courses: Course[]): void {
 
     ;(shadow.getElementById('wt-title') as HTMLInputElement).value = ''
     ;(shadow.getElementById('wt-deadline') as HTMLInputElement).value = ''
+    ;(shadow.getElementById('wt-course') as HTMLSelectElement).value = ''
     ;(shadow.getElementById('wt-memo') as HTMLTextAreaElement).value = ''
   })
 }
@@ -218,8 +227,8 @@ function buildScannedIndicator(assignment: { title: string; deadline: string | n
 
 function formatDeadlineShort(isoString: string): string {
   const d = new Date(isoString)
-  const m = d.getMonth() + 1
-  const day = d.getDate()
+  const m = String(d.getMonth() + 1).padStart(2, '0')
+  const day = String(d.getDate()).padStart(2, '0')
   const hh = String(d.getHours()).padStart(2, '0')
   const mm = String(d.getMinutes()).padStart(2, '0')
   return `${m}/${day} ${hh}:${mm}`
