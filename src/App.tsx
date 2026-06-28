@@ -63,6 +63,8 @@ import { AssignmentCard } from './components/AssignmentCard'
 import { CollapsibleSection, Section } from './components/Section'
 import { getTheme } from './core/premium'
 import { saveSubscriptionCache } from './core/auth'
+import { getOnboardingCompleted, setOnboardingCompleted } from './core/onboarding'
+import { OnboardingBanner } from './components/OnboardingBanner'
 
 export default function App() {
   const isDashboard = window.location.hash === '#dashboard'
@@ -80,6 +82,7 @@ export default function App() {
   const [isUpdating, setIsUpdating] = useState(false)
   const [isSubscriber, setIsSubscriber] = useState(false)
   const [message, setMessage] = useState('')
+  const [showOnboarding, setShowOnboarding] = useState(false)
   const hasAutoRefreshCheckedRef = useRef(false)
   const hasCheckedDeadlineNotificationRef = useRef(false)
 
@@ -199,6 +202,12 @@ export default function App() {
   }, [])
 
   useEffect(() => {
+    void getOnboardingCompleted().then((completed) => {
+      if (!completed) setShowOnboarding(true)
+    })
+  }, [])
+
+  useEffect(() => {
     const timerId = window.setInterval(() => {
       void refreshAll()
     }, 1_000)
@@ -310,6 +319,10 @@ export default function App() {
       }
 
       await refreshAll()
+      if (showOnboarding) {
+        await setOnboardingCompleted()
+        setShowOnboarding(false)
+      }
       setMessage('更新が完了しました。')
     } catch (error) {
       const normalizedMessage = normalizeUpdateError(error)
@@ -326,7 +339,7 @@ export default function App() {
     } finally {
       setIsUpdating(false)
     }
-  }, [])
+  }, [showOnboarding])
 
   useEffect(() => {
     if (hasAutoRefreshCheckedRef.current) {
@@ -755,6 +768,10 @@ export default function App() {
             元に戻す
           </button>
         </div>
+      )}
+
+      {!isDashboard && showOnboarding && (
+        <OnboardingBanner courses={courses} lastRefreshAt={lastRefreshAt} />
       )}
 
       {!isDashboard && (
