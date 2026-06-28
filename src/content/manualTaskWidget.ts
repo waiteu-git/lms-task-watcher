@@ -1,5 +1,5 @@
 import type { Course } from '../core/types'
-import { getCourses } from '../core/storage'
+import { getCourses, getAssignments } from '../core/storage'
 import { addManualAssignment, type ManualAssignment } from '../core/manualAssignment'
 
 function createId(): string {
@@ -151,10 +151,76 @@ function buildWidget(courses: Course[]): void {
 export async function initManualTaskWidget(): Promise<void> {
   if (document.getElementById('letus-task-watcher-widget')) return
 
-  const courses = await getCourses()
-  const enabledCourses = courses.filter((c) => c.enabled)
+  const [courses, assignments] = await Promise.all([
+    getCourses(),
+    getAssignments(),
+  ])
 
+  const enabledCourses = courses.filter((c) => c.enabled)
   if (enabledCourses.length === 0) return
 
-  buildWidget(enabledCourses)
+  const currentUrl = location.href.split('#')[0]
+  const matchedAssignment = assignments.find((a) => {
+    if (!a.url) return false
+    const assignmentUrl = a.url.split('#')[0]
+    return assignmentUrl === currentUrl
+  })
+
+  if (matchedAssignment) {
+    buildScannedIndicator(matchedAssignment)
+  } else {
+    buildWidget(enabledCourses)
+  }
+}
+
+function buildScannedIndicator(assignment: { title: string; deadline: string | null }): void {
+  const host = document.createElement('div')
+  host.id = 'letus-task-watcher-widget'
+  host.style.cssText = 'position:fixed;bottom:16px;right:16px;z-index:2147483647;'
+  document.body.appendChild(host)
+
+  const shadow = host.attachShadow({ mode: 'closed' })
+
+  const style = document.createElement('style')
+  style.textContent = `
+    :host { all: initial; font-family: sans-serif; font-size: 13px; }
+    .indicator {
+      display: flex; align-items: center; gap: 8px;
+      background: #f0fdf4; border: 1px solid #86efac;
+      border-radius: 10px; padding: 8px 12px; cursor: pointer;
+    }
+    .icon { color: #16a34a; font-size: 16px; }
+    .label { font-size: 12px; }
+    .title { font-weight: 600; color: #15803d; }
+    .deadline { color: #16a34a; opacity: .85; }
+  `
+  shadow.appendChild(style)
+
+  const deadlineText = assignment.deadline
+    ? formatDeadlineShort(assignment.deadline)
+    : '締切未取得'
+
+  const el = document.createElement('div')
+  el.className = 'indicator'
+  el.title = 'ダッシュボードで確認'
+  el.innerHTML = `
+    <span class="icon">✓</span>
+    <div class="label">
+      <div class="title">登録済み</div>
+      <div class="deadline">締切 ${deadlineText}</div>
+    </div>
+  `
+  el.addEventListener('click', () => {
+    void chrome.tabs.create({ url: chrome.runtime.getURL('index.html#dashboard') })
+  })
+  shadow.appendChild(el)
+}
+
+function formatDeadlineShort(isoString: string): string {
+  const d = new Date(isoString)
+  const m = d.getMonth() + 1
+  const day = d.getDate()
+  const hh = String(d.getHours()).padStart(2, '0')
+  const mm = String(d.getMinutes()).padStart(2, '0')
+  return `${m}/${day} ${hh}:${mm}`
 }
