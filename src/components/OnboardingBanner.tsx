@@ -7,16 +7,16 @@ type Props = {
 
 type Step = 1 | 2 | 3
 
-function resolveStep(courses: Course[], _lastRefreshAt: string | null): Step {
+function resolveStep(courses: Course[]): Step {
   if (courses.length === 0) return 1
   if (courses.filter((c) => c.enabled).length === 0) return 2
   return 3
 }
 
-export function OnboardingBanner({ courses, lastRefreshAt: _lastRefreshAt }: Props) {
-  if (_lastRefreshAt !== null) return null
+export function OnboardingBanner({ courses, lastRefreshAt }: Props) {
+  if (lastRefreshAt !== null) return null
 
-  const step = resolveStep(courses, _lastRefreshAt)
+  const step = resolveStep(courses)
 
   function openLetus() {
     void chrome.tabs.create({ url: 'https://letus.ed.tus.ac.jp' })
