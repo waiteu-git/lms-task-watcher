@@ -62,7 +62,7 @@ import { createNotification, normalizeUpdateError } from './utils/notification'
 import { AssignmentCard } from './components/AssignmentCard'
 import { CollapsibleSection, Section } from './components/Section'
 import { getTheme, saveTheme } from './core/premium'
-import { isSubscriptionActive } from './core/auth'
+import { isSubscriptionActive, saveSubscriptionCache } from './core/auth'
 import { PremiumGate } from './components/PremiumGate'
 import { AssignmentMemo } from './components/AssignmentMemo'
 import { SubscriberBadge } from './components/SubscriberBadge'
@@ -1148,6 +1148,35 @@ export default function App() {
               )}
             </div>
           </CollapsibleSection>
+
+          {import.meta.env.DEV && (
+            <details className="settings devPanel">
+              <summary>🛠 開発用: サブスク状態</summary>
+              <div className="devPanelBody">
+                <span>現在: <strong>{isSubscriber ? '✅ サブスクライバー' : '❌ 非サブスクライバー'}</strong></span>
+                <div className="devPanelActions">
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      await saveSubscriptionCache('active', null)
+                      setIsSubscriber(true)
+                    }}
+                  >
+                    サブスクON
+                  </button>
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      await chrome.storage.local.remove(['subscriptionStatus', 'subscriptionCheckedAt', 'subscriptionGraceUntil'])
+                      setIsSubscriber(false)
+                    }}
+                  >
+                    サブスクOFF
+                  </button>
+                </div>
+              </div>
+            </details>
+          )}
 
           <details className="settings">
             <summary>データ管理</summary>

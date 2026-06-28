@@ -199,6 +199,23 @@
   border-radius: 8px;
 }
 
+.devPanel summary {
+  color: #f59e0b;
+}
+
+.devPanelBody {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 8px 0;
+  font-size: 13px;
+}
+
+.devPanelActions {
+  display: flex;
+  gap: 8px;
+}
+
 .memoLocked {
   display: flex;
   align-items: center;
