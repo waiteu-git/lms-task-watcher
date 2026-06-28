@@ -61,13 +61,8 @@ import {
 import { createNotification, normalizeUpdateError } from './utils/notification'
 import { AssignmentCard } from './components/AssignmentCard'
 import { CollapsibleSection, Section } from './components/Section'
-import { getTheme, saveTheme } from './core/premium'
-import { isSubscriptionActive, saveSubscriptionCache } from './core/auth'
-import { PremiumGate } from './components/PremiumGate'
-import { AssignmentMemo } from './components/AssignmentMemo'
-import { SubscriberBadge } from './components/SubscriberBadge'
-
-const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL as string) ?? ''
+import { getTheme } from './core/premium'
+import { saveSubscriptionCache } from './core/auth'
 
 export default function App() {
   const isDashboard = window.location.hash === '#dashboard'
@@ -83,7 +78,6 @@ export default function App() {
     useState<DeadlineScanStatus>(initialDeadlineScanStatus)
   const [lastRefreshAt, setLastRefreshAt] = useState<string | null>(null)
   const [isUpdating, setIsUpdating] = useState(false)
-  const [theme, setTheme] = useState('default')
   const [isSubscriber, setIsSubscriber] = useState(false)
   const [message, setMessage] = useState('')
   const hasAutoRefreshCheckedRef = useRef(false)
@@ -199,15 +193,9 @@ export default function App() {
   }, [])
 
   useEffect(() => {
-    void (async () => {
-      const [savedTheme, subscriberStatus] = await Promise.all([
-        getTheme(),
-        isSubscriptionActive(),
-      ])
-      setTheme(savedTheme)
-      setIsSubscriber(subscriberStatus)
+    void getTheme().then((savedTheme) => {
       document.documentElement.setAttribute('data-theme', savedTheme)
-    })()
+    })
   }, [])
 
   useEffect(() => {
@@ -815,7 +803,6 @@ export default function App() {
                   assignment={assignment}
                   compact
                 />
-                <AssignmentMemo assignmentId={assignment.id} apiBaseUrl={API_BASE_URL} isSubscriber={isSubscriber} popup />
               </div>
             ))}
           </Section>
@@ -837,7 +824,6 @@ export default function App() {
                       assignment={assignment}
                       compact
                     />
-                    <AssignmentMemo assignmentId={assignment.id} apiBaseUrl={API_BASE_URL} isSubscriber={isSubscriber} popup />
                   </div>
                 ))}
             </Section>
@@ -914,7 +900,6 @@ export default function App() {
                   canHide
                   onHide={hideAssignment}
                 />
-                <AssignmentMemo assignmentId={assignment.id} apiBaseUrl={API_BASE_URL} isSubscriber={isSubscriber} />
               </div>
             ))}
           </Section>
@@ -931,7 +916,6 @@ export default function App() {
                   canHide
                   onHide={hideAssignment}
                 />
-                <AssignmentMemo assignmentId={assignment.id} apiBaseUrl={API_BASE_URL} isSubscriber={isSubscriber} />
               </div>
             ))}
           </Section>
@@ -948,7 +932,6 @@ export default function App() {
                   canHide
                   onHide={hideAssignment}
                 />
-                <AssignmentMemo assignmentId={assignment.id} apiBaseUrl={API_BASE_URL} isSubscriber={isSubscriber} />
               </div>
             ))}
           </Section>
@@ -965,7 +948,6 @@ export default function App() {
                   canHide
                   onHide={hideAssignment}
                 />
-                <AssignmentMemo assignmentId={assignment.id} apiBaseUrl={API_BASE_URL} isSubscriber={isSubscriber} />
               </div>
             ))}
           </Section>
@@ -1029,33 +1011,6 @@ export default function App() {
               />
             ))}
           </CollapsibleSection>
-
-          <details className="settings" open>
-            <summary>
-              プレミアム設定
-              {isSubscriber && <SubscriberBadge />}
-            </summary>
-
-            <PremiumGate apiBaseUrl={API_BASE_URL}>
-              <div className="themeSelector">
-                <span>テーマ:</span>
-                {['default', 'dark'].map((t) => (
-                  <button
-                    key={t}
-                    type="button"
-                    className={`priorityBtn ${theme === t ? 'active priority2' : ''}`}
-                    onClick={() => {
-                      setTheme(t)
-                      document.documentElement.setAttribute('data-theme', t)
-                      void saveTheme(t)
-                    }}
-                  >
-                    {t === 'default' ? '標準' : 'ダーク'}
-                  </button>
-                ))}
-              </div>
-            </PremiumGate>
-          </details>
 
           <details className="settings" open>
             <summary>対象コースの選択</summary>
