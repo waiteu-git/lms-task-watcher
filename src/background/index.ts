@@ -931,12 +931,21 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
       sendResponse({ ok: false, reason: 'already_running' })
       return false
     }
-    sendResponse({ ok: true, reason: 'started' })
     const scanLevel = (message.scanLevel ?? 'standard') as ScanLevel
-    scanAssignmentCandidatesInBackground(scanLevel).catch((error) => {
-      console.error('[LETUS Task Watcher] assignment scan failed', error)
-    })
-    return false
+    void (async () => {
+      const courses = await getCourses()
+      const enabledCourses = courses.filter((c) => c.enabled)
+      const loggedIn = await checkIsLoggedIn(enabledCourses)
+      if (!loggedIn) {
+        sendResponse({ ok: false, reason: 'not_logged_in' })
+        return
+      }
+      sendResponse({ ok: true, reason: 'started' })
+      scanAssignmentCandidatesInBackground(scanLevel).catch((error) => {
+        console.error('[LETUS Task Watcher] assignment scan failed', error)
+      })
+    })()
+    return true
   }
 
   if (message?.type === 'START_DEADLINE_SCAN') {

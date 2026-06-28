@@ -260,10 +260,18 @@ export default function App() {
         DEADLINE_SCAN_STATUS_KEY,
       ])
 
-      await chrome.runtime.sendMessage({
+      const scanResponse = await chrome.runtime.sendMessage({
         type: 'START_ASSIGNMENT_SCAN',
         scanLevel: 'standard',
-      })
+      }) as { ok: boolean; reason: string }
+
+      if (!scanResponse.ok) {
+        if (scanResponse.reason === 'not_logged_in') {
+          setMessage('LETUSにログインしてからもう一度試してください。')
+          return
+        }
+        throw new Error(scanResponse.reason)
+      }
 
       await waitForAssignmentScanToFinish(refreshAll)
 
