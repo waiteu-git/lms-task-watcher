@@ -199,6 +199,24 @@
   border-radius: 8px;
 }
 
+.memoLocked {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 2px;
+}
+
+.memoLockedText {
+  margin: 0;
+  font-size: 12px;
+  color: #6b7280;
+}
+
+.memoToggleLockLabel {
+  font-size: 11px;
+  color: #9ca3af;
+}
+
 * {
   box-sizing: border-box;
 }
