@@ -902,7 +902,7 @@ export default function App() {
                   canHide
                   onHide={hideAssignment}
                 />
-                <AssignmentMemo assignmentId={assignment.id} apiBaseUrl={API_BASE_URL} />
+                <AssignmentMemo assignmentId={assignment.id} apiBaseUrl={API_BASE_URL} isSubscriber={isSubscriber} />
               </div>
             ))}
           </Section>
@@ -919,7 +919,7 @@ export default function App() {
                   canHide
                   onHide={hideAssignment}
                 />
-                <AssignmentMemo assignmentId={assignment.id} apiBaseUrl={API_BASE_URL} />
+                <AssignmentMemo assignmentId={assignment.id} apiBaseUrl={API_BASE_URL} isSubscriber={isSubscriber} />
               </div>
             ))}
           </Section>
@@ -936,7 +936,7 @@ export default function App() {
                   canHide
                   onHide={hideAssignment}
                 />
-                <AssignmentMemo assignmentId={assignment.id} apiBaseUrl={API_BASE_URL} />
+                <AssignmentMemo assignmentId={assignment.id} apiBaseUrl={API_BASE_URL} isSubscriber={isSubscriber} />
               </div>
             ))}
           </Section>
@@ -953,7 +953,7 @@ export default function App() {
                   canHide
                   onHide={hideAssignment}
                 />
-                <AssignmentMemo assignmentId={assignment.id} apiBaseUrl={API_BASE_URL} />
+                <AssignmentMemo assignmentId={assignment.id} apiBaseUrl={API_BASE_URL} isSubscriber={isSubscriber} />
               </div>
             ))}
           </Section>
