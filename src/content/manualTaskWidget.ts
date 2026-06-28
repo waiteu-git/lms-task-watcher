@@ -89,7 +89,7 @@ function buildWidget(courses: Course[]): void {
       </select>
     </div>
     <div class="field">
-      <div class="meta" id="wt-url-display">${location.href}</div>
+      <div class="meta" id="wt-url-display"></div>
     </div>
     <div class="field">
       <textarea id="wt-memo" placeholder="メモ（任意）"></textarea>
@@ -101,6 +101,8 @@ function buildWidget(courses: Course[]): void {
     <div class="error" id="wt-error"></div>
   `
   shadow.appendChild(panel)
+
+  ;(shadow.getElementById('wt-url-display') as HTMLDivElement).textContent = location.href
 
   const courseSelect = shadow.getElementById('wt-course') as HTMLSelectElement
   for (const c of courses) {
