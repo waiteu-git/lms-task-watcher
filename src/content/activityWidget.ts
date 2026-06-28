@@ -28,9 +28,7 @@ function injectHoverStyle(): void {
   if (document.getElementById('ltw-style')) return
   const s = document.createElement('style')
   s.id = 'ltw-style'
-  s.textContent =
-    '.ltw-btn-host{opacity:0;transition:opacity .15s}' +
-    'li.activity:hover .ltw-btn-host{opacity:1}'
+  s.textContent = '.ltw-btn-host{opacity:1}'
   document.head.appendChild(s)
 }
 
