@@ -1,4 +1,5 @@
 import type { Course } from '../core/types'
+import { initManualTaskWidget } from './manualTaskWidget'
 
 console.log('[LETUS Task Watcher] content script loaded')
 
@@ -67,17 +68,19 @@ function detectCourses(): Course[] {
 function run(): void {
   const courses = detectCourses()
 
-  if (courses.length === 0) return
+  if (courses.length > 0) {
+    console.log(`[LETUS Task Watcher] detected ${courses.length} courses`)
 
-  console.log(`[LETUS Task Watcher] detected ${courses.length} courses`)
+    chrome.runtime.sendMessage({ type: 'UPSERT_COURSES', courses }, (response: unknown) => {
+      if (chrome.runtime.lastError) {
+        console.warn('[LETUS Task Watcher] failed to send courses:', chrome.runtime.lastError.message)
+        return
+      }
+      console.log('[LETUS Task Watcher] courses upserted:', response)
+    })
+  }
 
-  chrome.runtime.sendMessage({ type: 'UPSERT_COURSES', courses }, (response: unknown) => {
-    if (chrome.runtime.lastError) {
-      console.warn('[LETUS Task Watcher] failed to send courses:', chrome.runtime.lastError.message)
-      return
-    }
-    console.log('[LETUS Task Watcher] courses upserted:', response)
-  })
+  void initManualTaskWidget()
 }
 
 run()
