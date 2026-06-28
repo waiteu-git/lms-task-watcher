@@ -13,4 +13,4 @@ export const ONE_DAY_MS = 24 * 60 * 60 * 1000
 export const SEVEN_DAYS_MS = 7 * ONE_DAY_MS
 export const OLD_PASSED_DAYS = 30
 
-export const FEEDBACK_FORM_URL = 'https://forms.gle/REPLACE_ME'
+export const FEEDBACK_FORM_URL = 'https://forms.gle/Bso6MoFYhgRtkpsS9'

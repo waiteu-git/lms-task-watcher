@@ -31,10 +31,10 @@
   - `privacy-policy.md` として作成済み
   - ストアに掲載するURLが必要（GitHub Pages または GitHub README の raw URL）
 
-- [~] **ストア掲載情報の整備**
+- [x] **ストア掲載情報の整備**
   - [x] 説明文（short / long）→ `store-listing.md` に記載済み
   - [x] プロモーション画像（440×280）→ `store-promo.png` 生成済み
-  - [ ] スクリーンショット（最低1枚、1280×800 or 640×400）→ **手動撮影が必要**（`store-listing.md` に手順を記載）
+  - [x] スクリーンショット（1280×800）→ `images/screenshots-1280x800-editable/` にスライド1〜5.PNG として準備済み
 
 - [x] **`host_permissions` の最小化確認**
   - `https://letus.ed.tus.ac.jp/*` のみで最小限。`store-listing.md` に理由を記載済み
