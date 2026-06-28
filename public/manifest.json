@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "LETUS Task Watcher",
-  "version": "1.0.3",
+  "version": "1.0.4",
   "description": "Never miss a LETUS assignment deadline. Automatically scans your courses and shows upcoming due dates with browser notifications.",
   "permissions": [
     "storage",
@@ -10,8 +10,7 @@
     "tabs"
   ],
   "host_permissions": [
-    "https://letus.ed.tus.ac.jp/*",
-    "https://your-domain.com/*"
+    "https://letus.ed.tus.ac.jp/*"
   ],
   "background": {
     "service_worker": "background.js",
