@@ -266,6 +266,22 @@
   box-shadow: 0 4px 12px rgba(0,0,0,0.12);
 }
 
+/* ポップアップ: メモ内容プレビュー */
+.popupMemoPreview {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  padding: 4px 10px 2px;
+  font-size: 11px;
+  color: #6b7280;
+}
+
+.popupMemoText {
+  white-space: pre-wrap;
+  word-break: break-all;
+  line-height: 1.4;
+}
+
 /* ポップアップ: カード間の隙間を縮小 */
 .app.popup .sectionBody {
   gap: 4px;
