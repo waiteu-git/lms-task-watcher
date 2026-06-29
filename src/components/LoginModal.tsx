@@ -3,18 +3,25 @@ import { saveAuthSession } from '../core/auth'
 
 type Props = {
   apiBaseUrl: string
+  initialMode?: 'subscribe' | 'login'
   onSuccess: () => void
   onClose: () => void
 }
 
-type Mode = 'login' | 'register'
+type Mode = 'subscribe' | 'login'
 
-export function LoginModal({ apiBaseUrl, onSuccess, onClose }: Props) {
-  const [mode, setMode] = useState<Mode>('login')
+export function LoginModal({ apiBaseUrl, initialMode = 'subscribe', onSuccess, onClose }: Props) {
+  const [mode, setMode] = useState<Mode>(initialMode)
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
+  const [checkoutOpened, setCheckoutOpened] = useState(false)
+
+  function switchMode(next: Mode) {
+    setMode(next)
+    setError('')
+  }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
@@ -22,23 +29,55 @@ export function LoginModal({ apiBaseUrl, onSuccess, onClose }: Props) {
     setLoading(true)
 
     try {
-      const endpoint = mode === 'login' ? '/api/auth/login' : '/api/auth/register'
-      const res = await fetch(`${apiBaseUrl}${endpoint}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password }),
-      })
+      if (mode === 'subscribe') {
+        const regRes = await fetch(`${apiBaseUrl}/api/auth/register`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email, password }),
+        })
+        const regData = await regRes.json() as { token?: string; expiresAt?: string; error?: string }
 
-      const data = await res.json() as { token?: string; expiresAt?: string; error?: string }
+        if (!regRes.ok) {
+          if (regData.error?.includes('already')) {
+            setError('このメールアドレスは登録済みです。ログインしてください。')
+          } else {
+            setError(regData.error ?? 'エラーが発生しました')
+          }
+          return
+        }
 
-      if (!res.ok) {
-        setError(data.error ?? 'エラーが発生しました')
-        return
-      }
+        if (!regData.token || !regData.expiresAt) return
+        await saveAuthSession(regData.token, regData.expiresAt)
 
-      if (data.token && data.expiresAt) {
-        await saveAuthSession(data.token, data.expiresAt)
-        onSuccess()
+        const checkRes = await fetch(`${apiBaseUrl}/api/subscription/checkout`, {
+          method: 'POST',
+          headers: { Authorization: `Bearer ${regData.token}` },
+        })
+        const checkData = await checkRes.json() as { url?: string; error?: string }
+
+        if (checkData.url) {
+          chrome.tabs.create({ url: checkData.url })
+          setCheckoutOpened(true)
+        } else {
+          setError('チェックアウトの開始に失敗しました')
+        }
+      } else {
+        const res = await fetch(`${apiBaseUrl}/api/auth/login`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email, password }),
+        })
+        const data = await res.json() as { token?: string; expiresAt?: string; error?: string }
+
+        if (!res.ok) {
+          setError(data.error ?? 'メールアドレスまたはパスワードが正しくありません')
+          return
+        }
+
+        if (data.token && data.expiresAt) {
+          await saveAuthSession(data.token, data.expiresAt)
+          onSuccess()
+        }
       }
     } catch {
       setError('サーバーに接続できませんでした')
@@ -47,48 +86,89 @@ export function LoginModal({ apiBaseUrl, onSuccess, onClose }: Props) {
     }
   }
 
+  if (checkoutOpened) {
+    return (
+      <div className="proModal">
+        <div className="proModalCard">
+          <p className="proModalTitle">決済ページを開きました</p>
+          <p className="proModalSubtitle">
+            Stripeで決済が完了すると、自動的にサブスクが有効になります。
+          </p>
+          <div className="proModalNote">
+            決済完了後、拡張機能を再度開くとプレミアム機能が使えるようになります。
+          </div>
+          <button type="button" className="proModalSubmitBtn" style={{ marginTop: '16px' }} onClick={onSuccess}>
+            閉じる
+          </button>
+        </div>
+      </div>
+    )
+  }
+
   return (
-    <div className="modalOverlay">
-      <div className="modalCard">
-        <button type="button" className="modalClose" onClick={onClose}>×</button>
-        <h2>{mode === 'login' ? 'ログイン' : '新規登録'}</h2>
+    <div className="proModal">
+      <div className="proModalCard">
+        <button type="button" className="proModalClose" onClick={onClose}>×</button>
+
+        <p className="proModalTitle">
+          {mode === 'subscribe' ? 'LETUS Pro に登録' : 'ログイン'}
+        </p>
+        <p className="proModalSubtitle">
+          {mode === 'subscribe'
+            ? '登録後、Stripeの決済ページへ移動します。'
+            : 'アカウントにログインしてください。'}
+        </p>
 
         <form onSubmit={handleSubmit}>
-          <label>
-            メールアドレス
+          <div className="proModalField">
+            <label className="proModalLabel">メールアドレス</label>
             <input
+              className="proModalInput"
               type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
+              placeholder="example@email.com"
               required
+              autoFocus
             />
-          </label>
+          </div>
 
-          <label>
-            パスワード
+          <div className="proModalField">
+            <label className="proModalLabel">パスワード（8文字以上）</label>
             <input
+              className="proModalInput"
               type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               required
               minLength={8}
             />
-          </label>
+          </div>
 
-          {error && <p className="modalError">{error}</p>}
+          {error && <p className="proModalError">{error}</p>}
 
-          <button type="submit" disabled={loading}>
-            {loading ? '処理中...' : mode === 'login' ? 'ログイン' : '登録する'}
+          <button type="submit" className="proModalSubmitBtn" disabled={loading}>
+            {loading
+              ? '処理中...'
+              : mode === 'subscribe'
+                ? '登録してStripeへ進む →'
+                : 'ログイン'}
           </button>
         </form>
 
-        <button
-          type="button"
-          className="modeSwitchBtn"
-          onClick={() => setMode(mode === 'login' ? 'register' : 'login')}
-        >
-          {mode === 'login' ? '新規登録はこちら' : 'ログインはこちら'}
-        </button>
+        <p className="proModalSwitch">
+          {mode === 'subscribe' ? (
+            <>
+              既にアカウントをお持ちの方は{' '}
+              <button type="button" onClick={() => switchMode('login')}>ログイン</button>
+            </>
+          ) : (
+            <>
+              アカウントをお持ちでない方は{' '}
+              <button type="button" onClick={() => switchMode('subscribe')}>新規登録</button>
+            </>
+          )}
+        </p>
       </div>
     </div>
   )

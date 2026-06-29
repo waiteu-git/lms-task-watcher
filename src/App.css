@@ -1286,3 +1286,319 @@ button:disabled {
 .manualDeleteBtn:hover {
   background: #fef2f2;
 }
+
+/* ---- ProBanner ---- */
+
+.proCard {
+  margin-top: 24px;
+  padding: 20px;
+  border-radius: 24px;
+  background: linear-gradient(135deg, #f5f3ff 0%, #eff6ff 100%);
+  border: 1px solid #ddd6fe;
+  box-shadow:
+    0 10px 24px rgba(99, 102, 241, 0.08),
+    0 1px 0 rgba(255, 255, 255, 0.9) inset;
+}
+
+.proCardHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 14px;
+}
+
+.proCardTitle {
+  font-size: 15px;
+  font-weight: 950;
+  color: #3730a3;
+}
+
+.proBadge {
+  padding: 3px 10px;
+  border-radius: 999px;
+  background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+  color: #fff;
+  font-size: 10px;
+  font-weight: 900;
+  letter-spacing: 0.05em;
+}
+
+.proFeatureList {
+  list-style: none;
+  margin: 0 0 16px;
+  padding: 0;
+  display: grid;
+  gap: 7px;
+}
+
+.proFeatureItem {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  font-weight: 750;
+  color: #4338ca;
+}
+
+.proFeatureItem::before {
+  content: "✓";
+  font-weight: 900;
+  color: #6366f1;
+  flex-shrink: 0;
+}
+
+.proSubscribeBtn {
+  width: 100%;
+  padding: 11px;
+  border-radius: 999px;
+  background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+  color: #fff;
+  font-size: 13px;
+  font-weight: 900;
+  cursor: pointer;
+  box-shadow: 0 8px 20px rgba(99, 102, 241, 0.3);
+  transition: transform 0.14s ease, box-shadow 0.14s ease;
+  margin-bottom: 10px;
+}
+
+.proSubscribeBtn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 12px 26px rgba(99, 102, 241, 0.38);
+}
+
+.proLoginLink {
+  margin: 0;
+  text-align: center;
+  font-size: 11px;
+  color: #6b7280;
+  font-weight: 750;
+}
+
+.proLoginLink button {
+  background: none;
+  border: none;
+  color: #6366f1;
+  font-size: 11px;
+  font-weight: 800;
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  padding: 0;
+}
+
+/* ---- プレミアム設定（サブスク済み） ---- */
+
+.proSettingsBody {
+  display: grid;
+  gap: 12px;
+  padding-top: 4px;
+}
+
+.proSettingsRow {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.proSettingsLabel {
+  font-size: 12px;
+  font-weight: 900;
+  color: #475569;
+  min-width: 40px;
+}
+
+.themeBtn {
+  padding: 6px 14px;
+  border-radius: 999px;
+  border: 1.5px solid #e2e8f0;
+  background: #f8fafc;
+  color: #475569;
+  font-size: 12px;
+  font-weight: 800;
+  cursor: pointer;
+  transition: border-color 0.14s ease, background 0.14s ease;
+}
+
+.themeBtn:hover {
+  border-color: #c7d2fe;
+  background: #eef2ff;
+  color: #3730a3;
+}
+
+.themeBtn.active {
+  border-color: #6366f1;
+  background: #eef2ff;
+  color: #3730a3;
+}
+
+.proLogoutBtn {
+  width: fit-content;
+  padding: 6px 14px;
+  border-radius: 999px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  color: #64748b;
+  font-size: 11px;
+  font-weight: 800;
+  cursor: pointer;
+  transition: background 0.14s ease, color 0.14s ease;
+}
+
+.proLogoutBtn:hover {
+  background: #fff1f2;
+  color: #be123c;
+  border-color: #fecdd3;
+}
+
+/* ---- ProModal (LoginModal) ---- */
+
+.proModal {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.52);
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 200;
+}
+
+.proModalCard {
+  background: #ffffff;
+  border-radius: 28px;
+  padding: 28px 24px 24px;
+  width: 340px;
+  position: relative;
+  box-shadow:
+    0 24px 60px rgba(15, 23, 42, 0.18),
+    0 1px 0 rgba(255, 255, 255, 0.9) inset;
+}
+
+.proModalClose {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #f1f5f9;
+  border: none;
+  border-radius: 999px;
+  font-size: 14px;
+  color: #64748b;
+  cursor: pointer;
+  transition: background 0.14s ease;
+}
+
+.proModalClose:hover {
+  background: #e2e8f0;
+}
+
+.proModalTitle {
+  margin: 0 0 4px;
+  font-size: 17px;
+  font-weight: 950;
+  color: #0f172a;
+}
+
+.proModalSubtitle {
+  margin: 0 0 18px;
+  font-size: 12px;
+  color: #64748b;
+  font-weight: 700;
+  line-height: 1.5;
+}
+
+.proModalField {
+  display: grid;
+  gap: 5px;
+  margin-bottom: 10px;
+}
+
+.proModalLabel {
+  font-size: 11px;
+  font-weight: 900;
+  color: #475569;
+}
+
+.proModalInput {
+  width: 100%;
+  padding: 9px 12px;
+  border: 1.5px solid #e2e8f0;
+  border-radius: 12px;
+  font-size: 13px;
+  color: #0f172a;
+  background: #f8fafc;
+  transition: border-color 0.14s ease, background 0.14s ease;
+  box-sizing: border-box;
+}
+
+.proModalInput:focus {
+  outline: none;
+  border-color: #6366f1;
+  background: #fff;
+}
+
+.proModalError {
+  padding: 8px 12px;
+  border-radius: 10px;
+  background: #fff1f2;
+  color: #be123c;
+  font-size: 12px;
+  font-weight: 750;
+  margin-bottom: 10px;
+}
+
+.proModalSubmitBtn {
+  width: 100%;
+  padding: 11px;
+  border-radius: 999px;
+  background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+  color: #fff;
+  font-size: 13px;
+  font-weight: 900;
+  cursor: pointer;
+  border: none;
+  box-shadow: 0 8px 20px rgba(99, 102, 241, 0.28);
+  transition: transform 0.14s ease, box-shadow 0.14s ease;
+  margin-top: 6px;
+}
+
+.proModalSubmitBtn:hover:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow: 0 12px 26px rgba(99, 102, 241, 0.36);
+}
+
+.proModalSwitch {
+  margin: 14px 0 0;
+  text-align: center;
+  font-size: 11px;
+  color: #94a3b8;
+  font-weight: 750;
+}
+
+.proModalSwitch button {
+  background: none;
+  border: none;
+  color: #6366f1;
+  font-size: 11px;
+  font-weight: 800;
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  padding: 0;
+}
+
+.proModalNote {
+  margin-top: 14px;
+  padding: 10px 14px;
+  border-radius: 12px;
+  background: #f0fdf4;
+  border: 1px solid #bbf7d0;
+  color: #15803d;
+  font-size: 12px;
+  font-weight: 750;
+  line-height: 1.5;
+}
