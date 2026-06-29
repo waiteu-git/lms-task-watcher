@@ -5,6 +5,7 @@ import {
   getManualAssignments,
   toggleManualAssignmentSubmitted,
 } from '../core/manualAssignment'
+import { getAssignments } from '../core/storage'
 
 // --- helpers ---
 
@@ -197,6 +198,7 @@ function buildHoverBtn(
 function processActivities(
   course: Course,
   manualAssignments: ManualAssignment[],
+  scannedUrls: Set<string>,
 ): void {
   for (const li of document.querySelectorAll<HTMLElement>('li.activity')) {
     const a = li.querySelector<HTMLAnchorElement>('a.aalink')
@@ -208,6 +210,10 @@ function processActivities(
     const activityUrl = a.href.split('#')[0]
     const activityName =
       activityItem.dataset.activityname ?? a.textContent?.trim() ?? ''
+
+    // スキャン済み課題は拡張機能がすでに追跡しているため何も注入しない
+    if (scannedUrls.has(activityUrl)) continue
+
     const existing = manualAssignments.find(
       (m) => m.letusUrl != null && m.letusUrl.split('#')[0] === activityUrl,
     )
@@ -235,14 +241,28 @@ function processActivities(
 
 // --- Entry point ---
 
+function buildScannedUrls(scannedAssignments: { url?: string }[]): Set<string> {
+  return new Set(
+    scannedAssignments
+      .filter((a) => a.url)
+      .map((a) => a.url!.split('#')[0]),
+  )
+}
+
 export async function initActivityWidget(courses: Course[]): Promise<void> {
   const course = getCourseFromPage(courses)
   if (!course) return
 
   injectHoverStyle()
 
-  let manualAssignments = await getManualAssignments()
-  processActivities(course, manualAssignments)
+  const [manualRaw, scannedRaw] = await Promise.all([
+    getManualAssignments(),
+    getAssignments(),
+  ])
+  let manualAssignments = manualRaw
+  let scannedUrls = buildScannedUrls(scannedRaw)
+
+  processActivities(course, manualAssignments, scannedUrls)
 
   let processedCount = document.querySelectorAll('li.activity').length
 
@@ -250,8 +270,10 @@ export async function initActivityWidget(courses: Course[]): Promise<void> {
     const current = document.querySelectorAll('li.activity').length
     if (current > processedCount) {
       processedCount = current
-      manualAssignments = await getManualAssignments()
-      processActivities(course, manualAssignments)
+      const [m, s] = await Promise.all([getManualAssignments(), getAssignments()])
+      manualAssignments = m
+      scannedUrls = buildScannedUrls(s)
+      processActivities(course, manualAssignments, scannedUrls)
     }
   })
   observer.observe(document.body, { childList: true, subtree: true })
