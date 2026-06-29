@@ -1,5 +1,6 @@
 const AUTH_TOKEN_KEY = 'authToken'
 const AUTH_TOKEN_EXPIRES_AT_KEY = 'authTokenExpiresAt'
+const AUTH_EMAIL_KEY = 'authEmail'
 const SUBSCRIPTION_STATUS_KEY = 'subscriptionStatus'
 const SUBSCRIPTION_CHECKED_AT_KEY = 'subscriptionCheckedAt'
 const SUBSCRIPTION_GRACE_UNTIL_KEY = 'subscriptionGraceUntil'
@@ -24,10 +25,16 @@ export async function getAuthToken(): Promise<string | null> {
   return result.authToken
 }
 
-export async function saveAuthSession(token: string, expiresAt: string): Promise<void> {
+export async function getAuthEmail(): Promise<string | null> {
+  const result = await chrome.storage.local.get(AUTH_EMAIL_KEY) as { authEmail?: string }
+  return result.authEmail ?? null
+}
+
+export async function saveAuthSession(token: string, expiresAt: string, email?: string): Promise<void> {
   await chrome.storage.local.set({
     [AUTH_TOKEN_KEY]: token,
     [AUTH_TOKEN_EXPIRES_AT_KEY]: expiresAt,
+    ...(email ? { [AUTH_EMAIL_KEY]: email } : {}),
   })
 }
 
@@ -35,10 +42,16 @@ export async function clearAuthSession(): Promise<void> {
   await chrome.storage.local.remove([
     AUTH_TOKEN_KEY,
     AUTH_TOKEN_EXPIRES_AT_KEY,
+    AUTH_EMAIL_KEY,
     SUBSCRIPTION_STATUS_KEY,
     SUBSCRIPTION_CHECKED_AT_KEY,
     SUBSCRIPTION_GRACE_UNTIL_KEY,
   ])
+}
+
+export async function getSubscriptionCurrentPeriodEnd(): Promise<string | null> {
+  const result = await chrome.storage.local.get('subscriptionCurrentPeriodEnd') as { subscriptionCurrentPeriodEnd?: string }
+  return result.subscriptionCurrentPeriodEnd ?? null
 }
 
 export async function saveSubscriptionCache(

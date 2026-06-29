@@ -62,7 +62,7 @@ import { createNotification, normalizeUpdateError } from './utils/notification'
 import { AssignmentCard } from './components/AssignmentCard'
 import { CollapsibleSection, Section } from './components/Section'
 import { getTheme, saveTheme } from './core/premium'
-import { saveSubscriptionCache, isSubscriptionActive, clearAuthSession, getAuthToken } from './core/auth'
+import { saveSubscriptionCache, isSubscriptionActive, clearAuthSession, getAuthToken, getAuthEmail, getSubscriptionCurrentPeriodEnd } from './core/auth'
 import { getOnboardingCompleted, setOnboardingCompleted } from './core/onboarding'
 import { OnboardingBanner } from './components/OnboardingBanner'
 import {
@@ -94,6 +94,8 @@ export default function App() {
   const [manualAssignments, setManualAssignments] = useState<ManualAssignment[]>([])
   const [isUpdating, setIsUpdating] = useState(false)
   const [isSubscriber, setIsSubscriber] = useState(false)
+  const [accountEmail, setAccountEmail] = useState<string | null>(null)
+  const [nextPaymentDate, setNextPaymentDate] = useState<string | null>(null)
   const [theme, setTheme] = useState('default')
   const [message, setMessage] = useState('')
   const [showOnboarding, setShowOnboarding] = useState(false)
@@ -214,13 +216,38 @@ export default function App() {
 
   useEffect(() => {
     void (async () => {
-      const [savedTheme, subscriberStatus] = await Promise.all([
+      const [savedTheme, cachedSubscriber, email, token] = await Promise.all([
         getTheme(),
         isSubscriptionActive(),
+        getAuthEmail(),
+        getAuthToken(),
       ])
       setTheme(savedTheme)
-      setIsSubscriber(subscriberStatus)
+      setAccountEmail(email)
       document.documentElement.setAttribute('data-theme', savedTheme)
+
+      if (token) {
+        // トークンがある場合はサーバーから最新のサブスク状態を取得
+        try {
+          const res = await fetch(`${API_BASE_URL}/api/subscription/status`, {
+            headers: { Authorization: `Bearer ${token}` },
+          })
+          if (res.ok) {
+            const data = await res.json() as { status: string; currentPeriodEnd: string | null }
+            await saveSubscriptionCache(data.status, data.currentPeriodEnd)
+            setIsSubscriber(data.status === 'active')
+            setNextPaymentDate(data.currentPeriodEnd)
+          } else {
+            setIsSubscriber(cachedSubscriber)
+            setNextPaymentDate(await getSubscriptionCurrentPeriodEnd())
+          }
+        } catch {
+          setIsSubscriber(cachedSubscriber)
+          setNextPaymentDate(await getSubscriptionCurrentPeriodEnd())
+        }
+      } else {
+        setIsSubscriber(false)
+      }
     })()
   }, [])
 
@@ -273,6 +300,7 @@ export default function App() {
   }, [])
 
   async function handleAfterLogin() {
+    void getAuthEmail().then(setAccountEmail)
     try {
       const token = await getAuthToken()
       if (!token) { setIsSubscriber(false); return }
@@ -295,6 +323,7 @@ export default function App() {
   async function handleLogout() {
     await clearAuthSession()
     setIsSubscriber(false)
+    setAccountEmail(null)
   }
 
   const updateNow = useCallback(async () => {
@@ -1106,13 +1135,36 @@ export default function App() {
           {isSubscriber ? (
             <details className="settings" open>
               <summary>
-                プレミアム設定
+                プレミアム
                 <SubscriberBadge />
               </summary>
 
-              <div className="proSettingsBody">
-                <div className="proSettingsRow">
-                  <span className="proSettingsLabel">テーマ</span>
+              <div className="premiumSettingsBody">
+                <div className="premiumAccountSection">
+                  {accountEmail && (
+                    <p className="premiumAccountEmail">{accountEmail}</p>
+                  )}
+                  {nextPaymentDate && (
+                    <p className="premiumNextPayment">
+                      次回請求日: {new Date(nextPaymentDate).toLocaleDateString('ja-JP')}
+                    </p>
+                  )}
+                </div>
+
+                <div className="premiumFeatureSection">
+                  <p className="premiumSectionLabel">利用可能な機能</p>
+                  <ul className="premiumFeatureList">
+                    <li>課題へのメモ・優先度設定</li>
+                    <li>ダークテーマ</li>
+                    <li>クロスデバイス同期</li>
+                    <li>手動課題の追加</li>
+                    <li>LETUS上の登録済みインジケーター</li>
+                    <li>限定 Discord コミュニティ招待</li>
+                  </ul>
+                </div>
+
+                <div className="premiumSettingsRow">
+                  <span className="premiumSettingsLabel">テーマ</span>
                   <div className="themeSelector">
                     {(['default', 'dark'] as const).map((t) => (
                       <button
@@ -1133,7 +1185,7 @@ export default function App() {
 
                 <button
                   type="button"
-                  className="proLogoutBtn"
+                  className="premiumLogoutBtn"
                   onClick={() => void handleLogout()}
                 >
                   ログアウト
