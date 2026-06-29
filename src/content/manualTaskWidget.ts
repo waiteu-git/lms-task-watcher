@@ -1,6 +1,27 @@
-import type { Assignment, Course } from '../core/types'
-import { getCourses, getAssignments } from '../core/storage'
-import { addManualAssignment, type ManualAssignment } from '../core/manualAssignment'
+// Inline types to keep this file free of shared-chunk imports.
+// Content scripts must be self-contained (no ES module imports at runtime).
+type Course = { id: string; name: string; enabled: boolean }
+type Assignment = { id: string; url?: string; title: string; deadline: string | null; courseName: string }
+type ManualAssignment = {
+  id: string; courseId: string; courseName: string; title: string
+  letusUrl: string | null; deadline: string; memo: string; createdAt: string
+}
+
+async function getCourses(): Promise<Course[]> {
+  const r = await chrome.storage.local.get('courses') as { courses?: Course[] }
+  return r.courses ?? []
+}
+
+async function getAssignments(): Promise<Assignment[]> {
+  const r = await chrome.storage.local.get('assignments') as { assignments?: Assignment[] }
+  return r.assignments ?? []
+}
+
+async function addManualAssignment(item: ManualAssignment): Promise<void> {
+  const r = await chrome.storage.local.get('manualAssignments') as { manualAssignments?: ManualAssignment[] }
+  const current = r.manualAssignments ?? []
+  await chrome.storage.local.set({ manualAssignments: [...current, item] })
+}
 
 function escapeHtml(str: string): string {
   return str
