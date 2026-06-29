@@ -171,7 +171,7 @@
     <div class="roadmap">
 
       <div class="phase-card done open" id="phase1">
-        <div class="phase-header" onclick="toggle('phase1')">
+        <div class="phase-header">
           <span class="phase-badge">✓ 完了</span>
           <span class="phase-title">フェーズ1 — 課題通知・手動追加</span>
           <span class="phase-arrow">▼</span>
@@ -190,7 +190,7 @@
       </div>
 
       <div class="phase-card soon" id="phase2">
-        <div class="phase-header" onclick="toggle('phase2')">
+        <div class="phase-header">
           <span class="phase-badge">近日公開</span>
           <span class="phase-title">フェーズ2 — アカウント機能</span>
           <span class="phase-arrow">▼</span>
@@ -209,7 +209,7 @@
       </div>
 
       <div class="phase-card future" id="phase3">
-        <div class="phase-header" onclick="toggle('phase3')">
+        <div class="phase-header">
           <span class="phase-badge">将来</span>
           <span class="phase-title">フェーズ3 — モバイルアプリ</span>
           <span class="phase-arrow">▼</span>
@@ -232,10 +232,6 @@
     </footer>
   </div>
 
-  <script>
-    function toggle(id) {
-      document.getElementById(id).classList.toggle('open');
-    }
-  </script>
+  <script src="changelog.js"></script>
 </body>
 </html>
