@@ -47,27 +47,103 @@
       border-bottom: 1px solid #f3f4f6;
     }
     ul li::before { content: '•'; position: absolute; left: 0; color: #2563eb; }
-    .roadmap { margin-bottom: 32px; }
-    .phase {
-      display: flex;
-      align-items: flex-start;
-      gap: 12px;
-      padding: 12px 0;
-      border-bottom: 1px solid #f3f4f6;
+
+    /* ── ロードマップ ── */
+    .roadmap-hint {
+      font-size: 12px;
+      color: #9ca3af;
+      margin-bottom: 12px;
     }
+    .roadmap { margin-bottom: 32px; display: flex; flex-direction: column; gap: 8px; }
+
+    .phase-card {
+      border: 1px solid #e5e7eb;
+      border-radius: 10px;
+      overflow: hidden;
+      transition: box-shadow 0.15s;
+    }
+    .phase-card:hover { box-shadow: 0 2px 8px rgba(0,0,0,0.08); }
+    .phase-card.done   { border-color: #86efac; }
+    .phase-card.soon   { border-color: #93c5fd; }
+    .phase-card.future { border-color: #e5e7eb; }
+
+    .phase-header {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 13px 14px;
+      cursor: pointer;
+      user-select: none;
+      -webkit-user-select: none;
+    }
+    .done   .phase-header { background: #f0fdf4; }
+    .soon   .phase-header { background: #eff6ff; }
+    .future .phase-header { background: #fafafa; }
+
     .phase-badge {
       font-size: 11px;
       font-weight: 600;
-      padding: 2px 8px;
+      padding: 2px 9px;
       border-radius: 99px;
       white-space: nowrap;
-      margin-top: 2px;
+      flex-shrink: 0;
     }
-    .badge-done { background: #dcfce7; color: #166534; }
-    .badge-soon { background: #dbeafe; color: #1d4ed8; }
-    .badge-future { background: #f3f4f6; color: #6b7280; }
-    .phase-content h3 { font-size: 14px; font-weight: 600; margin-bottom: 2px; }
-    .phase-content p { font-size: 13px; color: #6b7280; }
+    .done   .phase-badge { background: #dcfce7; color: #166534; }
+    .soon   .phase-badge { background: #dbeafe; color: #1d4ed8; }
+    .future .phase-badge { background: #f3f4f6; color: #6b7280; }
+
+    .phase-title {
+      font-size: 14px;
+      font-weight: 600;
+      flex: 1;
+      color: #111827;
+    }
+    .phase-arrow {
+      font-size: 11px;
+      color: #9ca3af;
+      transition: transform 0.2s;
+      flex-shrink: 0;
+    }
+    .phase-card.open .phase-arrow { transform: rotate(180deg); }
+
+    .phase-body {
+      display: none;
+      padding: 14px;
+      border-top: 1px solid #f3f4f6;
+    }
+    .phase-card.open .phase-body { display: block; }
+
+    .phase-desc {
+      font-size: 13px;
+      color: #6b7280;
+      margin-bottom: 12px;
+      line-height: 1.65;
+    }
+    .phase-features {
+      list-style: none;
+      margin: 0;
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+    .phase-features li {
+      font-size: 13px;
+      color: #374151;
+      padding: 5px 0 5px 20px;
+      position: relative;
+      border: none;
+      border-bottom: 1px solid #f9fafb;
+    }
+    .phase-features li:last-child { border-bottom: none; }
+    .phase-features li::before {
+      position: absolute;
+      left: 0;
+      font-size: 12px;
+    }
+    .done   .phase-features li::before { content: '✓'; color: #16a34a; }
+    .soon   .phase-features li::before { content: '○'; color: #3b82f6; }
+    .future .phase-features li::before { content: '○'; color: #d1d5db; }
+
     footer {
       font-size: 12px;
       color: #9ca3af;
@@ -86,38 +162,80 @@
 
     <h2>✨ 今回の変更点</h2>
     <ul>
-      <li>「課題を手動で追加」機能を追加しました。LETUSの任意のページ右下のボタンから、自動スキャンで拾えない課題（フォーラム投稿型など）を自分で登録できます。</li>
-      <li>登録済み課題のページを開くと、右下に「✓ 登録済み」インジケーターが表示されるようになりました。締切日時が一目で確認でき、クリックするとダッシュボードにジャンプします。</li>
+      <li>LETUSの任意のページ右下のボタンから、自動スキャンで拾えない課題（フォーラム投稿型など）を手動で登録できるようになりました。</li>
+      <li>登録済み課題のページを開くと、右下に「✓ 登録済み」インジケーターが表示されるようになりました。締切日時をひと目で確認でき、クリックするとダッシュボードにジャンプします。</li>
     </ul>
 
     <h2>🗺 ロードマップ</h2>
+    <p class="roadmap-hint">各フェーズをタップして詳細を確認できます</p>
     <div class="roadmap">
-      <div class="phase">
-        <span class="phase-badge badge-done">完了</span>
-        <div class="phase-content">
-          <h3>フェーズ1 — 課題通知・手動追加</h3>
-          <p>LETUSから課題を自動スキャン・通知。手動課題追加にも対応</p>
+
+      <div class="phase-card done open" id="phase1">
+        <div class="phase-header" onclick="toggle('phase1')">
+          <span class="phase-badge">✓ 完了</span>
+          <span class="phase-title">フェーズ1 — 課題通知・手動追加</span>
+          <span class="phase-arrow">▼</span>
+        </div>
+        <div class="phase-body">
+          <p class="phase-desc">LETUSの課題を自動で収集・通知する基本機能。手動追加や登録済みインジケーターにも対応しました。</p>
+          <ul class="phase-features">
+            <li>LETUSから課題を自動スキャン</li>
+            <li>締切 1時間前 / 3時間前 / 24時間前に通知</li>
+            <li>ダッシュボードで全課題を一覧表示</li>
+            <li>コース単位でスキャン対象を管理</li>
+            <li>手動での課題追加（フォーラム投稿型など）</li>
+            <li>登録済みページの「✓ 登録済み」インジケーター</li>
+          </ul>
         </div>
       </div>
-      <div class="phase">
-        <span class="phase-badge badge-soon">近日公開</span>
-        <div class="phase-content">
-          <h3>フェーズ2 — アカウント機能（月額120円）</h3>
-          <p>アカウント登録でデータをクラウド同期。複数デバイス対応・クラスメートとの課題共有・カスタム通知・メール通知など</p>
+
+      <div class="phase-card soon" id="phase2">
+        <div class="phase-header" onclick="toggle('phase2')">
+          <span class="phase-badge">近日公開</span>
+          <span class="phase-title">フェーズ2 — アカウント機能</span>
+          <span class="phase-arrow">▼</span>
+        </div>
+        <div class="phase-body">
+          <p class="phase-desc">アカウントを作成することでデータがクラウドに保存され、複数デバイス対応や他のユーザーとの連携が可能になります。</p>
+          <ul class="phase-features">
+            <li>クロスデバイス同期（PC・自宅・研究室など）</li>
+            <li>同じコースのクラスメートと手動課題を共有</li>
+            <li>科目・曜日ごとにカスタム通知タイミングを設定</li>
+            <li>メール通知（優先度・コース・タイミングの細かい設定付き）</li>
+            <li>テーマ変更・サブスクライバーバッジ</li>
+            <li>限定 Discord コミュニティ</li>
+          </ul>
         </div>
       </div>
-      <div class="phase">
-        <span class="phase-badge badge-future">将来</span>
-        <div class="phase-content">
-          <h3>フェーズ3 — モバイルアプリ</h3>
-          <p>iOS / Android アプリによるプッシュ通知。アカウントがあればそのまま利用可能</p>
+
+      <div class="phase-card future" id="phase3">
+        <div class="phase-header" onclick="toggle('phase3')">
+          <span class="phase-badge">将来</span>
+          <span class="phase-title">フェーズ3 — モバイルアプリ</span>
+          <span class="phase-arrow">▼</span>
+        </div>
+        <div class="phase-body">
+          <p class="phase-desc">iOS / Android アプリでブラウザを開かなくてもプッシュ通知を受け取れます。フェーズ2のアカウントがあればそのまま利用できます。</p>
+          <ul class="phase-features">
+            <li>iOSアプリ（App Store）</li>
+            <li>Androidアプリ（Google Play）</li>
+            <li>バックグラウンドプッシュ通知</li>
+            <li>拡張機能とのデータ自動同期</li>
+          </ul>
         </div>
       </div>
+
     </div>
 
     <footer>
       ご意見・バグ報告は <a href="https://forms.gle/Bso6MoFYhgRtkpsS9" target="_blank">フィードバックフォーム</a> からどうぞ。
     </footer>
   </div>
+
+  <script>
+    function toggle(id) {
+      document.getElementById(id).classList.toggle('open');
+    }
+  </script>
 </body>
 </html>
