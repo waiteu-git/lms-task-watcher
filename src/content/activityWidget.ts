@@ -6,6 +6,7 @@ import {
   toggleManualAssignmentSubmitted,
 } from '../core/manualAssignment'
 import { getAssignments } from '../core/storage'
+import { getIgnoredAssignmentIds } from '../core/scanStatus'
 
 // --- helpers ---
 
@@ -21,6 +22,43 @@ function formatDeadline(iso: string): string {
   const hh = String(d.getHours()).padStart(2, '0')
   const mm = String(d.getMinutes()).padStart(2, '0')
   return `${m}/${day} ${hh}:${mm}`
+}
+
+// SVGアイコン: 時計(clock)・チェック(check)・警告(warn)
+function svgIcon(type: 'clock' | 'check' | 'warn'): string {
+  if (type === 'check') {
+    return (
+      '<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor"' +
+      ' stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">' +
+      '<polyline points="20 6 9 17 4 12"/></svg>'
+    )
+  }
+  if (type === 'warn') {
+    return (
+      '<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor"' +
+      ' stroke-width="2" stroke-linecap="round" stroke-linejoin="round">' +
+      '<path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>' +
+      '<line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>'
+    )
+  }
+  return (
+    '<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor"' +
+    ' stroke-width="2" stroke-linecap="round" stroke-linejoin="round">' +
+    '<circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>'
+  )
+}
+
+function makeBadgeSpan(className: string, icon: string, label: string, title: string): HTMLSpanElement {
+  const b = document.createElement('span')
+  b.className = className
+  b.title = title
+  const iconSpan = document.createElement('span')
+  iconSpan.innerHTML = icon
+  const textSpan = document.createElement('span')
+  textSpan.textContent = label
+  b.appendChild(iconSpan)
+  b.appendChild(textSpan)
+  return b
 }
 
 // --- Hover style injected once into document ---
@@ -116,23 +154,23 @@ function showAddPopup(
 
 // --- Badge for auto-scanned activities (read-only) ---
 
+const BADGE_CSS =
+  ':host{all:initial}' +
+  '.b{display:inline-flex;align-items:center;gap:4px;padding:3px 8px;border-radius:6px;' +
+  'font-size:11px;white-space:nowrap;border:0.5px solid;font-family:sans-serif}' +
+  '.p{background:#fef3c7;color:#78350f;border-color:#fcd34d}' +
+  '.s{background:#d1fae5;color:#065f46;border-color:#6ee7b7}' +
+  '.o{background:#fee2e2;color:#991b1b;border-color:#fca5a5}' +
+  '.n{background:#f3f4f6;color:#6b7280;border-color:#d1d5db}'
+
 function buildScannedBadge(shadow: ShadowRoot, assignment: Assignment): void {
   const style = document.createElement('style')
-  style.textContent =
-    ':host{all:initial}' +
-    '.b{display:inline-flex;align-items:center;gap:4px;padding:3px 8px;border-radius:6px;' +
-    'font-size:11px;white-space:nowrap;border:0.5px solid;font-family:sans-serif}' +
-    '.p{background:#fef3c7;color:#78350f;border-color:#fcd34d}' +
-    '.s{background:#d1fae5;color:#065f46;border-color:#6ee7b7}' +
-    '.o{background:#fee2e2;color:#991b1b;border-color:#fca5a5}' +
-    '.n{background:#f3f4f6;color:#6b7280;border-color:#d1d5db}'
+  style.textContent = BADGE_CSS
   shadow.appendChild(style)
 
-  const b = document.createElement('span')
+  let b: HTMLSpanElement
   if (!assignment.deadline) {
-    b.className = 'b n'
-    b.textContent = '登録済み'
-    b.title = '自動登録済み'
+    b = makeBadgeSpan('b n', svgIcon('check'), '登録済み', '自動登録済み')
   } else {
     const dl = formatDeadline(assignment.deadline)
     const overdue = new Date(assignment.deadline) < new Date()
@@ -140,33 +178,29 @@ function buildScannedBadge(shadow: ShadowRoot, assignment: Assignment): void {
       assignment.submissionStatus === 'submitted' ||
       assignment.submissionStatus === 'completed'
     if (submitted) {
-      b.className = 'b s'
-      b.textContent = `✓ ${dl} · 提出済み`
-      b.title = '自動登録済み（提出済み）'
+      b = makeBadgeSpan('b s', svgIcon('check'), `${dl} · 提出済み`, '自動登録済み（提出済み）')
     } else if (overdue) {
-      b.className = 'b o'
-      b.textContent = `! ${dl} · 期限切れ`
-      b.title = '自動登録済み（期限切れ）'
+      b = makeBadgeSpan('b o', svgIcon('warn'), `${dl} · 期限切れ`, '自動登録済み（期限切れ）')
     } else {
-      b.className = 'b p'
-      b.textContent = `⏱ ${dl} · 未提出`
-      b.title = '自動登録済み（未提出）'
+      b = makeBadgeSpan('b p', svgIcon('clock'), `${dl} · 未提出`, '自動登録済み（未提出）')
     }
   }
   shadow.appendChild(b)
 }
 
-// --- Badge for tracked activities ---
+// --- Badge for manually-added activities (clickable to toggle submitted) ---
+
+const BADGE_MANUAL_CSS =
+  ':host{all:initial}' +
+  '.b{display:inline-flex;align-items:center;gap:4px;padding:3px 8px;border-radius:6px;' +
+  'font-size:11px;cursor:pointer;white-space:nowrap;border:0.5px solid;font-family:sans-serif;user-select:none}' +
+  '.p{background:#fef3c7;color:#78350f;border-color:#fcd34d}' +
+  '.s{background:#d1fae5;color:#065f46;border-color:#6ee7b7}' +
+  '.o{background:#fee2e2;color:#991b1b;border-color:#fca5a5}'
 
 function buildBadge(shadow: ShadowRoot, assignment: ManualAssignment): void {
   const style = document.createElement('style')
-  style.textContent =
-    ':host{all:initial}' +
-    '.b{display:inline-flex;align-items:center;gap:4px;padding:3px 8px;border-radius:6px;' +
-    'font-size:11px;cursor:pointer;white-space:nowrap;border:0.5px solid;font-family:sans-serif;user-select:none}' +
-    '.p{background:#fef3c7;color:#78350f;border-color:#fcd34d}' +
-    '.s{background:#d1fae5;color:#065f46;border-color:#6ee7b7}' +
-    '.o{background:#fee2e2;color:#991b1b;border-color:#fca5a5}'
+  style.textContent = BADGE_MANUAL_CSS
   shadow.appendChild(style)
 
   let submitted = assignment.submitted ?? false
@@ -174,21 +208,15 @@ function buildBadge(shadow: ShadowRoot, assignment: ManualAssignment): void {
   const render = (): void => {
     const old = shadow.querySelector('.b')
     if (old) old.remove()
-    const b = document.createElement('span')
     const overdue = new Date(assignment.deadline) < new Date()
     const dl = formatDeadline(assignment.deadline)
+    let b: HTMLSpanElement
     if (submitted) {
-      b.className = 'b s'
-      b.textContent = `✓ ${dl} · 提出済み`
-      b.title = 'クリックで未提出に変更'
+      b = makeBadgeSpan('b s', svgIcon('check'), `${dl} · 提出済み`, 'クリックで未提出に変更')
     } else if (overdue) {
-      b.className = 'b o'
-      b.textContent = `! ${dl} · 期限切れ`
-      b.title = 'クリックで提出済みに変更'
+      b = makeBadgeSpan('b o', svgIcon('warn'), `${dl} · 期限切れ`, 'クリックで提出済みに変更')
     } else {
-      b.className = 'b p'
-      b.textContent = `⏱ ${dl} · 未提出`
-      b.title = 'クリックで提出済みに変更'
+      b = makeBadgeSpan('b p', svgIcon('clock'), `${dl} · 未提出`, 'クリックで提出済みに変更')
     }
     b.addEventListener('click', async (e) => {
       e.preventDefault()
@@ -241,6 +269,7 @@ function processActivities(
   course: Course,
   manualAssignments: ManualAssignment[],
   scannedAssignments: Assignment[],
+  ignoredIds: Set<string>,
 ): void {
   const scannedMap = new Map<string, Assignment>(
     scannedAssignments
@@ -263,6 +292,9 @@ function processActivities(
       (m) => m.letusUrl != null && m.letusUrl.split('#')[0] === activityUrl,
     )
     const scanned = scannedMap.get(activityUrl)
+
+    // ダッシュボードで非表示にしたスキャン済み課題は何も表示しない
+    if (scanned && ignoredIds.has(scanned.id)) continue
 
     const host = document.createElement('div')
     host.style.cssText =
@@ -296,14 +328,16 @@ export async function initActivityWidget(courses: Course[]): Promise<void> {
 
   injectHoverStyle()
 
-  const [manualRaw, scannedRaw] = await Promise.all([
+  const [manualRaw, scannedRaw, ignoredRaw] = await Promise.all([
     getManualAssignments(),
     getAssignments(),
+    getIgnoredAssignmentIds(),
   ])
   let manualAssignments = manualRaw
   let scannedAssignments = scannedRaw
+  let ignoredIds = new Set(ignoredRaw)
 
-  processActivities(course, manualAssignments, scannedAssignments)
+  processActivities(course, manualAssignments, scannedAssignments, ignoredIds)
 
   let processedCount = document.querySelectorAll('li.activity').length
 
@@ -311,10 +345,15 @@ export async function initActivityWidget(courses: Course[]): Promise<void> {
     const current = document.querySelectorAll('li.activity').length
     if (current > processedCount) {
       processedCount = current
-      const [m, s] = await Promise.all([getManualAssignments(), getAssignments()])
+      const [m, s, ig] = await Promise.all([
+        getManualAssignments(),
+        getAssignments(),
+        getIgnoredAssignmentIds(),
+      ])
       manualAssignments = m
       scannedAssignments = s
-      processActivities(course, manualAssignments, scannedAssignments)
+      ignoredIds = new Set(ig)
+      processActivities(course, manualAssignments, scannedAssignments, ignoredIds)
     }
   })
   observer.observe(document.body, { childList: true, subtree: true })
