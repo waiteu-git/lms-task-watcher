@@ -77,6 +77,8 @@ function run(): void {
         return
       }
       console.log('[LETUS Task Watcher] courses upserted:', response)
+      // ストレージ書き込み完了後に再試行（初回訪問時の競合対策）
+      void initManualTaskWidget()
     })
   }
 
