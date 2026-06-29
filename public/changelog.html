@@ -162,27 +162,29 @@
 <body>
   <div class="container">
     <p class="eyebrow">LETUS Task Watcher</p>
-    <h1>v1.1.0 にアップデートしました</h1>
+    <h1>v1.2.0 にアップデートしました</h1>
     <p class="subtitle">ご利用ありがとうございます。今回のアップデート内容をお知らせします。</p>
 
     <h2>✨ 今回の変更点</h2>
     <ul>
-      <li>LETUSの任意のページ右下のボタンから、自動スキャンで拾えない課題（フォーラム投稿型など）を手動で登録できるようになりました。</li>
-      <li>登録済み課題のページを開くと、右下に「✓ 登録済み」インジケーターが表示されるようになりました。締切日時をひと目で確認でき、クリックするとダッシュボードにジャンプします。</li>
+      <li>サブスクリプション機能を追加しました。登録するとクロスデバイス同期・課題メモ・優先度・ダークテーマ・限定Discordサーバーが利用できます。</li>
+      <li>課題カードにメモ・優先度ボタンを追加しました。サブスクライバーはメモを記入したり「高/中/低」の優先度を設定できます（非サブスクライバーはロックされます）。</li>
+      <li>ダッシュボードにダークテーマを追加しました。設定はクラウドに保存され、複数デバイスで自動的に同期されます。</li>
+      <li>アカウント登録とサブスク申し込みを同時に行えるようにしました。</li>
     </ul>
 
     <h2>🗺 ロードマップ</h2>
     <p class="roadmap-hint">各フェーズをタップして詳細を確認できます</p>
     <div class="roadmap">
 
-      <div class="phase-card done open" id="phase1">
+      <div class="phase-card done" id="phase1">
         <div class="phase-header">
           <span class="phase-badge">✓ 完了</span>
           <span class="phase-title">フェーズ1 — 課題通知・手動追加</span>
           <span class="phase-arrow">▼</span>
         </div>
         <div class="phase-body">
-          <p class="phase-desc">LETUSの課題を自動で収集・通知する基本機能。手動追加や登録済みインジケーターにも対応しました。</p>
+          <p class="phase-desc">LETUSの課題を自動で収集・通知する基本機能。手動追加や登録済みインジケーターにも対応しています。</p>
           <ul class="phase-features">
             <li>LETUSから課題を自動スキャン</li>
             <li>締切 1時間前 / 3時間前 / 24時間前に通知</li>
@@ -194,21 +196,20 @@
         </div>
       </div>
 
-      <div class="phase-card soon" id="phase2">
+      <div class="phase-card done open" id="phase2">
         <div class="phase-header">
-          <span class="phase-badge">近日公開</span>
-          <span class="phase-title">フェーズ2 — アカウント機能 <span class="phase-sub">（サブスクリプション）</span></span>
+          <span class="phase-badge">✓ 完了</span>
+          <span class="phase-title">フェーズ2 — サブスクリプション機能 <span class="phase-sub">（v1.2.0）</span></span>
           <span class="phase-arrow">▼</span>
         </div>
         <div class="phase-body">
-          <p class="phase-desc">アカウントを作成してサブスクリプションに登録することで利用できる機能です。データがクラウドに保存され、複数デバイス対応や他のユーザーとの連携が可能になります。</p>
+          <p class="phase-desc">アカウントを作成してサブスクリプションに登録することで利用できる機能です。データがクラウドに保存され、複数デバイスでいつでも同期されます。</p>
           <ul class="phase-features">
+            <li>課題へのメモ・優先度設定</li>
             <li>クロスデバイス同期（PC・自宅・研究室など）</li>
-            <li>同じコースのクラスメートと手動課題を共有</li>
-            <li>科目・曜日ごとにカスタム通知タイミングを設定</li>
-            <li>メール通知（優先度・コース・タイミングの細かい設定付き）</li>
-            <li>テーマ変更・サブスクライバーバッジ</li>
-            <li>限定 Discord コミュニティ</li>
+            <li>ダークテーマ</li>
+            <li>サブスクライバーバッジ</li>
+            <li>限定 Discord コミュニティ招待</li>
           </ul>
         </div>
       </div>
