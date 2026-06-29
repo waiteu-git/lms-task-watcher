@@ -35,6 +35,9 @@ function detectCourses(): Course[] {
   for (const link of links) {
     const href = link.getAttribute('href') ?? ''
 
+    // フラグメントのみ・空のhrefはスキップ（#maincontent等が現在のコースURLに解決されてしまうのを防ぐ）
+    if (!href || href.startsWith('#')) continue
+
     let url: string
     try {
       url = new URL(href, location.href).toString().split('#')[0]
