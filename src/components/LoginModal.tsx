@@ -47,7 +47,7 @@ export function LoginModal({ apiBaseUrl, initialMode = 'subscribe', onSuccess, o
         }
 
         if (!regData.token || !regData.expiresAt) return
-        await saveAuthSession(regData.token, regData.expiresAt)
+        await saveAuthSession(regData.token, regData.expiresAt, email)
 
         const checkRes = await fetch(`${apiBaseUrl}/api/subscription/checkout`, {
           method: 'POST',
@@ -76,7 +76,7 @@ export function LoginModal({ apiBaseUrl, initialMode = 'subscribe', onSuccess, o
         }
 
         if (data.token && data.expiresAt) {
-          await saveAuthSession(data.token, data.expiresAt)
+          await saveAuthSession(data.token, data.expiresAt, email)
           onSuccess()
         }
       }
@@ -112,7 +112,7 @@ export function LoginModal({ apiBaseUrl, initialMode = 'subscribe', onSuccess, o
         <button type="button" className="proModalClose" onClick={onClose}>×</button>
 
         <p className="proModalTitle">
-          {mode === 'subscribe' ? 'LETUS Pro に登録' : 'ログイン'}
+          {mode === 'subscribe' ? 'LETUS Premium に登録' : 'ログイン'}
         </p>
         <p className="proModalSubtitle">
           {mode === 'subscribe'

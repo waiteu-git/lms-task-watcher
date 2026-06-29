@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { getAuthToken } from '../core/auth'
+import { getAuthToken, getAuthEmail } from '../core/auth'
 import { LoginModal } from './LoginModal'
 
 type Props = {
@@ -8,21 +8,27 @@ type Props = {
 }
 
 const FEATURES = [
-  '課題にメモ・優先度を設定',
+  '課題へのメモ・優先度設定',
   'ダークテーマ',
-  '複数デバイスでデータ同期',
-  '限定Discordサーバー招待',
+  'クロスデバイス同期（PC・研究室・自宅）',
+  '手動での課題追加',
+  'LETUS上の登録済みインジケーター',
+  '限定 Discord コミュニティ招待',
 ]
 
 export function ProBanner({ apiBaseUrl, onLogin }: Props) {
   const [showModal, setShowModal] = useState(false)
   const [modalMode, setModalMode] = useState<'subscribe' | 'login'>('subscribe')
   const [isLoggedIn, setIsLoggedIn] = useState(false)
+  const [accountEmail, setAccountEmail] = useState<string | null>(null)
   const [checkoutLoading, setCheckoutLoading] = useState(false)
   const [checkoutError, setCheckoutError] = useState('')
 
   useEffect(() => {
-    void getAuthToken().then((token) => setIsLoggedIn(!!token))
+    void getAuthToken().then((token) => {
+      setIsLoggedIn(!!token)
+      if (token) void getAuthEmail().then(setAccountEmail)
+    })
   }, [])
 
   function openModal(mode: 'subscribe' | 'login') {
@@ -60,8 +66,8 @@ export function ProBanner({ apiBaseUrl, onLogin }: Props) {
     <>
       <div className="proCard">
         <div className="proCardHeader">
-          <span className="proCardTitle">LETUS Task Watcher Pro</span>
-          <span className="proBadge">PRO</span>
+          <span className="proCardTitle">LETUS Task Watcher Premium</span>
+          <span className="proBadge">Premium</span>
         </div>
 
         <ul className="proFeatureList">
@@ -72,6 +78,9 @@ export function ProBanner({ apiBaseUrl, onLogin }: Props) {
 
         {isLoggedIn ? (
           <>
+            {accountEmail && (
+              <p className="proAccountEmail">{accountEmail} でログイン中</p>
+            )}
             <button
               type="button"
               className="proSubscribeBtn"
@@ -110,6 +119,7 @@ export function ProBanner({ apiBaseUrl, onLogin }: Props) {
           onSuccess={() => {
             setShowModal(false)
             setIsLoggedIn(true)
+            void getAuthEmail().then(setAccountEmail)
             onLogin()
           }}
           onClose={() => setShowModal(false)}
