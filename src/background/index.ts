@@ -964,6 +964,11 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
     return false
   }
 
+  if (message?.type === 'OPEN_DASHBOARD') {
+    void chrome.tabs.create({ url: chrome.runtime.getURL('index.html#dashboard') })
+    return false
+  }
+
   return false
 })
 
