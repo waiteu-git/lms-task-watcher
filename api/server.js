@@ -15,7 +15,14 @@ const app = express()
 app.use('/api/webhook', express.raw({ type: 'application/json' }), webhookRoutes)
 
 app.use(helmet())
-app.use(cors())
+app.use(cors({
+  origin: [
+    'https://api.waiteu.dev',
+    /^chrome-extension:\/\//,
+  ],
+  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
+}))
 app.use(express.json())
 
 app.use('/api/auth', authRoutes)
