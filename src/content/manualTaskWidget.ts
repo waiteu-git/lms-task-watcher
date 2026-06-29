@@ -164,8 +164,7 @@ export async function initManualTaskWidget(): Promise<void> {
     getAssignments(),
   ])
 
-  const enabledCourses = courses.filter((c) => c.enabled)
-  if (enabledCourses.length === 0) return
+  if (courses.length === 0) return
 
   const currentUrl = location.href.split('#')[0]
   const matchedAssignment = assignments.find((a) => {
@@ -177,7 +176,7 @@ export async function initManualTaskWidget(): Promise<void> {
   if (matchedAssignment) {
     buildScannedIndicator(matchedAssignment)
   } else {
-    buildWidget(enabledCourses)
+    buildWidget(courses)
   }
 }
 
