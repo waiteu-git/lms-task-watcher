@@ -55,12 +55,13 @@ export function LoginModal({ apiBaseUrl, initialMode = 'subscribe', onSuccess, o
         })
         const checkData = await checkRes.json() as { url?: string; error?: string }
 
-        if (checkData.url) {
-          chrome.tabs.create({ url: checkData.url })
-          setCheckoutOpened(true)
-        } else {
-          setError('チェックアウトの開始に失敗しました')
+        if (!checkRes.ok || !checkData.url) {
+          setError(checkData.error ?? 'チェックアウトの開始に失敗しました（登録は完了しています）')
+          return
         }
+
+        chrome.tabs.create({ url: checkData.url })
+        setCheckoutOpened(true)
       } else {
         const res = await fetch(`${apiBaseUrl}/api/auth/login`, {
           method: 'POST',
