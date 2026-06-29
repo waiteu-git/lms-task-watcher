@@ -62,7 +62,7 @@ import { createNotification, normalizeUpdateError } from './utils/notification'
 import { AssignmentCard } from './components/AssignmentCard'
 import { CollapsibleSection, Section } from './components/Section'
 import { getTheme, saveTheme } from './core/premium'
-import { saveSubscriptionCache, isSubscriptionActive } from './core/auth'
+import { saveSubscriptionCache, isSubscriptionActive, clearAuthSession, getAuthToken } from './core/auth'
 import { getOnboardingCompleted, setOnboardingCompleted } from './core/onboarding'
 import { OnboardingBanner } from './components/OnboardingBanner'
 import {
@@ -72,9 +72,9 @@ import {
 } from './core/manualAssignment'
 import { MANUAL_ASSIGNMENTS_KEY } from './background/storageKeys'
 import { ManualAssignmentSection } from './components/ManualAssignmentSection'
-import { PremiumGate } from './components/PremiumGate'
 import { AssignmentMemo } from './components/AssignmentMemo'
 import { SubscriberBadge } from './components/SubscriberBadge'
+import { ProBanner } from './components/ProBanner'
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL as string ?? ''
 
@@ -271,6 +271,31 @@ export default function App() {
       )
     })()
   }, [])
+
+  async function handleAfterLogin() {
+    try {
+      const token = await getAuthToken()
+      if (!token) { setIsSubscriber(false); return }
+      const res = await fetch(`${API_BASE_URL}/api/subscription/status`, {
+        headers: { Authorization: `Bearer ${token}` },
+      })
+      if (res.ok) {
+        const data = await res.json() as { status: string; currentPeriodEnd: string | null }
+        await saveSubscriptionCache(data.status, data.currentPeriodEnd)
+        setIsSubscriber(data.status === 'active')
+      } else {
+        setIsSubscriber(false)
+      }
+    } catch {
+      const active = await isSubscriptionActive()
+      setIsSubscriber(active)
+    }
+  }
+
+  async function handleLogout() {
+    await clearAuthSession()
+    setIsSubscriber(false)
+  }
 
   const updateNow = useCallback(async () => {
     const currentCourses = await getCourses()
@@ -1078,32 +1103,46 @@ export default function App() {
             onDelete={(id) => void handleDeleteManualAssignment(id)}
           />
 
-          <details className="settings" open>
-            <summary>
-              プレミアム設定
-              {isSubscriber && <SubscriberBadge />}
-            </summary>
+          {isSubscriber ? (
+            <details className="settings" open>
+              <summary>
+                プレミアム設定
+                <SubscriberBadge />
+              </summary>
 
-            <PremiumGate apiBaseUrl={API_BASE_URL}>
-              <div className="themeSelector">
-                <span>テーマ:</span>
-                {(['default', 'dark'] as const).map((t) => (
-                  <button
-                    key={t}
-                    type="button"
-                    className={`priorityBtn ${theme === t ? 'active priority2' : ''}`}
-                    onClick={() => {
-                      setTheme(t)
-                      document.documentElement.setAttribute('data-theme', t)
-                      void saveTheme(t)
-                    }}
-                  >
-                    {t === 'default' ? '標準' : 'ダーク'}
-                  </button>
-                ))}
+              <div className="proSettingsBody">
+                <div className="proSettingsRow">
+                  <span className="proSettingsLabel">テーマ</span>
+                  <div className="themeSelector">
+                    {(['default', 'dark'] as const).map((t) => (
+                      <button
+                        key={t}
+                        type="button"
+                        className={`themeBtn ${theme === t ? 'active' : ''}`}
+                        onClick={() => {
+                          setTheme(t)
+                          document.documentElement.setAttribute('data-theme', t)
+                          void saveTheme(t)
+                        }}
+                      >
+                        {t === 'default' ? '標準' : 'ダーク'}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <button
+                  type="button"
+                  className="proLogoutBtn"
+                  onClick={() => void handleLogout()}
+                >
+                  ログアウト
+                </button>
               </div>
-            </PremiumGate>
-          </details>
+            </details>
+          ) : (
+            <ProBanner apiBaseUrl={API_BASE_URL} onLogin={() => void handleAfterLogin()} />
+          )}
 
           <details className="settings" open>
             <summary>対象コースの選択</summary>
