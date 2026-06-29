@@ -1191,3 +1191,98 @@ button:disabled {
 .onboardingBtn:hover {
   background: #1d4ed8;
 }
+
+.manualAssignmentSection {
+  margin: 1.5rem 0;
+}
+
+.manualAssignmentHeading {
+  font-size: 0.875rem;
+  font-weight: 600;
+  margin: 0 0 0.5rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.manualAssignmentCount {
+  font-size: 0.75rem;
+  background: var(--color-surface-2, #f3f4f6);
+  border-radius: 999px;
+  padding: 1px 8px;
+}
+
+.manualAssignmentList {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.manualAssignmentItem {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  padding: 0.75rem;
+  border: 1px solid var(--color-border, #e5e7eb);
+  border-radius: 8px;
+  background: var(--color-surface, #fff);
+}
+
+.manualAssignmentMain {
+  flex: 1;
+  min-width: 0;
+}
+
+.manualAssignmentTitle {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-weight: 500;
+  font-size: 0.875rem;
+  margin-bottom: 0.25rem;
+}
+
+.manualAssignmentLink {
+  color: inherit;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.manualBadge {
+  font-size: 0.625rem;
+  background: #dbeafe;
+  color: #1d4ed8;
+  border-radius: 4px;
+  padding: 1px 5px;
+  white-space: nowrap;
+}
+
+.manualAssignmentMeta {
+  font-size: 0.75rem;
+  color: var(--color-text-secondary, #6b7280);
+}
+
+.manualAssignmentMemo {
+  font-size: 0.75rem;
+  color: var(--color-text-secondary, #6b7280);
+  margin-top: 0.25rem;
+}
+
+.manualDeleteBtn {
+  font-size: 0.75rem;
+  color: #dc2626;
+  background: none;
+  border: 1px solid #fca5a5;
+  border-radius: 4px;
+  padding: 3px 8px;
+  cursor: pointer;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.manualDeleteBtn:hover {
+  background: #fef2f2;
+}
