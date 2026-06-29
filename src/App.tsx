@@ -61,8 +61,8 @@ import {
 import { createNotification, normalizeUpdateError } from './utils/notification'
 import { AssignmentCard } from './components/AssignmentCard'
 import { CollapsibleSection, Section } from './components/Section'
-import { getTheme } from './core/premium'
-import { saveSubscriptionCache } from './core/auth'
+import { getTheme, saveTheme } from './core/premium'
+import { saveSubscriptionCache, isSubscriptionActive } from './core/auth'
 import { getOnboardingCompleted, setOnboardingCompleted } from './core/onboarding'
 import { OnboardingBanner } from './components/OnboardingBanner'
 import {
@@ -72,6 +72,11 @@ import {
 } from './core/manualAssignment'
 import { MANUAL_ASSIGNMENTS_KEY } from './background/storageKeys'
 import { ManualAssignmentSection } from './components/ManualAssignmentSection'
+import { PremiumGate } from './components/PremiumGate'
+import { AssignmentMemo } from './components/AssignmentMemo'
+import { SubscriberBadge } from './components/SubscriberBadge'
+
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL as string ?? ''
 
 export default function App() {
   const isDashboard = window.location.hash === '#dashboard'
@@ -89,6 +94,7 @@ export default function App() {
   const [manualAssignments, setManualAssignments] = useState<ManualAssignment[]>([])
   const [isUpdating, setIsUpdating] = useState(false)
   const [isSubscriber, setIsSubscriber] = useState(false)
+  const [theme, setTheme] = useState('default')
   const [message, setMessage] = useState('')
   const [showOnboarding, setShowOnboarding] = useState(false)
   const hasAutoRefreshCheckedRef = useRef(false)
@@ -207,9 +213,15 @@ export default function App() {
   }, [])
 
   useEffect(() => {
-    void getTheme().then((savedTheme) => {
+    void (async () => {
+      const [savedTheme, subscriberStatus] = await Promise.all([
+        getTheme(),
+        isSubscriptionActive(),
+      ])
+      setTheme(savedTheme)
+      setIsSubscriber(subscriberStatus)
       document.documentElement.setAttribute('data-theme', savedTheme)
-    })
+    })()
   }, [])
 
   useEffect(() => {
@@ -945,6 +957,7 @@ export default function App() {
                   canHide
                   onHide={hideAssignment}
                 />
+                <AssignmentMemo assignmentId={assignment.id} apiBaseUrl={API_BASE_URL} isSubscriber={isSubscriber} />
               </div>
             ))}
           </Section>
@@ -961,6 +974,7 @@ export default function App() {
                   canHide
                   onHide={hideAssignment}
                 />
+                <AssignmentMemo assignmentId={assignment.id} apiBaseUrl={API_BASE_URL} isSubscriber={isSubscriber} />
               </div>
             ))}
           </Section>
@@ -977,6 +991,7 @@ export default function App() {
                   canHide
                   onHide={hideAssignment}
                 />
+                <AssignmentMemo assignmentId={assignment.id} apiBaseUrl={API_BASE_URL} isSubscriber={isSubscriber} />
               </div>
             ))}
           </Section>
@@ -993,6 +1008,7 @@ export default function App() {
                   canHide
                   onHide={hideAssignment}
                 />
+                <AssignmentMemo assignmentId={assignment.id} apiBaseUrl={API_BASE_URL} isSubscriber={isSubscriber} />
               </div>
             ))}
           </Section>
@@ -1061,6 +1077,33 @@ export default function App() {
             assignments={manualAssignments}
             onDelete={(id) => void handleDeleteManualAssignment(id)}
           />
+
+          <details className="settings" open>
+            <summary>
+              プレミアム設定
+              {isSubscriber && <SubscriberBadge />}
+            </summary>
+
+            <PremiumGate apiBaseUrl={API_BASE_URL}>
+              <div className="themeSelector">
+                <span>テーマ:</span>
+                {(['default', 'dark'] as const).map((t) => (
+                  <button
+                    key={t}
+                    type="button"
+                    className={`priorityBtn ${theme === t ? 'active priority2' : ''}`}
+                    onClick={() => {
+                      setTheme(t)
+                      document.documentElement.setAttribute('data-theme', t)
+                      void saveTheme(t)
+                    }}
+                  >
+                    {t === 'default' ? '標準' : 'ダーク'}
+                  </button>
+                ))}
+              </div>
+            </PremiumGate>
+          </details>
 
           <details className="settings" open>
             <summary>対象コースの選択</summary>
