@@ -921,6 +921,11 @@ chrome.alarms.onAlarm.addListener((alarm) => {
 chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
   console.log('[LETUS Task Watcher] received message', message)
 
+  if (message?.type === 'OPEN_DASHBOARD') {
+    void chrome.tabs.create({ url: chrome.runtime.getURL('index.html#dashboard') })
+    return
+  }
+
   if (message?.type === 'UPSERT_COURSES') {
     const courses = (message.courses ?? []) as Course[]
     sendResponse({ ok: true, count: courses.length })

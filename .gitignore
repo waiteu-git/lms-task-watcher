@@ -8,3 +8,5 @@ dist
 .mcp.json
 .superpowers/
 data/
+.claude/
+devlms-task-watcher-v104/

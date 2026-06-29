@@ -2,6 +2,14 @@ import type { Assignment, Course } from '../core/types'
 import { getCourses, getAssignments } from '../core/storage'
 import { addManualAssignment, type ManualAssignment } from '../core/manualAssignment'
 
+function escapeHtml(str: string): string {
+  return str
+    .replace(/&/g, '&amp;')
+    .replace(/"/g, '&quot;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+}
+
 function createId(): string {
   return crypto.randomUUID()
 }
@@ -86,11 +94,11 @@ function buildWidget(courses: Course[]): void {
     <div class="field">
       <select id="wt-course">
         <option value="">コースを選択</option>
-        ${courses.map((c) => `<option value="${c.id}" data-name="${c.name}">${c.name}</option>`).join('')}
+        ${courses.map((c) => `<option value="${escapeHtml(c.id)}" data-name="${escapeHtml(c.name)}">${escapeHtml(c.name)}</option>`).join('')}
       </select>
     </div>
     <div class="field">
-      <div class="meta" id="wt-url-display">${location.href}</div>
+      <div class="meta" id="wt-url-display">${escapeHtml(location.href)}</div>
     </div>
     <div class="field">
       <textarea id="wt-memo" placeholder="メモ（任意）"></textarea>
@@ -211,7 +219,7 @@ function buildScannedIndicator(assignment: Assignment): void {
     </div>
   `
   el.addEventListener('click', () => {
-    void chrome.tabs.create({ url: chrome.runtime.getURL('index.html#dashboard') })
+    chrome.runtime.sendMessage({ type: 'OPEN_DASHBOARD' })
   })
   shadow.appendChild(el)
 }
