@@ -1,4 +1,4 @@
-import type { Course } from '../core/types'
+import type { Assignment, Course } from '../core/types'
 import {
   type ManualAssignment,
   addManualAssignment,
@@ -114,6 +114,48 @@ function showAddPopup(
   p.style.display = 'block'
 }
 
+// --- Badge for auto-scanned activities (read-only) ---
+
+function buildScannedBadge(shadow: ShadowRoot, assignment: Assignment): void {
+  const style = document.createElement('style')
+  style.textContent =
+    ':host{all:initial}' +
+    '.b{display:inline-flex;align-items:center;gap:4px;padding:3px 8px;border-radius:6px;' +
+    'font-size:11px;white-space:nowrap;border:0.5px solid;font-family:sans-serif}' +
+    '.p{background:#fef3c7;color:#78350f;border-color:#fcd34d}' +
+    '.s{background:#d1fae5;color:#065f46;border-color:#6ee7b7}' +
+    '.o{background:#fee2e2;color:#991b1b;border-color:#fca5a5}' +
+    '.n{background:#f3f4f6;color:#6b7280;border-color:#d1d5db}'
+  shadow.appendChild(style)
+
+  const b = document.createElement('span')
+  if (!assignment.deadline) {
+    b.className = 'b n'
+    b.textContent = '登録済み'
+    b.title = '自動登録済み'
+  } else {
+    const dl = formatDeadline(assignment.deadline)
+    const overdue = new Date(assignment.deadline) < new Date()
+    const submitted =
+      assignment.submissionStatus === 'submitted' ||
+      assignment.submissionStatus === 'completed'
+    if (submitted) {
+      b.className = 'b s'
+      b.textContent = `✓ ${dl} · 提出済み`
+      b.title = '自動登録済み（提出済み）'
+    } else if (overdue) {
+      b.className = 'b o'
+      b.textContent = `! ${dl} · 期限切れ`
+      b.title = '自動登録済み（期限切れ）'
+    } else {
+      b.className = 'b p'
+      b.textContent = `⏱ ${dl} · 未提出`
+      b.title = '自動登録済み（未提出）'
+    }
+  }
+  shadow.appendChild(b)
+}
+
 // --- Badge for tracked activities ---
 
 function buildBadge(shadow: ShadowRoot, assignment: ManualAssignment): void {
@@ -198,8 +240,14 @@ function buildHoverBtn(
 function processActivities(
   course: Course,
   manualAssignments: ManualAssignment[],
-  scannedUrls: Set<string>,
+  scannedAssignments: Assignment[],
 ): void {
+  const scannedMap = new Map<string, Assignment>(
+    scannedAssignments
+      .filter((a) => a.url)
+      .map((a) => [a.url.split('#')[0], a]),
+  )
+
   for (const li of document.querySelectorAll<HTMLElement>('li.activity')) {
     const a = li.querySelector<HTMLAnchorElement>('a.aalink')
     const activityItem = li.querySelector<HTMLElement>('[data-activityname]')
@@ -211,21 +259,22 @@ function processActivities(
     const activityName =
       activityItem.dataset.activityname ?? a.textContent?.trim() ?? ''
 
-    // スキャン済み課題は拡張機能がすでに追跡しているため何も注入しない
-    if (scannedUrls.has(activityUrl)) continue
-
-    const existing = manualAssignments.find(
+    const manual = manualAssignments.find(
       (m) => m.letusUrl != null && m.letusUrl.split('#')[0] === activityUrl,
     )
+    const scanned = scannedMap.get(activityUrl)
 
     const host = document.createElement('div')
     host.style.cssText =
       'display:flex;align-items:center;margin-left:auto;padding-left:8px;flex-shrink:0;'
     const shadow = host.attachShadow({ mode: 'closed' })
 
-    if (existing) {
+    if (manual) {
       host.className = 'ltw-badge-host'
-      buildBadge(shadow, existing)
+      buildBadge(shadow, manual)
+    } else if (scanned) {
+      host.className = 'ltw-badge-host'
+      buildScannedBadge(shadow, scanned)
     } else {
       host.className = 'ltw-btn-host'
       buildHoverBtn(shadow, li, course, activityName, activityUrl, (newAssignment) => {
@@ -241,14 +290,6 @@ function processActivities(
 
 // --- Entry point ---
 
-function buildScannedUrls(scannedAssignments: { url?: string }[]): Set<string> {
-  return new Set(
-    scannedAssignments
-      .filter((a) => a.url)
-      .map((a) => a.url!.split('#')[0]),
-  )
-}
-
 export async function initActivityWidget(courses: Course[]): Promise<void> {
   const course = getCourseFromPage(courses)
   if (!course) return
@@ -260,9 +301,9 @@ export async function initActivityWidget(courses: Course[]): Promise<void> {
     getAssignments(),
   ])
   let manualAssignments = manualRaw
-  let scannedUrls = buildScannedUrls(scannedRaw)
+  let scannedAssignments = scannedRaw
 
-  processActivities(course, manualAssignments, scannedUrls)
+  processActivities(course, manualAssignments, scannedAssignments)
 
   let processedCount = document.querySelectorAll('li.activity').length
 
@@ -272,8 +313,8 @@ export async function initActivityWidget(courses: Course[]): Promise<void> {
       processedCount = current
       const [m, s] = await Promise.all([getManualAssignments(), getAssignments()])
       manualAssignments = m
-      scannedUrls = buildScannedUrls(s)
-      processActivities(course, manualAssignments, scannedUrls)
+      scannedAssignments = s
+      processActivities(course, manualAssignments, scannedAssignments)
     }
   })
   observer.observe(document.body, { childList: true, subtree: true })

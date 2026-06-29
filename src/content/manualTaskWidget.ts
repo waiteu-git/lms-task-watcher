@@ -233,7 +233,7 @@ function buildScannedIndicator(assignment: { title: string; deadline: string | n
     </div>
   `
   el.addEventListener('click', () => {
-    void chrome.tabs.create({ url: chrome.runtime.getURL('index.html#dashboard') })
+    window.open(chrome.runtime.getURL('index.html#dashboard'), '_blank')
   })
   shadow.appendChild(el)
 }
