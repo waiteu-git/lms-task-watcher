@@ -1,0 +1,8 @@
+{
+  "appName": {
+    "message": "LETUS Task Watcher"
+  },
+  "appDescription": {
+    "message": "Never miss a LETUS assignment deadline. Automatically scans your courses and shows upcoming due dates with browser notifications."
+  }
+}
