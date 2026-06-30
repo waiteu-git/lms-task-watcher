@@ -119,3 +119,77 @@
 - [x] 通知クリックで課題URLを開く
 - [x] 非表示機能（Undo付き）
 - [x] データ管理機能（削除・リセット）
+
+---
+
+## フェーズ2.5: データ同期基盤
+
+- [ ] **バックエンド: `POST /api/assignments` エンドポイントを追加**
+  - JWT認証（既存auth基盤を流用）
+  - ユーザーIDに紐づいてSQLiteに保存
+
+- [ ] **バックエンド: `GET /api/assignments` エンドポイントを追加**
+  - モバイルアプリ向け読み取りAPI
+
+- [ ] **background/index.ts: スキャン完了後にバックエンドへPUSH**
+  - ログイン済みの場合のみ実行
+  - 未ログイン時は従来のローカル保存のみ
+
+- [ ] **lifecycleStatus 'new' / 'changed' の付与ロジックを実装**
+  - `firstSeenAt` が直近のスキャンと一致 → `'new'`
+  - `deadline` または `title` が前回と差異あり → `'changed'`
+  - AssignmentCard.tsx にバッジ表示を追加
+
+---
+
+## フェーズ4: 時間割連携
+
+- [ ] **CLASSシステムの調査**
+  - ドメイン確認
+  - 授業IDとLETUSコースIDの対応関係を確認
+
+- [ ] **manifest.json に CLASSドメインの `host_permissions` を追加**
+
+- [ ] **content script: CLASSの時間割ページから授業ID・コース名を取得**
+
+- [ ] **バックエンド: `POST/GET /api/timetable` エンドポイントを追加**
+
+- [ ] **時間割グリッドUI（Chrome拡張 Dashboard に追加）**
+  - コマをクリックで対応するLETUSコースに遷移
+
+---
+
+## フェーズ2.5: データ同期基盤
+
+- [ ] **バックエンド: `POST /api/assignments` エンドポイントを追加**
+  - JWT認証（既存auth基盤を流用）
+  - ユーザーIDに紐づいてSQLiteに保存
+
+- [ ] **バックエンド: `GET /api/assignments` エンドポイントを追加**
+  - モバイルアプリ向け読み取りAPI
+
+- [ ] **background/index.ts: スキャン完了後にバックエンドへPUSH**
+  - ログイン済みの場合のみ実行
+  - 未ログイン時は従来のローカル保存のみ
+
+- [ ] **lifecycleStatus 'new' / 'changed' の付与ロジックを実装**
+  - `firstSeenAt` が直近のスキャンと一致 → `'new'`
+  - `deadline` または `title` が前回と差異あり → `'changed'`
+  - AssignmentCard.tsx にバッジ表示を追加
+
+---
+
+## フェーズ4: 時間割連携
+
+- [ ] **CLASSシステムの調査**
+  - ドメイン確認
+  - 授業IDとLETUSコースIDの対応関係を確認
+
+- [ ] **manifest.json に CLASSドメインの `host_permissions` を追加**
+
+- [ ] **content script: CLASSの時間割ページから授業ID・コース名を取得**
+
+- [ ] **バックエンド: `POST/GET /api/timetable` エンドポイントを追加**
+
+- [ ] **時間割グリッドUI（Chrome拡張 Dashboard に追加）**
+  - コマをクリックで対応するLETUSコースに遷移
