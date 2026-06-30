@@ -69,3 +69,45 @@
 - [ ] v1.2.0 フルフロー E2E テスト（登録→決済→サブスク有効→プレミアム機能）
 - [ ] テスト完了後に本番モードへ切り替え（`bash ~/pm2-env.sh prod`）
 - [ ] ラズパイ MicroSD → SSD 移行（次セッション予定）
+
+---
+
+## 2026-06-30 — ラズパイ セキュアリモートアクセス & サーバー監視環境構築
+
+### セッションで完了したこと
+
+**セキュリティ構成（外部ネットワークからの開発アクセス）**
+- Tailscale（WireGuard VPN）をラズパイ・開発PCの両方にインストール・接続完了
+  - ラズパイ Tailscale IP: `100.98.8.76`（tailnet: `y2studyabout@gmail.com`）
+  - 開発PC Tailscale IP: `100.125.177.110`
+- ufw を設定: SSH(22)・監視ツールポートを tailscale0 経由のみ許可、外部ポート開放なし
+- fail2ban を設定: SSH 3回失敗で1時間 BAN
+- SSH パスワード認証を無効化（鍵認証のみ）
+  - 使用鍵: `~/.ssh/lmspi_key`
+- 接続コマンド: `ssh -i ~/.ssh/lmspi_key pi@100.98.8.76`（または `ssh raspi`）
+
+**サーバー監視環境**
+- Glances v4.5.5 をインストール（venv: `/opt/glances-venv`、uvicorn で動作）
+  - アクセス: `http://100.98.8.76:61208`（tailscale0のみ）
+- Cockpit v337 をインストール（systemd サービス管理 WebUI）
+  - アクセス: `https://100.98.8.76:9090`（tailscale0のみ）
+  - ログイン: `pi` / SSHパスワード
+
+**ポート使用状況の把握**
+
+| ポート | サービス | 備考 |
+|--------|---------|------|
+| 22 | sshd | tailscale0のみ |
+| 3000 | letus-api (Node.js) | cloudflared経由 |
+| 3001 | travel-calculation (Node.js) | 別プロジェクト・無関係 |
+| 9090 | Cockpit | tailscale0のみ |
+| 61208 | Glances | tailscale0のみ |
+| 20241 | cloudflared | localhost のみ |
+
+**設計方針として記録**
+- 複数サービスをラズパイで運用する際はポート・プロセス・データを分離する
+- 新サービス追加時は上記ポート一覧と照合して競合を避ける
+
+### 残タスク（引き継ぎ）
+
+- 前セッションからの残タスクは変わらず
