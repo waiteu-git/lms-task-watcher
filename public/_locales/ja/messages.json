@@ -1,0 +1,8 @@
+{
+  "appName": {
+    "message": "LETUS Task Watcher"
+  },
+  "appDescription": {
+    "message": "LETUSの課題期限を自動収集し、ブラウザ通知でお知らせする拡張機能です。"
+  }
+}
