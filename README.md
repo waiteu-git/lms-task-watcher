@@ -1,21 +1,18 @@
-# LMS Task Watcher
+# LETUS Task Watcher
 
-LETUSをはじめとするLMS（学習管理システム）の課題を監視するChrome拡張機能です。締切が近い課題を通知し、ダッシュボードで一覧管理できます。
+東京理科大学のLMS（LETUS）の課題期限を自動収集・通知するChrome拡張機能です。
 
 ## 機能
 
 - 課題の自動スキャンと締切検出
-- 締切1時間前・3時間前の通知
+- 締切前の通知（Chrome通知）
 - ポップアップとダッシュボードでの課題一覧表示
 - 課題の非表示・復元
 - 対象コースの選択管理
 
-## 対応LMS
+## 対応環境
 
-- LETUS
-- Moodle
-- manaba
-- WebClass
+- LETUS（`letus.ed.tus.ac.jp`）
 
 ## 開発
 
@@ -29,7 +26,8 @@ pnpm build
 ### 開発用コマンド
 
 ```bash
-pnpm dev      # 開発サーバー起動
-pnpm build    # 本番ビルド
-pnpm lint     # ESLintによるコード検査
+pnpm dev        # 開発サーバー起動
+pnpm build      # 本番ビルド（dist/）
+pnpm build:dev  # 開発ビルド（dist-dev/、拡張機能名に[開発版]付与）
+pnpm lint       # ESLintによるコード検査
 ```
