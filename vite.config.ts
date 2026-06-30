@@ -1,14 +1,33 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import { resolve } from 'path'
+import { readFileSync, writeFileSync } from 'fs'
 
-export default defineConfig(({ mode }) => ({
+export default defineConfig(({ mode }) => {
+  const isDev = mode === 'development'
+  const outDir = isDev ? 'dist-dev' : 'dist'
+
+  return {
   base: './',
   define: {
-    __DEV_TOOLS__: mode === 'development',
+    __DEV_TOOLS__: isDev,
   },
-  plugins: [react()],
+  plugins: [
+    react(),
+    {
+      name: 'dev-manifest',
+      closeBundle() {
+        if (!isDev) return
+        const path = resolve(__dirname, `${outDir}/manifest.json`)
+        const manifest = JSON.parse(readFileSync(path, 'utf-8')) as { name: string }
+        manifest.name = 'LETUS Task Watcher [開発版]'
+        writeFileSync(path, JSON.stringify(manifest, null, 2))
+      },
+    },
+  ],
   build: {
+    outDir,
+    emptyOutDir: true,
     rollupOptions: {
       input: {
         index: resolve(__dirname, 'index.html'),
@@ -32,4 +51,5 @@ export default defineConfig(({ mode }) => ({
       },
     },
   },
-}))
+  }
+})
