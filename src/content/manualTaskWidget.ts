@@ -6,6 +6,20 @@ function createId(): string {
   return crypto.randomUUID()
 }
 
+function isCoursePage(): boolean {
+  return (
+    location.pathname.includes('/course/view.php') &&
+    new URLSearchParams(location.search).has('id')
+  )
+}
+
+function isAssignmentPage(): boolean {
+  return (
+    location.pathname.includes('/mod/assign/view.php') &&
+    new URLSearchParams(location.search).has('id')
+  )
+}
+
 function buildWidget(courses: Course[]): void {
   const host = document.createElement('div')
   host.id = 'letus-task-watcher-widget'
@@ -137,6 +151,7 @@ function buildWidget(courses: Course[]): void {
       deadline: new Date(deadline).toISOString(),
       memo,
       createdAt: new Date().toISOString(),
+      submitted: false,
     }
 
     await addManualAssignment(item)
@@ -145,11 +160,13 @@ function buildWidget(courses: Course[]): void {
     ;(shadow.getElementById('wt-title') as HTMLInputElement).value = ''
     ;(shadow.getElementById('wt-deadline') as HTMLInputElement).value = ''
     ;(shadow.getElementById('wt-memo') as HTMLTextAreaElement).value = ''
+    ;(shadow.getElementById('wt-course') as HTMLSelectElement).selectedIndex = 0
   })
 }
 
 export async function initManualTaskWidget(): Promise<void> {
   if (document.getElementById('letus-task-watcher-widget')) return
+  if (!isCoursePage() && !isAssignmentPage()) return
 
   const [courses, assignments] = await Promise.all([
     getCourses(),
@@ -158,6 +175,11 @@ export async function initManualTaskWidget(): Promise<void> {
 
   const enabledCourses = courses.filter((c) => c.enabled)
   if (enabledCourses.length === 0) return
+
+  if (isCoursePage()) {
+    buildWidget(enabledCourses)
+    return
+  }
 
   const currentUrl = location.href.split('#')[0]
   const matchedAssignment = assignments.find((a) => {
