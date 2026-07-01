@@ -330,18 +330,18 @@ function buildCourseBadges(
     if (scanned) {
       const submitted = isScannedSubmitted(scanned)
       badge.className = `badge ${submitted ? 'submitted' : ''}`
-      badge.textContent = `${formatDeadlineShort(scanned.deadline ?? '')} ${submitted ? '✓' : '○'}`
+      badge.textContent = `${formatDeadlineShort(scanned.deadline ?? '')} ${submitted ? '✓' : '！'}`
     } else if (manual) {
       let currentSubmitted = manual.submitted
       badge.className = `badge clickable ${currentSubmitted ? 'submitted' : ''}`
-      badge.textContent = `${formatDeadlineShort(manual.deadline)} ${currentSubmitted ? '✓' : '○'}`
+      badge.textContent = `${formatDeadlineShort(manual.deadline)} ${currentSubmitted ? '✓' : '！'}`
       badge.addEventListener('click', async (event) => {
         event.preventDefault()
         event.stopPropagation()
         await toggleManualSubmitted(manual.id)
         currentSubmitted = !currentSubmitted
         badge.classList.toggle('submitted', currentSubmitted)
-        badge.textContent = `${formatDeadlineShort(manual.deadline)} ${currentSubmitted ? '✓' : '○'}`
+        badge.textContent = `${formatDeadlineShort(manual.deadline)} ${currentSubmitted ? '✓' : '！'}`
       })
     } else {
       badge.className = 'badge unadded clickable'
