@@ -162,13 +162,13 @@ export default function App() {
       (assignment) => !assignment.submitted && assignment.deadline,
     )
 
-    type NotifyTarget = { id: string; title: string; courseName: string; deadline: string }
+    type NotifyTarget = { id: string; title: string; courseName: string; deadline: string; url?: string }
 
     const allTargets: NotifyTarget[] = [
       ...visibleTargets
         .filter((a): a is Assignment & { deadline: string } => a.deadline !== null)
-        .map((a) => ({ id: a.id, title: a.title, courseName: a.courseName, deadline: a.deadline })),
-      ...manualTargets.map((a) => ({ id: a.id, title: a.title, courseName: a.courseName, deadline: a.deadline })),
+        .map((a) => ({ id: a.id, title: a.title, courseName: a.courseName, deadline: a.deadline, url: a.url })),
+      ...manualTargets.map((a) => ({ id: a.id, title: a.title, courseName: a.courseName, deadline: a.deadline, url: a.letusUrl ?? undefined })),
     ]
 
     for (const target of allTargets) {
@@ -187,6 +187,7 @@ export default function App() {
           `letus-task-watcher-deadline-1h-${target.id}-${Date.now()}`,
           '締切まで1時間以内',
           `${target.title}\n${target.courseName}`,
+          target.url,
         )
 
         nextNotifiedKeys.add(oneHourKey)
@@ -199,6 +200,7 @@ export default function App() {
           `letus-task-watcher-deadline-3h-${target.id}-${Date.now()}`,
           '締切まで3時間以内',
           `${target.title}\n${target.courseName}`,
+          target.url,
         )
 
         nextNotifiedKeys.add(threeHourKey)
@@ -211,6 +213,7 @@ export default function App() {
           `letus-task-watcher-deadline-24h-${target.id}-${Date.now()}`,
           '締切まで24時間以内',
           `${target.title}\n${target.courseName}`,
+          target.url,
         )
 
         nextNotifiedKeys.add(oneDayKey)
@@ -357,6 +360,7 @@ export default function App() {
           `letus-task-watcher-update-urgent-${Date.now()}`,
           `24時間以内の課題: ${urgent.length}件`,
           `${first.title}\n${first.courseName}`,
+          first.url,
         )
       } else {
         createNotification(
@@ -932,13 +936,13 @@ export default function App() {
           <section className="miniSummary">
             <div>
               <span>24時間以内</span>
-              <strong>{urgentAssignments.length}</strong>
+              <strong>{urgentTimeline.length}</strong>
             </div>
 
             <div>
               <span>今週</span>
               <strong>
-                {tomorrowAssignments.length + thisWeekAssignments.length}
+                {tomorrowTimeline.length + thisWeekTimeline.length}
               </strong>
             </div>
 
@@ -950,38 +954,52 @@ export default function App() {
 
           <Section
             title="24時間以内"
-            count={urgentAssignments.length}
+            count={urgentTimeline.length}
             emptyText="24時間以内の提出物はありません。"
           >
-            {urgentAssignments.slice(0, 3).map((assignment) => (
-              <div key={assignment.id} className="popupCardWrap">
-                <AssignmentCard
-                  assignment={assignment}
-                  compact
-                />
-              </div>
-            ))}
+            {urgentTimeline.slice(0, 3).map((item) =>
+              item.kind === 'scan' ? (
+                <div key={item.assignment.id} className="popupCardWrap">
+                  <AssignmentCard assignment={item.assignment} compact />
+                </div>
+              ) : (
+                <div key={item.assignment.id} className="popupCardWrap">
+                  <ManualAssignmentCard
+                    assignment={item.assignment}
+                    onToggleSubmitted={(id) => void handleToggleManualSubmitted(id)}
+                    onDelete={(id) => void handleDeleteManualAssignment(id)}
+                  />
+                </div>
+              ),
+            )}
           </Section>
 
-          {tomorrowAssignments.length + thisWeekAssignments.length > 0 && (
+          {tomorrowTimeline.length + thisWeekTimeline.length > 0 && (
             <Section
               title="次の課題"
               count={Math.min(
-                tomorrowAssignments.length + thisWeekAssignments.length,
+                tomorrowTimeline.length + thisWeekTimeline.length,
                 3,
               )}
               emptyText="今後の課題はありません。"
             >
-              {[...tomorrowAssignments, ...thisWeekAssignments]
+              {[...tomorrowTimeline, ...thisWeekTimeline]
                 .slice(0, 3)
-                .map((assignment) => (
-                  <div key={assignment.id} className="popupCardWrap">
-                    <AssignmentCard
-                      assignment={assignment}
-                      compact
-                    />
-                  </div>
-                ))}
+                .map((item) =>
+                  item.kind === 'scan' ? (
+                    <div key={item.assignment.id} className="popupCardWrap">
+                      <AssignmentCard assignment={item.assignment} compact />
+                    </div>
+                  ) : (
+                    <div key={item.assignment.id} className="popupCardWrap">
+                      <ManualAssignmentCard
+                        assignment={item.assignment}
+                        onToggleSubmitted={(id) => void handleToggleManualSubmitted(id)}
+                        onDelete={(id) => void handleDeleteManualAssignment(id)}
+                      />
+                    </div>
+                  ),
+                )}
             </Section>
           )}
 
