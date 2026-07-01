@@ -65,17 +65,17 @@ function isAssignmentPage(): boolean {
   )
 }
 
-function buildWidget(courses: Course[]): void {
+function buildWidget(courses: Course[], defaultCourseId?: string): void {
   const host = document.createElement('div')
   host.id = 'letus-task-watcher-widget'
   host.style.cssText = 'position:fixed;bottom:16px;right:16px;z-index:2147483647;'
   document.body.appendChild(host)
 
   const shadow = host.attachShadow({ mode: 'closed' })
-  buildWidgetInto(shadow, courses)
+  buildWidgetInto(shadow, courses, undefined, defaultCourseId)
 }
 
-function openQuickAddForm(courses: Course[], title: string, url: string): void {
+function openQuickAddForm(courses: Course[], title: string, url: string, defaultCourseId?: string): void {
   const existingHost = document.getElementById('letus-task-watcher-quickadd')
   if (existingHost) existingHost.remove()
 
@@ -85,13 +85,14 @@ function openQuickAddForm(courses: Course[], title: string, url: string): void {
   document.body.appendChild(host)
 
   const shadow = host.attachShadow({ mode: 'closed' })
-  buildWidgetInto(shadow, courses, { title, url })
+  buildWidgetInto(shadow, courses, { title, url }, defaultCourseId)
 }
 
 function buildWidgetInto(
   shadow: ShadowRoot,
   courses: Course[],
   prefill?: { title: string; url: string },
+  defaultCourseId?: string,
 ): void {
   const style = document.createElement('style')
   style.textContent = `
@@ -182,6 +183,10 @@ function buildWidgetInto(
   `
   shadow.appendChild(panel)
 
+  if (defaultCourseId) {
+    ;(shadow.getElementById('wt-course') as HTMLSelectElement).value = defaultCourseId
+  }
+
   if (prefill) {
     ;(shadow.getElementById('wt-title') as HTMLInputElement).value = prefill.title
     panel.classList.add('open')
@@ -249,7 +254,7 @@ function findAssignmentLinks(): HTMLAnchorElement[] {
 
 function createBadgeHost(): { host: HTMLElement; shadow: ShadowRoot } {
   const host = document.createElement('span')
-  host.style.cssText = 'position:absolute;right:6px;top:50%;transform:translateY(-50%);z-index:2147483000;'
+  host.style.cssText = 'position:absolute;right:6px;transform:translateY(-50%);z-index:2147483000;'
   const shadow = host.attachShadow({ mode: 'closed' })
 
   const style = document.createElement('style')
@@ -293,6 +298,7 @@ function buildCourseBadges(
   courses: Course[],
   assignments: Assignment[],
   manualAssignments: ManualAssignment[],
+  currentCourseId?: string,
 ): void {
   const links = findAssignmentLinks()
 
@@ -339,7 +345,7 @@ function buildCourseBadges(
       badge.addEventListener('click', (event) => {
         event.preventDefault()
         event.stopPropagation()
-        openQuickAddForm(courses, link.textContent ?? '', url)
+        openQuickAddForm(courses, link.textContent ?? '', url, currentCourseId)
       })
     }
 
@@ -350,6 +356,10 @@ function buildCourseBadges(
       if (getComputedStyle(row).position === 'static') {
         row.style.position = 'relative'
       }
+      const rowRect = row.getBoundingClientRect()
+      const linkRect = link.getBoundingClientRect()
+      const topPx = linkRect.top - rowRect.top + linkRect.height / 2
+      host.style.top = `${topPx}px`
       row.appendChild(host)
     } else {
       link.insertAdjacentElement('afterend', host)
@@ -370,9 +380,14 @@ export async function initManualTaskWidget(): Promise<void> {
   if (enabledCourses.length === 0) return
 
   if (isCoursePage()) {
-    buildCourseBadges(enabledCourses, assignments, manualAssignments)
+    const currentUrl = normalizeAssignmentUrl(location.href)
+    const currentCourseId = enabledCourses.find(
+      (c) => normalizeAssignmentUrl(c.url) === currentUrl,
+    )?.id
+
+    buildCourseBadges(enabledCourses, assignments, manualAssignments, currentCourseId)
     if (!document.getElementById('letus-task-watcher-widget')) {
-      buildWidget(enabledCourses)
+      buildWidget(enabledCourses, currentCourseId)
     }
     return
   }
