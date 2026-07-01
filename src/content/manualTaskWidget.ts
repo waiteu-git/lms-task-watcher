@@ -249,7 +249,7 @@ function findAssignmentLinks(): HTMLAnchorElement[] {
 
 function createBadgeHost(): { host: HTMLElement; shadow: ShadowRoot } {
   const host = document.createElement('span')
-  host.style.cssText = 'display:inline-flex;margin-left:8px;vertical-align:middle;'
+  host.style.cssText = 'position:absolute;right:6px;top:50%;transform:translateY(-50%);z-index:2147483000;'
   const shadow = host.attachShadow({ mode: 'closed' })
 
   const style = document.createElement('style')
@@ -344,7 +344,16 @@ function buildCourseBadges(
     }
 
     shadow.appendChild(badge)
-    link.insertAdjacentElement('afterend', host)
+
+    const row = (link.closest('li, tr') ?? link.parentElement) as HTMLElement | null
+    if (row) {
+      if (getComputedStyle(row).position === 'static') {
+        row.style.position = 'relative'
+      }
+      row.appendChild(host)
+    } else {
+      link.insertAdjacentElement('afterend', host)
+    }
   }
 }
 
