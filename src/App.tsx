@@ -67,6 +67,7 @@ import { getOnboardingCompleted, setOnboardingCompleted } from './core/onboardin
 import { OnboardingBanner } from './components/OnboardingBanner'
 import {
   getManualAssignments,
+  addManualAssignment,
   deleteManualAssignment,
   type ManualAssignment,
 } from './core/manualAssignment'
@@ -81,6 +82,8 @@ export default function App() {
   const [ignoredAssignmentIds, setIgnoredAssignmentIds] = useState<string[]>([])
   const [lastHiddenAssignment, setLastHiddenAssignment] =
     useState<Assignment | null>(null)
+  const [lastDeletedManualAssignment, setLastDeletedManualAssignment] =
+    useState<ManualAssignment | null>(null)
   const [assignmentScanStatus, setAssignmentScanStatus] =
     useState<AssignmentScanStatus>(initialAssignmentScanStatus)
   const [deadlineScanStatus, setDeadlineScanStatus] =
@@ -687,8 +690,22 @@ export default function App() {
   }
 
   async function handleDeleteManualAssignment(id: string) {
+    const target = manualAssignments.find((a) => a.id === id)
     await deleteManualAssignment(id)
     setManualAssignments((prev) => prev.filter((a) => a.id !== id))
+    setLastDeletedManualAssignment(target ?? null)
+    setMessage('手動課題を削除しました。')
+  }
+
+  async function undoLastDeletedManualAssignment() {
+    if (!lastDeletedManualAssignment) {
+      return
+    }
+
+    await addManualAssignment(lastDeletedManualAssignment)
+    setManualAssignments((prev) => [...prev, lastDeletedManualAssignment])
+    setLastDeletedManualAssignment(null)
+    setMessage('手動課題を元に戻しました。')
   }
 
   async function clearTaskData() {
@@ -795,6 +812,19 @@ export default function App() {
           <span>「{lastHiddenAssignment.title}」を非表示にしました。</span>
 
           <button type="button" onClick={() => void undoLastHiddenAssignment()}>
+            元に戻す
+          </button>
+        </div>
+      )}
+
+      {lastDeletedManualAssignment && (
+        <div className="undoToast">
+          <span>「{lastDeletedManualAssignment.title}」を削除しました。</span>
+
+          <button
+            type="button"
+            onClick={() => void undoLastDeletedManualAssignment()}
+          >
             元に戻す
           </button>
         </div>
