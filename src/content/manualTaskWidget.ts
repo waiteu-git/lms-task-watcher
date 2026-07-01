@@ -262,20 +262,18 @@ function createBadgeHost(): { host: HTMLElement; shadow: ShadowRoot } {
     :host { all: initial; font-family: sans-serif; }
     .badge {
       display: inline-flex; align-items: center; gap: 4px;
-      font-size: 11px; padding: 2px 7px; border-radius: 999px;
-      border: 1px solid #d1d5db; background: #fff; color: #374151;
-      white-space: nowrap; cursor: default;
-    }
-    .badge.clickable { cursor: pointer; }
-    .badge.submitted { background: #d1fae5; border-color: #10b981; color: #065f46; }
-    .badge.unadded {
-      cursor: pointer; font-weight: 700; padding: 2px 9px;
+      font-size: 11px; padding: 2px 9px; border-radius: 999px;
+      border: 1px solid transparent; font-weight: 700;
       background: linear-gradient(135deg, #7e14ff 0%, #47bfff 100%);
-      color: #fff; border-color: transparent;
-      box-shadow: 0 1px 4px rgba(126,20,255,.4);
-      transition: filter .12s ease;
+      color: #fff; white-space: nowrap; cursor: default;
+      box-shadow: 0 1px 3px rgba(126,20,255,.35);
     }
-    .badge.unadded:hover { filter: brightness(1.08); }
+    .badge.clickable { cursor: pointer; transition: filter .12s ease; }
+    .badge.clickable:hover { filter: brightness(1.08); }
+    .badge.submitted {
+      background: linear-gradient(135deg, #059669 0%, #34d399 100%);
+      box-shadow: 0 1px 3px rgba(5,150,105,.35);
+    }
   `
   shadow.appendChild(style)
 
@@ -346,7 +344,7 @@ function buildCourseBadges(
         badge.textContent = `${formatDeadlineShort(manual.deadline)} ${currentSubmitted ? '✓' : '○'}`
       })
     } else {
-      badge.className = 'badge unadded'
+      badge.className = 'badge unadded clickable'
       badge.textContent = '+'
       badge.addEventListener('click', (event) => {
         event.preventDefault()
