@@ -57,4 +57,12 @@ describe('mergeTimeline', () => {
     const manual = makeManual()
     expect(mergeTimeline([], [manual])).toHaveLength(1)
   })
+
+  it('締切がnullのscan課題は末尾にソートされる', () => {
+    const withDeadline = makeAssignment({ id: 'with-deadline', deadline: '2026-07-05T12:00:00.000Z' })
+    const noDeadline = makeAssignment({ id: 'no-deadline', deadline: null })
+    const manual = makeManual({ id: 'manual-1', deadline: '2026-07-06T00:00:00.000Z' })
+    const result = mergeTimeline([withDeadline, noDeadline], [manual])
+    expect(result.map((item) => item.assignment.id)).toEqual(['with-deadline', 'manual-1', 'no-deadline'])
+  })
 })
