@@ -279,6 +279,30 @@ describe('scanAssignmentCandidatesInBackground', () => {
     const saved = store[ASSIGNMENT_CANDIDATES_KEY] as AssignmentCandidate[]
     expect(saved).toHaveLength(0)
   })
+
+  it('一部コースのfetchがCORS等で例外を投げても、スキャン全体は中断せず他コースを処理する', async () => {
+    store[COURSES_KEY] = [
+      makeCourse({ id: 'course-1', url: 'https://letus.ed.tus.ac.jp/course/view.php?id=1' }),
+      makeCourse({ id: 'course-2', url: 'https://letus.ed.tus.ac.jp/course/view.php?id=2', name: '講義2' }),
+    ]
+    store[ASSIGNMENT_CANDIDATES_KEY] = [
+      makeCandidate({ id: 'cand-course-2', courseId: 'course-2', courseName: '講義2' }),
+    ]
+
+    vi.stubGlobal('fetch', vi.fn(async (url: string) => {
+      if (url.includes('id=1')) {
+        throw new TypeError('Failed to fetch')
+      }
+      return { ok: true, text: async () => '<a href="/mod/assign/view.php?id=99">新課題</a>' }
+    }))
+
+    const result = await scanAssignmentCandidatesInBackground('standard')
+
+    expect(result.ok).toBe(true)
+    const saved = store[ASSIGNMENT_CANDIDATES_KEY] as AssignmentCandidate[]
+    expect(saved.some((c) => c.id === 'cand-course-2')).toBe(true)
+    expect(saved.some((c) => c.courseId === 'course-2' && c.title === '新課題')).toBe(true)
+  })
 })
 
 describe('scanDeadlinesInBackground', () => {
@@ -374,5 +398,31 @@ describe('scanDeadlinesInBackground', () => {
     const saved = store[ASSIGNMENTS_KEY] as Assignment[]
     const kept = saved.find((a) => a.id === 'cand-2')
     expect(kept?.title).toBe('既存の課題2')
+  })
+
+  it('個別候補のfetchがCORS等で例外を投げても、その課題の既存データを保持し他の候補は処理する', async () => {
+    store[COURSES_KEY] = [makeCourse()]
+    store[ASSIGNMENT_CANDIDATES_KEY] = [
+      makeCandidate({ id: 'cand-1', url: 'https://letus.ed.tus.ac.jp/mod/assign/view.php?id=1' }),
+      makeCandidate({ id: 'cand-2', url: 'https://letus.ed.tus.ac.jp/mod/assign/view.php?id=2' }),
+    ]
+    store[ASSIGNMENTS_KEY] = [
+      makeAssignment({ id: 'cand-2', title: '既存の課題2' }),
+    ]
+
+    vi.stubGlobal('fetch', vi.fn(async (url: string) => {
+      if (url.includes('mod/assign') && url.includes('id=2')) {
+        throw new TypeError('Failed to fetch')
+      }
+      return { ok: true, url, text: async () => '' }
+    }))
+
+    const result = await scanDeadlinesInBackground()
+
+    expect(result.ok).toBe(true)
+    const saved = store[ASSIGNMENTS_KEY] as Assignment[]
+    const kept = saved.find((a) => a.id === 'cand-2')
+    expect(kept?.title).toBe('既存の課題2')
+    expect(saved.some((a) => a.id === 'cand-1')).toBe(true)
   })
 })
