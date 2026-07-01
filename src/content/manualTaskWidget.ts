@@ -238,10 +238,13 @@ function normalizeAssignmentUrl(url: string): string {
   return url.split('#')[0]
 }
 
+const BADGE_TARGET_MODULE_TYPES = ['assign', 'resource', 'folder', 'url', 'page', 'forum']
+
 function findAssignmentLinks(): HTMLAnchorElement[] {
-  return Array.from(
-    document.querySelectorAll<HTMLAnchorElement>('a[href*="/mod/assign/view.php"]'),
-  )
+  const selector = BADGE_TARGET_MODULE_TYPES.map(
+    (type) => `a[href*="/mod/${type}/view.php"]`,
+  ).join(',')
+  return Array.from(document.querySelectorAll<HTMLAnchorElement>(selector))
 }
 
 function createBadgeHost(): { host: HTMLElement; shadow: ShadowRoot } {
