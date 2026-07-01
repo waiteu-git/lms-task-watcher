@@ -730,6 +730,7 @@ export default function App() {
       LAST_STALE_NOTIFICATION_AT_KEY,
       IGNORED_ASSIGNMENT_IDS_KEY,
       NOTIFIED_DEADLINE_KEYS_KEY,
+      MANUAL_ASSIGNMENTS_KEY,
     ])
 
     setAssignments([])
@@ -739,6 +740,7 @@ export default function App() {
     setAssignmentScanStatus(initialAssignmentScanStatus)
     setDeadlineScanStatus(initialDeadlineScanStatus)
     setLastRefreshAt(null)
+    setManualAssignments([])
     setMessage('保存データをすべて初期化しました。')
   }
 
