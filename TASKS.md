@@ -122,7 +122,7 @@
 
 ---
 
-## フェーズ2.5: データ同期基盤
+## v1.3.0: データ同期基盤
 
 - [ ] **バックエンド: `POST /api/assignments` エンドポイントを追加**
   - JWT認証（既存auth基盤を流用）
@@ -142,54 +142,24 @@
 
 ---
 
-## フェーズ4: 時間割連携
+## v2.0.0: モバイルアプリ（課題管理＋時間割連携）
+
+v1.3.0のAPIを土台にReact Nativeアプリを新規リリースする。詳細設計は `docs/superpowers/specs/2026-06-28-mobile-app-design.md` を参照。時間割連携は独立フェーズではなく初期リリースに含める（[2026-07-01-version-roadmap-design.md](docs/superpowers/specs/2026-07-01-version-roadmap-design.md) 参照）。
+
+### 課題管理（既存設計を踏襲）
+
+- [ ] React Native（Expo）プロジェクトのセットアップ
+- [ ] ログイン・課題一覧・課題詳細・設定画面の実装
+- [ ] Expo Push Notificationsによるプッシュ通知連携
+
+### 時間割連携（新規スコープ）
 
 - [ ] **CLASSシステムの調査**
   - ドメイン確認
   - 授業IDとLETUSコースIDの対応関係を確認
-
-- [ ] **manifest.json に CLASSドメインの `host_permissions` を追加**
-
-- [ ] **content script: CLASSの時間割ページから授業ID・コース名を取得**
+  - データ取得方法（スクレイピング可否・API有無）の確認 → 結果を元にmobile-app-design.mdに詳細設計を追記
 
 - [ ] **バックエンド: `POST/GET /api/timetable` エンドポイントを追加**
 
-- [ ] **時間割グリッドUI（Chrome拡張 Dashboard に追加）**
-  - コマをクリックで対応するLETUSコースに遷移
-
----
-
-## フェーズ2.5: データ同期基盤
-
-- [ ] **バックエンド: `POST /api/assignments` エンドポイントを追加**
-  - JWT認証（既存auth基盤を流用）
-  - ユーザーIDに紐づいてSQLiteに保存
-
-- [ ] **バックエンド: `GET /api/assignments` エンドポイントを追加**
-  - モバイルアプリ向け読み取りAPI
-
-- [ ] **background/index.ts: スキャン完了後にバックエンドへPUSH**
-  - ログイン済みの場合のみ実行
-  - 未ログイン時は従来のローカル保存のみ
-
-- [ ] **lifecycleStatus 'new' / 'changed' の付与ロジックを実装**
-  - `firstSeenAt` が直近のスキャンと一致 → `'new'`
-  - `deadline` または `title` が前回と差異あり → `'changed'`
-  - AssignmentCard.tsx にバッジ表示を追加
-
----
-
-## フェーズ4: 時間割連携
-
-- [ ] **CLASSシステムの調査**
-  - ドメイン確認
-  - 授業IDとLETUSコースIDの対応関係を確認
-
-- [ ] **manifest.json に CLASSドメインの `host_permissions` を追加**
-
-- [ ] **content script: CLASSの時間割ページから授業ID・コース名を取得**
-
-- [ ] **バックエンド: `POST/GET /api/timetable` エンドポイントを追加**
-
-- [ ] **時間割グリッドUI（Chrome拡張 Dashboard に追加）**
-  - コマをクリックで対応するLETUSコースに遷移
+- [ ] **モバイルアプリ: 時間割グリッド画面**
+  - コマをタップで対応するLETUSコース詳細に遷移
