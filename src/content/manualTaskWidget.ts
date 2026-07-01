@@ -243,7 +243,7 @@ function normalizeAssignmentUrl(url: string): string {
   return url.split('#')[0]
 }
 
-const BADGE_TARGET_MODULE_TYPES = ['assign', 'resource', 'folder', 'url', 'page', 'forum']
+const BADGE_TARGET_MODULE_TYPES = ['assign', 'resource', 'folder', 'url', 'page', 'forum', 'quiz']
 
 function findAssignmentLinks(): HTMLAnchorElement[] {
   const selector = BADGE_TARGET_MODULE_TYPES.map(
