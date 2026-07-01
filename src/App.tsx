@@ -129,6 +129,7 @@ export default function App() {
     sourceAssignments: Assignment[],
     sourceCourses: Course[],
     sourceIgnoredIds: string[],
+    sourceManualAssignments: ManualAssignment[],
   ) {
     const ignoredSet = new Set(sourceIgnoredIds)
     const notifiedKeys = await getNotifiedDeadlineKeys()
@@ -148,26 +149,35 @@ export default function App() {
       })
       .sort(sortByDeadline)
 
-    for (const assignment of visibleTargets) {
-      if (!assignment.deadline) {
-        continue
-      }
+    const manualTargets = sourceManualAssignments.filter(
+      (assignment) => !assignment.submitted && assignment.deadline,
+    )
 
-      const diff = new Date(assignment.deadline).getTime() - Date.now()
+    type NotifyTarget = { id: string; title: string; courseName: string; deadline: string }
+
+    const allTargets: NotifyTarget[] = [
+      ...visibleTargets
+        .filter((a): a is Assignment & { deadline: string } => a.deadline !== null)
+        .map((a) => ({ id: a.id, title: a.title, courseName: a.courseName, deadline: a.deadline })),
+      ...manualTargets.map((a) => ({ id: a.id, title: a.title, courseName: a.courseName, deadline: a.deadline })),
+    ]
+
+    for (const target of allTargets) {
+      const diff = new Date(target.deadline).getTime() - Date.now()
 
       if (diff <= 0) {
         continue
       }
 
-      const oneHourKey = `${assignment.id}:1h`
-      const threeHourKey = `${assignment.id}:3h`
-      const oneDayKey = `${assignment.id}:24h`
+      const oneHourKey = `${target.id}:1h`
+      const threeHourKey = `${target.id}:3h`
+      const oneDayKey = `${target.id}:24h`
 
       if (diff <= ONE_HOUR_MS && !notifiedSet.has(oneHourKey)) {
         createNotification(
-          `letus-task-watcher-deadline-1h-${assignment.id}-${Date.now()}`,
+          `letus-task-watcher-deadline-1h-${target.id}-${Date.now()}`,
           '締切まで1時間以内',
-          `${assignment.title}\n${assignment.courseName}`,
+          `${target.title}\n${target.courseName}`,
         )
 
         nextNotifiedKeys.add(oneHourKey)
@@ -177,9 +187,9 @@ export default function App() {
 
       if (diff <= THREE_HOURS_MS && !notifiedSet.has(threeHourKey)) {
         createNotification(
-          `letus-task-watcher-deadline-3h-${assignment.id}-${Date.now()}`,
+          `letus-task-watcher-deadline-3h-${target.id}-${Date.now()}`,
           '締切まで3時間以内',
-          `${assignment.title}\n${assignment.courseName}`,
+          `${target.title}\n${target.courseName}`,
         )
 
         nextNotifiedKeys.add(threeHourKey)
@@ -189,9 +199,9 @@ export default function App() {
 
       if (diff <= ONE_DAY_MS && !notifiedSet.has(oneDayKey)) {
         createNotification(
-          `letus-task-watcher-deadline-24h-${assignment.id}-${Date.now()}`,
+          `letus-task-watcher-deadline-24h-${target.id}-${Date.now()}`,
           '締切まで24時間以内',
-          `${assignment.title}\n${assignment.courseName}`,
+          `${target.title}\n${target.courseName}`,
         )
 
         nextNotifiedKeys.add(oneDayKey)
@@ -254,11 +264,13 @@ export default function App() {
       const savedAssignments = await getAssignments()
       const savedCourses = await getCourses()
       const savedIgnoredIds = await getIgnoredAssignmentIds()
+      const savedManualAssignments = await getManualAssignments()
 
       await checkDeadlineWarningNotifications(
         savedAssignments,
         savedCourses,
         savedIgnoredIds,
+        savedManualAssignments,
       )
     })()
   }, [])
@@ -326,6 +338,7 @@ export default function App() {
         latestAssignments,
         latestCourses,
         latestIgnoredIds,
+        manualAssignments,
       )
 
       if (urgent.length > 0) {
@@ -365,7 +378,7 @@ export default function App() {
     } finally {
       setIsUpdating(false)
     }
-  }, [showOnboarding])
+  }, [showOnboarding, manualAssignments])
 
   useEffect(() => {
     if (hasAutoRefreshCheckedRef.current) {
