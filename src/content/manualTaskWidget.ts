@@ -23,8 +23,11 @@ async function getAssignments(): Promise<Assignment[]> {
 }
 
 async function addManualAssignment(item: ManualAssignment): Promise<void> {
-  const r = await chrome.storage.local.get('manualAssignments') as { manualAssignments?: ManualAssignment[] }
-  const current = r.manualAssignments ?? []
+  const r = await chrome.storage.local.get('manualAssignments') as { manualAssignments?: Array<Partial<ManualAssignment> & { id: string }> }
+  const current = (r.manualAssignments ?? []).map((record) => ({
+    ...record,
+    submitted: record.submitted ?? false,
+  })) as ManualAssignment[]
   await chrome.storage.local.set({ manualAssignments: [...current, item] })
 }
 
