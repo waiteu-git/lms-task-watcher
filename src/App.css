@@ -1297,6 +1297,16 @@ button:disabled {
   margin-bottom: 8px;
 }
 
+.manualCard[role="button"] {
+  cursor: pointer;
+  transition: transform 0.14s ease, border-color 0.14s ease;
+}
+
+.manualCard[role="button"]:hover {
+  transform: translateY(-1px);
+  border-color: rgba(99, 102, 241, 0.35);
+}
+
 .manualCardTop {
   display: flex;
   align-items: center;
