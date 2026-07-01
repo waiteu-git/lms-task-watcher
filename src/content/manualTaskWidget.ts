@@ -269,8 +269,11 @@ function createBadgeHost(): { host: HTMLElement; shadow: ShadowRoot } {
 }
 
 async function toggleManualSubmitted(id: string): Promise<void> {
-  const r = await chrome.storage.local.get('manualAssignments') as { manualAssignments?: ManualAssignment[] }
-  const current = r.manualAssignments ?? []
+  const r = await chrome.storage.local.get('manualAssignments') as { manualAssignments?: Array<Partial<ManualAssignment> & { id: string }> }
+  const current = (r.manualAssignments ?? []).map((record) => ({
+    ...record,
+    submitted: record.submitted ?? false,
+  })) as ManualAssignment[]
   const updated = current.map((a) => (a.id === id ? { ...a, submitted: !a.submitted } : a))
   await chrome.storage.local.set({ manualAssignments: updated })
 }
