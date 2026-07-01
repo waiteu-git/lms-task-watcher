@@ -329,8 +329,11 @@ function buildCourseBadges(
 
     if (scanned) {
       const submitted = isScannedSubmitted(scanned)
+      const icon = submitted ? '✓' : '！'
       badge.className = `badge ${submitted ? 'submitted' : ''}`
-      badge.textContent = `${formatDeadlineShort(scanned.deadline ?? '')} ${submitted ? '✓' : '！'}`
+      badge.textContent = scanned.deadline
+        ? `${formatDeadlineShort(scanned.deadline)} ${icon}`
+        : icon
     } else if (manual) {
       let currentSubmitted = manual.submitted
       badge.className = `badge clickable ${currentSubmitted ? 'submitted' : ''}`
