@@ -587,7 +587,12 @@ export async function scanAssignmentCandidatesInBackground(
       enabledCourses,
       3,
       async (course) => {
-        const response = await fetch(course.url, { credentials: 'include' })
+        let response: Response
+        try {
+          response = await fetch(course.url, { credentials: 'include' })
+        } catch {
+          return null
+        }
         if (!response.ok) return null
 
         const html = await response.text()
@@ -719,7 +724,12 @@ export async function scanDeadlinesInBackground(): Promise<{
       candidates,
       5,
       async (candidate) => {
-        const response = await fetch(candidate.url, { credentials: 'include' })
+        let response: Response
+        try {
+          response = await fetch(candidate.url, { credentials: 'include' })
+        } catch {
+          return null
+        }
         if (!response.ok) return null
 
         const html = await response.text()
