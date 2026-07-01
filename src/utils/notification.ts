@@ -1,26 +1,43 @@
+import { NOTIFICATION_TARGETS_KEY } from '../background/storageKeys'
+
+async function saveNotificationTarget(notificationId: string, url: string): Promise<void> {
+  const result = await chrome.storage.local.get(NOTIFICATION_TARGETS_KEY)
+  const targets = (result[NOTIFICATION_TARGETS_KEY] as Record<string, string> | undefined) ?? {}
+  await chrome.storage.local.set({
+    [NOTIFICATION_TARGETS_KEY]: { ...targets, [notificationId]: url },
+  })
+}
+
 export function createNotification(
   id: string,
   title: string,
   message: string,
+  url?: string,
 ): void {
-  chrome.notifications.create(
-    id,
-    {
-      type: 'basic',
-      iconUrl: 'icons/icon-128.png',
-      title,
-      message,
-      priority: 2,
-    },
-    () => {
-      if (chrome.runtime.lastError) {
-        console.warn(
-          '[LETUS Task Watcher] notification failed:',
-          chrome.runtime.lastError.message,
-        )
-      }
-    },
-  )
+  void (async () => {
+    if (url) {
+      await saveNotificationTarget(id, url)
+    }
+
+    chrome.notifications.create(
+      id,
+      {
+        type: 'basic',
+        iconUrl: 'icons/icon-128.png',
+        title,
+        message,
+        priority: 2,
+      },
+      () => {
+        if (chrome.runtime.lastError) {
+          console.warn(
+            '[LETUS Task Watcher] notification failed:',
+            chrome.runtime.lastError.message,
+          )
+        }
+      },
+    )
+  })()
 }
 
 export function normalizeUpdateError(error: unknown): string {

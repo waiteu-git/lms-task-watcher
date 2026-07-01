@@ -14,6 +14,7 @@ import {
   IGNORED_ASSIGNMENT_IDS_KEY,
   LAST_REFRESH_AT_KEY,
   NOTIFIED_DEADLINE_KEYS_KEY,
+  NOTIFICATION_TARGETS_KEY,
 } from './storageKeys'
 import type { AssignmentScanStatus, DeadlineScanStatus } from '../core/scanStatus'
 import { getManualAssignments } from '../core/manualAssignment'
@@ -441,8 +442,6 @@ async function saveDeadlineScanStatus(status: DeadlineScanStatus): Promise<void>
 }
 
 // ─── Notifications ────────────────────────────────────────────────────────────
-
-const NOTIFICATION_TARGETS_KEY = 'notificationTargets'
 
 async function getNotificationTargets(): Promise<Record<string, string>> {
   const result = await chrome.storage.local.get(NOTIFICATION_TARGETS_KEY)
