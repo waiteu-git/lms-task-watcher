@@ -187,13 +187,27 @@ describe('checkIsLoggedIn', () => {
   })
 
   it('ログイン済みの場合はokを返す', async () => {
-    vi.stubGlobal('fetch', vi.fn(async () => ({ ok: true, url: 'https://letus.ed.tus.ac.jp/course/view.php?id=1' })))
+    vi.stubGlobal('fetch', vi.fn(async () => ({
+      ok: true,
+      url: 'https://letus.ed.tus.ac.jp/course/view.php?id=1',
+      text: async () => '<html>コース内容...</html>',
+    })))
     const result = await checkIsLoggedIn([makeCourse()])
     expect(result).toBe('ok')
   })
 
   it('レスポンスURLに/login/を含む場合はlogin_requiredを返す', async () => {
     vi.stubGlobal('fetch', vi.fn(async () => ({ ok: true, url: 'https://letus.ed.tus.ac.jp/login/index.php' })))
+    const result = await checkIsLoggedIn([makeCourse()])
+    expect(result).toBe('login_required')
+  })
+
+  it('URLはリダイレクトされないがゲスト閲覧で「ログインしていません」と表示される場合はlogin_requiredを返す', async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => ({
+      ok: true,
+      url: 'https://letus.ed.tus.ac.jp/course/view.php?id=1',
+      text: async () => '<span>あなたはログインしていません。(<a href="/login/index.php">ログイン</a>)</span>',
+    })))
     const result = await checkIsLoggedIn([makeCourse()])
     expect(result).toBe('login_required')
   })
@@ -316,7 +330,7 @@ describe('scanDeadlinesInBackground', () => {
         if (assignmentsDuringScan.length === 0) sawEmptyDuringScan = true
         return { ok: true, url, text: async () => '提出期限 2026年12月1日 23時59分' }
       }
-      return { ok: true, url }
+      return { ok: true, url, text: async () => '' }
     }))
 
     await scanDeadlinesInBackground()
