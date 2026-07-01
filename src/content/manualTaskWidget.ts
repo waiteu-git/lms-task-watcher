@@ -254,7 +254,7 @@ function findAssignmentLinks(): HTMLAnchorElement[] {
 
 function createBadgeHost(): { host: HTMLElement; shadow: ShadowRoot } {
   const host = document.createElement('span')
-  host.style.cssText = 'position:absolute;right:6px;transform:translateY(-50%);z-index:2147483000;'
+  host.style.cssText = 'position:absolute;right:6px;transform:translateY(-50%);z-index:1;'
   const shadow = host.attachShadow({ mode: 'closed' })
 
   const style = document.createElement('style')
