@@ -264,15 +264,19 @@ function createBadgeHost(): { host: HTMLElement; shadow: ShadowRoot } {
       display: inline-flex; align-items: center; gap: 4px;
       font-size: 11px; padding: 2px 9px; border-radius: 999px;
       border: 1px solid transparent; font-weight: 700;
-      background: linear-gradient(135deg, #7e14ff 0%, #47bfff 100%);
+      background: linear-gradient(135deg, #f59e0b 0%, #fbbf24 100%);
       color: #fff; white-space: nowrap; cursor: default;
-      box-shadow: 0 1px 3px rgba(126,20,255,.35);
+      box-shadow: 0 1px 3px rgba(245,158,11,.35);
     }
     .badge.clickable { cursor: pointer; transition: filter .12s ease; }
     .badge.clickable:hover { filter: brightness(1.08); }
     .badge.submitted {
       background: linear-gradient(135deg, #059669 0%, #34d399 100%);
       box-shadow: 0 1px 3px rgba(5,150,105,.35);
+    }
+    .badge.unadded {
+      background: linear-gradient(135deg, #7e14ff 0%, #47bfff 100%);
+      box-shadow: 0 1px 4px rgba(126,20,255,.4);
     }
   `
   shadow.appendChild(style)
