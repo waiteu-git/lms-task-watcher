@@ -433,6 +433,27 @@ async function saveAssignments(assignments: Assignment[]): Promise<void> {
   await chrome.storage.local.set({ [ASSIGNMENTS_KEY]: assignments })
 }
 
+async function getAssignments(): Promise<Assignment[]> {
+  const result = await chrome.storage.local.get(ASSIGNMENTS_KEY)
+  return (result[ASSIGNMENTS_KEY] as Assignment[] | undefined) ?? []
+}
+
+export async function upsertAssignments(newAssignments: Assignment[]): Promise<Assignment[]> {
+  const current = await getAssignments()
+  const map = new Map<string, Assignment>()
+  for (const a of current) map.set(a.id, a)
+  for (const a of newAssignments) {
+    const existing = map.get(a.id)
+    map.set(a.id, {
+      ...a,
+      firstSeenAt: existing?.firstSeenAt ?? a.firstSeenAt,
+    })
+  }
+  const merged = Array.from(map.values())
+  await saveAssignments(merged)
+  return merged
+}
+
 async function saveAssignmentScanStatus(status: AssignmentScanStatus): Promise<void> {
   await chrome.storage.local.set({ [ASSIGNMENT_SCAN_STATUS_KEY]: status })
 }
@@ -532,7 +553,7 @@ chrome.notifications.onClosed.addListener(async (notificationId) => {
 
 // ─── Assignment scan ──────────────────────────────────────────────────────────
 
-async function scanAssignmentCandidatesInBackground(
+export async function scanAssignmentCandidatesInBackground(
   scanLevel: ScanLevel = 'standard',
 ): Promise<{ ok: boolean; reason?: string; detectedCount?: number; errorMessage?: string }> {
   if (isAssignmentScanning) return { ok: false, reason: 'already_running' }
@@ -541,9 +562,15 @@ async function scanAssignmentCandidatesInBackground(
   const startedAt = new Date().toISOString()
   const courses = await getCourses()
   const enabledCourses = courses.filter((c) => c.enabled)
+  const enabledCourseIds = new Set(enabledCourses.map((c) => c.id))
+  const existingCandidates = await getAssignmentCandidates()
   const assignmentMap = new Map<string, AssignmentCandidate>()
+  for (const candidate of existingCandidates) {
+    if (enabledCourseIds.has(candidate.courseId)) {
+      assignmentMap.set(candidate.id, candidate)
+    }
+  }
 
-  await saveAssignmentCandidates([])
   await saveAssignmentScanStatus({
     state: 'running',
     startedAt,
@@ -551,7 +578,7 @@ async function scanAssignmentCandidatesInBackground(
     totalCourses: enabledCourses.length,
     completedCourses: 0,
     currentCourseName: '開始準備中...',
-    detectedCount: 0,
+    detectedCount: assignmentMap.size,
     errorMessage: null,
   })
 
@@ -602,7 +629,9 @@ async function scanAssignmentCandidatesInBackground(
     )
 
     const finishedAt = new Date().toISOString()
-    const assignmentCandidates = Array.from(assignmentMap.values())
+    const assignmentCandidates = Array.from(assignmentMap.values()).filter((c) =>
+      enabledCourseIds.has(c.courseId),
+    )
 
     await saveAssignmentCandidates(assignmentCandidates)
     await saveAssignmentScanStatus({
@@ -636,7 +665,7 @@ async function scanAssignmentCandidatesInBackground(
 
 // ─── Deadline scan ────────────────────────────────────────────────────────────
 
-async function scanDeadlinesInBackground(): Promise<{
+export async function scanDeadlinesInBackground(): Promise<{
   ok: boolean
   reason?: string
   detectedCount?: number
@@ -646,10 +675,34 @@ async function scanDeadlinesInBackground(): Promise<{
 
   isDeadlineScanning = true
   const startedAt = new Date().toISOString()
+
+  const courses = await getCourses()
+  const enabledCourses = courses.filter((c) => c.enabled)
+  const loginStatus = await checkIsLoggedIn(enabledCourses)
+
+  if (loginStatus !== 'ok') {
+    const errorMessage =
+      loginStatus === 'login_required'
+        ? 'LETUSにログインしていないため更新できませんでした。'
+        : 'LETUSへの通信に失敗しました。ネットワーク接続を確認してください。'
+
+    await saveDeadlineScanStatus({
+      state: 'error',
+      startedAt,
+      finishedAt: new Date().toISOString(),
+      totalItems: 0,
+      completedItems: 0,
+      currentItemTitle: '',
+      detectedCount: 0,
+      errorMessage,
+    })
+    isDeadlineScanning = false
+    return { ok: false, reason: loginStatus, errorMessage }
+  }
+
   const candidates = await getAssignmentCandidates()
   const assignments: Assignment[] = []
 
-  await saveAssignments([])
   await saveDeadlineScanStatus({
     state: 'running',
     startedAt,
@@ -698,7 +751,7 @@ async function scanDeadlinesInBackground(): Promise<{
         assignments.length = 0
         assignments.push(...results)
 
-        await saveAssignments(assignments)
+        await upsertAssignments(assignments)
         await saveDeadlineScanStatus({
           state: 'running',
           startedAt,
@@ -713,10 +766,13 @@ async function scanDeadlinesInBackground(): Promise<{
     )
 
     const finishedAt = new Date().toISOString()
-    const detectedCount = assignments.filter((a) => a.deadline !== null).length
+    const candidateIds = new Set(candidates.map((c) => c.id))
+    const merged = await upsertAssignments(assignments)
+    const finalAssignments = merged.filter((a) => candidateIds.has(a.id))
+    const detectedCount = finalAssignments.filter((a) => a.deadline !== null).length
 
-    await saveAssignments(assignments)
-    await notifyDeadlineSummary(assignments)
+    await saveAssignments(finalAssignments)
+    await notifyDeadlineSummary(finalAssignments)
     await saveDeadlineScanStatus({
       state: 'completed',
       startedAt,
@@ -747,11 +803,6 @@ async function scanDeadlinesInBackground(): Promise<{
 }
 
 // ─── Additional storage helpers ──────────────────────────────────────────────
-
-async function getAssignments(): Promise<Assignment[]> {
-  const result = await chrome.storage.local.get(ASSIGNMENTS_KEY)
-  return (result[ASSIGNMENTS_KEY] as Assignment[] | undefined) ?? []
-}
 
 async function getIgnoredAssignmentIds(): Promise<string[]> {
   const result = await chrome.storage.local.get(IGNORED_ASSIGNMENT_IDS_KEY)
@@ -862,20 +913,22 @@ async function checkDeadlineWarningNotifications(): Promise<void> {
 
 // ─── Alarm-based auto scan ────────────────────────────────────────────────────
 
-const ALARM_NAME = 'auto-scan'
-const ALARM_PERIOD_MINUTES = 720
+export const ALARM_NAME = 'auto-scan'
+export const ALARM_PERIOD_MINUTES = 1440
 
 const LETUS_LOGIN_URL = 'https://letus.ed.tus.ac.jp/login/index.php'
 
-async function checkIsLoggedIn(courses: Course[]): Promise<boolean> {
+export async function checkIsLoggedIn(
+  courses: Course[],
+): Promise<'ok' | 'login_required' | 'network_error'> {
   const course = courses.find((c) => c.enabled)
-  if (!course) return false
+  if (!course) return 'ok'
   try {
     const response = await fetch(course.url, { credentials: 'include' })
-    if (!response.ok) return false
-    return !response.url.includes('/login/')
+    if (!response.ok) return 'network_error'
+    return response.url.includes('/login/') ? 'login_required' : 'ok'
   } catch {
-    return false
+    return 'network_error'
   }
 }
 
@@ -885,13 +938,16 @@ async function runAutoScan(): Promise<void> {
 
   if (enabledCourses.length === 0) return
 
-  const loggedIn = await checkIsLoggedIn(enabledCourses)
-  if (!loggedIn) {
+  const loginStatus = await checkIsLoggedIn(enabledCourses)
+  if (loginStatus !== 'ok') {
     await createNotification({
       id: 'task-watcher-login-required',
       title: 'LETUS Task Watcher',
-      message: 'LETUSにログインしてください。クリックするとログイン画面が開きます。',
-      url: LETUS_LOGIN_URL,
+      message:
+        loginStatus === 'login_required'
+          ? 'LETUSにログインしてください。クリックするとログイン画面が開きます。'
+          : 'LETUSへの通信に失敗しました。ネットワーク接続を確認してください。',
+      url: loginStatus === 'login_required' ? LETUS_LOGIN_URL : undefined,
     })
     return
   }
@@ -955,9 +1011,12 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
     void (async () => {
       const courses = await getCourses()
       const enabledCourses = courses.filter((c) => c.enabled)
-      const loggedIn = await checkIsLoggedIn(enabledCourses)
-      if (!loggedIn) {
-        sendResponse({ ok: false, reason: 'not_logged_in' })
+      const loginStatus = await checkIsLoggedIn(enabledCourses)
+      if (loginStatus !== 'ok') {
+        sendResponse({
+          ok: false,
+          reason: loginStatus === 'login_required' ? 'not_logged_in' : 'network_error',
+        })
         return
       }
       sendResponse({ ok: true, reason: 'started' })
