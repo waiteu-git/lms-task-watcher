@@ -918,6 +918,10 @@ export const ALARM_PERIOD_MINUTES = 1440
 
 const LETUS_LOGIN_URL = 'https://letus.ed.tus.ac.jp/login/index.php'
 
+function isNotLoggedInPageContent(html: string): boolean {
+  return html.includes('あなたはログインしていません') || html.includes('You are not logged in')
+}
+
 export async function checkIsLoggedIn(
   courses: Course[],
 ): Promise<'ok' | 'login_required' | 'network_error'> {
@@ -926,7 +930,9 @@ export async function checkIsLoggedIn(
   try {
     const response = await fetch(course.url, { credentials: 'include' })
     if (!response.ok) return 'network_error'
-    return response.url.includes('/login/') ? 'login_required' : 'ok'
+    if (response.url.includes('/login/')) return 'login_required'
+    const html = await response.text()
+    return isNotLoggedInPageContent(html) ? 'login_required' : 'ok'
   } catch {
     return 'network_error'
   }
