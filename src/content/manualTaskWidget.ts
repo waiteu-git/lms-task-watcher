@@ -268,8 +268,12 @@ function createBadgeHost(): { host: HTMLElement; shadow: ShadowRoot } {
     }
     .badge.clickable { cursor: pointer; }
     .badge.submitted { background: #d1fae5; border-color: #10b981; color: #065f46; }
-    .badge.unadded { cursor: pointer; font-weight: 700; color: #2563eb; border-color: #93c5fd; }
-    .badge.unadded:hover { background: #eff6ff; }
+    .badge.unadded {
+      cursor: pointer; font-weight: 700; padding: 2px 9px;
+      background: #2563eb; color: #fff; border-color: #2563eb;
+      box-shadow: 0 1px 3px rgba(37,99,235,.35);
+    }
+    .badge.unadded:hover { background: #1d4ed8; border-color: #1d4ed8; }
   `
   shadow.appendChild(style)
 
