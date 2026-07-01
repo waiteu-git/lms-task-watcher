@@ -1,0 +1,467 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>LETUS Task Watcher - 東京理科大学の課題を自動管理</title>
+  <meta name="description" content="東京理科大学のLMS「LETUS」の課題締切を自動収集・通知するChrome拡張機能。v1.0.4公開中。">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --accent:      #6366f1;
+      --violet:      #8b5cf6;
+      --grad-btn:    linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+      --bg-body:     #eef2ff;
+      --bg-card:     rgba(255,255,255,0.92);
+      --text-dark:   #0f172a;
+      --text-mid:    #475569;
+      --text-light:  #94a3b8;
+      --border:      #e2e8f0;
+      --border-lite: rgba(226,232,240,0.9);
+      --shadow:      0 12px 28px rgba(15,23,42,0.06), 0 1px 0 rgba(255,255,255,0.9) inset;
+      --shadow-btn:  0 12px 28px rgba(99,102,241,0.28);
+      --r-card:      24px;
+      --r-pill:      999px;
+    }
+
+    body {
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      color: var(--text-dark);
+      background: var(--bg-body);
+      line-height: 1.6;
+      font-size: 16px;
+    }
+
+    a { color: var(--accent); text-decoration: none; }
+    a:hover { text-decoration: underline; }
+
+    .container { max-width: 900px; margin: 0 auto; padding: 0 20px; }
+
+    /* ── HEADER ── */
+    header {
+      background: rgba(255,255,255,0.92);
+      backdrop-filter: blur(16px);
+      border-bottom: 1px solid var(--border-lite);
+      position: sticky; top: 0; z-index: 100;
+    }
+    header .inner {
+      display: flex; align-items: center; justify-content: space-between;
+      max-width: 900px; margin: 0 auto; padding: 12px 20px;
+    }
+    .logo { display: flex; align-items: center; gap: 10px; font-size: 1rem; font-weight: 900; color: var(--text-dark); }
+    .logo img { width: 32px; height: 32px; border-radius: 8px; }
+    .btn-cws {
+      display: inline-flex; align-items: center; gap: 8px;
+      background: var(--grad-btn); color: #fff;
+      padding: 9px 18px; border-radius: var(--r-pill);
+      font-size: 0.88rem; font-weight: 900;
+      box-shadow: var(--shadow-btn);
+      transition: transform 0.14s, box-shadow 0.14s;
+    }
+    .btn-cws:hover { transform: translateY(-1px); box-shadow: 0 16px 34px rgba(99,102,241,0.34); text-decoration: none; }
+
+    /* ── HERO ── */
+    .hero {
+      background:
+        radial-gradient(circle at top left, rgba(99,102,241,0.16), transparent 40%),
+        radial-gradient(circle at top right, rgba(139,92,246,0.12), transparent 38%),
+        linear-gradient(180deg, #fff 0%, #f8fafc 100%);
+      padding: 72px 20px 60px; text-align: center;
+    }
+    .hero-badge {
+      display: inline-block; background: #eef2ff; border: 1px solid #e0e7ff;
+      color: var(--accent); font-size: 0.78rem; font-weight: 900;
+      padding: 4px 14px; border-radius: var(--r-pill); margin-bottom: 20px; letter-spacing: 0.05em;
+    }
+    .hero h1 {
+      font-size: clamp(1.8rem, 5vw, 2.8rem); font-weight: 950; line-height: 1.2;
+      color: var(--text-dark); letter-spacing: -0.02em; margin-bottom: 16px;
+    }
+    .hero h1 em {
+      font-style: normal;
+      background: var(--grad-btn); -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent; background-clip: text;
+    }
+    .hero p {
+      font-size: 1rem; color: var(--text-mid); max-width: 500px;
+      margin: 0 auto 32px; font-weight: 700; line-height: 1.65;
+    }
+    .btn-primary {
+      display: inline-flex; align-items: center; gap: 10px;
+      background: var(--grad-btn); color: #fff;
+      padding: 14px 28px; border-radius: var(--r-pill);
+      font-size: 1rem; font-weight: 900;
+      box-shadow: var(--shadow-btn);
+      transition: transform 0.14s, box-shadow 0.14s;
+    }
+    .btn-primary:hover { transform: translateY(-1px); box-shadow: 0 16px 34px rgba(99,102,241,0.34); text-decoration: none; }
+    .hero-note { margin-top: 12px; font-size: 0.8rem; color: var(--text-light); font-weight: 800; }
+
+    /* ── SECTION BASE ── */
+    section { padding: 60px 0; }
+    section:nth-child(even) {
+      background:
+        radial-gradient(circle at bottom right, rgba(99,102,241,0.06), transparent 40%), #f8fafc;
+    }
+    .section-title { text-align: center; font-size: 1.4rem; font-weight: 950; color: var(--text-dark); letter-spacing: -0.02em; margin-bottom: 6px; }
+    .section-sub   { text-align: center; font-size: 0.88rem; color: var(--text-mid); font-weight: 700; margin-bottom: 32px; }
+
+    /* ── ANNOUNCEMENT ── */
+    .news-card {
+      background: linear-gradient(135deg, #f5f3ff 0%, #eff6ff 100%);
+      border: 1px solid #ddd6fe;
+      border-radius: 28px;
+      padding: 32px;
+      box-shadow: 0 10px 28px rgba(99,102,241,0.1), 0 1px 0 rgba(255,255,255,0.9) inset;
+      display: grid; gap: 28px;
+    }
+    @media (min-width: 680px) {
+      .news-card { grid-template-columns: 1fr 1fr; align-items: center; }
+    }
+    .news-label {
+      display: inline-flex; align-items: center; gap: 6px;
+      background: var(--grad-btn); color: #fff;
+      font-size: 0.7rem; font-weight: 900;
+      padding: 3px 12px; border-radius: var(--r-pill); margin-bottom: 12px; letter-spacing: 0.07em;
+    }
+    .news-version {
+      display: inline-block;
+      background: rgba(99,102,241,0.12); color: var(--accent);
+      font-size: 0.75rem; font-weight: 900;
+      padding: 3px 10px; border-radius: var(--r-pill);
+      border: 1px solid rgba(99,102,241,0.2); margin-left: 6px; font-family: monospace;
+    }
+    .news-title { font-size: 1.2rem; font-weight: 950; color: #3730a3; letter-spacing: -0.02em; margin-bottom: 10px; line-height: 1.3; }
+    .news-desc  { font-size: 0.88rem; color: #4338ca; font-weight: 750; line-height: 1.65; margin-bottom: 14px; }
+    .news-tags  { display: flex; gap: 6px; flex-wrap: wrap; }
+    .news-tag {
+      font-size: 0.75rem; font-weight: 800;
+      padding: 3px 10px; border-radius: var(--r-pill);
+      background: rgba(99,102,241,0.1); color: #4338ca;
+      border: 1px solid rgba(99,102,241,0.2);
+    }
+    .news-img-wrap { display: flex; align-items: center; justify-content: center; }
+    .news-img {
+      width: 100%; max-width: 420px;
+      border-radius: 16px;
+      box-shadow: 0 16px 40px rgba(15,23,42,0.15);
+      border: 1px solid rgba(99,102,241,0.15);
+    }
+
+    /* ── ROADMAP ── */
+    .roadmap-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 14px;
+    }
+    .rm-card {
+      background: var(--bg-card); border: 1px solid var(--border-lite);
+      border-radius: var(--r-card); padding: 20px;
+      box-shadow: var(--shadow);
+      position: relative; overflow: hidden;
+    }
+    .rm-card.rm-current {
+      border-color: rgba(99,102,241,0.45);
+      box-shadow: 0 12px 28px rgba(99,102,241,0.12), 0 1px 0 rgba(255,255,255,0.9) inset;
+    }
+    .rm-card.rm-current::before {
+      content: '';
+      position: absolute; top: 0; left: 0; right: 0; height: 3px;
+      background: var(--grad-btn);
+    }
+    .rm-card.rm-done { opacity: 0.85; }
+    .rm-version { font-size: 0.75rem; font-weight: 900; color: var(--text-light); font-family: monospace; margin-bottom: 8px; }
+    .rm-card.rm-current .rm-version { color: var(--accent); }
+    .rm-status {
+      display: inline-block; font-size: 0.68rem; font-weight: 900;
+      padding: 2px 9px; border-radius: var(--r-pill); margin-bottom: 10px; letter-spacing: 0.04em;
+    }
+    .s-live     { background: #eef2ff; color: var(--accent); border: 1px solid #e0e7ff; }
+    .s-beta     { background: #fff7ed; color: #c2410c; border: 1px solid #fed7aa; }
+    .s-dev      { background: #f0fdf4; color: #15803d; border: 1px solid #bbf7d0; }
+    .s-plan     { background: #f8fafc; color: var(--text-light); border: 1px solid var(--border); }
+    .rm-title   { font-size: 0.92rem; font-weight: 950; color: var(--text-dark); margin-bottom: 8px; line-height: 1.35; }
+    .rm-desc    { font-size: 0.82rem; color: var(--text-mid); font-weight: 700; line-height: 1.6; margin-bottom: 12px; }
+    .rm-tags    { display: flex; gap: 5px; flex-wrap: wrap; }
+    .rm-tag     { font-size: 0.7rem; font-weight: 800; padding: 2px 8px; border-radius: var(--r-pill); background: #f1f5f9; color: var(--text-mid); border: 1px solid var(--border); }
+    .rm-card.rm-current .rm-tag { background: #eef2ff; color: #4338ca; border-color: #e0e7ff; }
+
+    /* ── FEATURES ── */
+    .features-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 14px; }
+    .feature-card {
+      background: var(--bg-card); border: 1px solid var(--border-lite);
+      border-radius: var(--r-card); padding: 22px; box-shadow: var(--shadow);
+      transition: transform 0.14s, border-color 0.14s, box-shadow 0.14s;
+    }
+    .feature-card:hover {
+      transform: translateY(-2px); border-color: rgba(99,102,241,0.3);
+      box-shadow: 0 16px 36px rgba(15,23,42,0.09), 0 1px 0 rgba(255,255,255,0.9) inset;
+    }
+    .feature-icon { width: 40px; height: 40px; background: #eef2ff; border-radius: 11px; display: flex; align-items: center; justify-content: center; margin-bottom: 12px; }
+    .feature-icon svg { width: 20px; height: 20px; fill: var(--accent); }
+    .feature-card h3 { font-size: 0.93rem; font-weight: 950; margin-bottom: 7px; color: var(--text-dark); }
+    .feature-card p  { font-size: 0.84rem; color: var(--text-mid); line-height: 1.6; font-weight: 700; }
+
+    /* ── HOW TO USE ── */
+    .steps { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 14px; counter-reset: step; }
+    .step {
+      background: var(--bg-card); border: 1px solid var(--border-lite);
+      border-radius: var(--r-card); padding: 22px; box-shadow: var(--shadow);
+      counter-increment: step;
+    }
+    .step::before {
+      content: counter(step);
+      display: flex; align-items: center; justify-content: center;
+      width: 28px; height: 28px;
+      background: var(--grad-btn); color: #fff; border-radius: var(--r-pill);
+      font-size: 0.8rem; font-weight: 900; margin-bottom: 12px;
+      box-shadow: 0 4px 10px rgba(99,102,241,0.28);
+    }
+    .step h3 { font-size: 0.92rem; font-weight: 950; margin-bottom: 6px; color: var(--text-dark); }
+    .step p  { font-size: 0.83rem; color: var(--text-mid); font-weight: 700; }
+
+    /* ── PRIVACY ── */
+    .privacy-block {
+      background: #eef2ff; border: 1px solid #e0e7ff;
+      border-radius: var(--r-card); padding: 26px 30px;
+      max-width: 680px; margin: 0 auto;
+    }
+    .privacy-block h3 { font-size: 1rem; font-weight: 950; color: var(--text-dark); margin-bottom: 12px; }
+    .privacy-block ul { list-style: none; }
+    .privacy-block ul li { font-size: 0.87rem; color: var(--text-mid); padding: 4px 0; display: flex; gap: 10px; font-weight: 750; }
+    .privacy-block ul li::before { content: '🔒'; flex-shrink: 0; }
+    .privacy-block .link-row { margin-top: 16px; font-size: 0.87rem; font-weight: 750; }
+
+    /* ── SUPPORT ── */
+    .support-wrap { text-align: center; }
+    .support-wrap p { color: var(--text-mid); font-size: 0.92rem; font-weight: 750; margin-bottom: 24px; }
+    .btn-support {
+      display: inline-flex; align-items: center; gap: 10px;
+      background: var(--bg-card); color: var(--accent);
+      padding: 13px 26px; border-radius: var(--r-pill);
+      font-size: 0.95rem; font-weight: 900;
+      border: 1.5px solid #e0e7ff; box-shadow: var(--shadow);
+      transition: transform 0.14s, border-color 0.14s, box-shadow 0.14s;
+    }
+    .btn-support:hover { transform: translateY(-1px); border-color: var(--accent); box-shadow: 0 16px 36px rgba(99,102,241,0.12); text-decoration: none; }
+    .btn-support svg { width: 18px; height: 18px; fill: var(--accent); }
+
+    /* ── FOOTER ── */
+    footer {
+      background: var(--text-dark); color: rgba(255,255,255,0.55);
+      padding: 28px 20px; text-align: center; font-size: 0.82rem; font-weight: 750;
+    }
+    footer .footer-links { display: flex; justify-content: center; gap: 22px; margin-bottom: 12px; flex-wrap: wrap; }
+    footer a { color: rgba(255,255,255,0.75); }
+    footer a:hover { color: #fff; text-decoration: none; }
+    footer p { margin-top: 6px; font-size: 0.76rem; }
+
+    /* ── RESPONSIVE ── */
+    @media (max-width: 600px) {
+      .steps { grid-template-columns: 1fr; }
+      header .inner { gap: 10px; }
+      .logo span { display: none; }
+      .privacy-block { padding: 20px; }
+      .news-card { padding: 22px; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- HEADER -->
+<header>
+  <div class="inner">
+    <div class="logo">
+      <img src="icon-128.png" alt="LETUS Task Watcher">
+      <span>LETUS Task Watcher</span>
+    </div>
+    <a href="https://chromewebstore.google.com/detail/letus-task-watcher/eofgkmpiadoeckkliialkddacidcinml" class="btn-cws" target="_blank" rel="noopener">Chromeに追加</a>
+  </div>
+</header>
+
+<!-- HERO -->
+<div class="hero">
+  <div class="hero-badge">東京理科大学 LETUS 対応 &nbsp;·&nbsp; v1.0.4 公開中</div>
+  <h1>課題の締切、<br><em>もう見逃さない。</em></h1>
+  <p>LETUSに登録されている課題を自動で収集し、締切前にデスクトップ通知でお知らせするChrome拡張機能です。</p>
+  <a href="https://chromewebstore.google.com/detail/letus-task-watcher/eofgkmpiadoeckkliialkddacidcinml" class="btn-primary" target="_blank" rel="noopener">
+    Chromeに追加（無料）
+  </a>
+  <div class="hero-note">Chrome Web Store より無料でインストール</div>
+</div>
+
+<!-- ANNOUNCEMENT -->
+<section>
+  <div class="container">
+    <div class="news-label">🎉 &nbsp;COMING SOON</div>
+    <div class="news-card">
+      <div>
+        <div class="news-label">🎉 &nbsp;次のアップデート予告 <span class="news-version">v1.1.0</span></div>
+        <div class="news-title">コースページに課題ステータスを表示</div>
+        <div class="news-desc">
+          LETUSのコースページを開くだけで、各課題・資料・小テストの締切と提出状況がその場で確認できるようになります。未登録の項目は「＋」ボタンでワンクリック追加。<br><br>
+          また、LETUSで管理されていない課題を手動で追加する機能も搭載します。
+        </div>
+        <div class="news-tags">
+          <span class="news-tag">LETUSページ連携</span>
+          <span class="news-tag">手動課題追加</span>
+          <span class="news-tag">ベータテスト中</span>
+        </div>
+      </div>
+      <div class="news-img-wrap">
+        <img src="v110-preview.png" alt="v1.1.0 プレビュー" class="news-img" onerror="this.style.display='none'">
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ROADMAP -->
+<section>
+  <div class="container">
+    <h2 class="section-title">今後の展望</h2>
+    <p class="section-sub">継続的に機能を追加・改善していきます</p>
+    <div class="roadmap-grid">
+
+      <div class="rm-card rm-done">
+        <div class="rm-version">v1.0.x</div>
+        <div class="rm-status s-live">公開中</div>
+        <div class="rm-title">基本機能リリース</div>
+        <div class="rm-desc">課題の自動収集・締切通知・ダッシュボード・バックグラウンド更新。Chrome Web Storeにて無料公開中。</div>
+        <div class="rm-tags"><span class="rm-tag">自動スキャン</span><span class="rm-tag">デスクトップ通知</span><span class="rm-tag">ダッシュボード</span></div>
+      </div>
+
+      <div class="rm-card rm-current">
+        <div class="rm-version">v1.1.0</div>
+        <div class="rm-status s-beta">ベータテスト中</div>
+        <div class="rm-title">手動課題追加 &amp; LETUSインジケーター</div>
+        <div class="rm-desc">LETUSのコースページで課題ステータスを直接表示。手動での課題追加も可能に。</div>
+        <div class="rm-tags"><span class="rm-tag">LETUSページ連携</span><span class="rm-tag">手動追加</span></div>
+      </div>
+
+      <div class="rm-card">
+        <div class="rm-version">v1.2.0</div>
+        <div class="rm-status s-dev">開発中</div>
+        <div class="rm-title">プレミアムプラン &amp; クロスデバイス同期</div>
+        <div class="rm-desc">アカウント登録によるデバイス間データ同期・カスタム通知ルール・統計機能など。</div>
+        <div class="rm-tags"><span class="rm-tag">アカウント機能</span><span class="rm-tag">同期</span><span class="rm-tag">カスタム通知</span></div>
+      </div>
+
+      <div class="rm-card">
+        <div class="rm-version">v2.0.0</div>
+        <div class="rm-status s-plan">計画中</div>
+        <div class="rm-title">モバイルアプリ（iOS / Android）</div>
+        <div class="rm-desc">Chrome拡張と連携するモバイルアプリ。課題管理・プッシュ通知・時間割連携を初期から搭載。</div>
+        <div class="rm-tags"><span class="rm-tag">iOS / Android</span><span class="rm-tag">プッシュ通知</span><span class="rm-tag">時間割連携</span></div>
+      </div>
+
+    </div>
+  </div>
+</section>
+
+<!-- FEATURES -->
+<section>
+  <div class="container">
+    <h2 class="section-title">できること</h2>
+    <p class="section-sub">LETUSにログインするだけで、あとは自動で動きます</p>
+    <div class="features-grid">
+
+      <div class="feature-card">
+        <div class="feature-icon"><svg viewBox="0 0 24 24"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-7 3c1.93 0 3.5 1.57 3.5 3.5S13.93 13 12 13s-3.5-1.57-3.5-3.5S10.07 6 12 6zm7 13H5v-.23c0-.62.28-1.2.76-1.58C7.47 15.82 9.64 15 12 15s4.53.82 6.24 2.19c.48.38.76.97.76 1.58V19z"/></svg></div>
+        <h3>課題を自動収集</h3>
+        <p>LETUSへのログインセッションを使い、登録済みコースの課題リンクと締切日を自動で取得します。手動コピーは不要です。</p>
+      </div>
+
+      <div class="feature-card">
+        <div class="feature-icon"><svg viewBox="0 0 24 24"><path d="M12 22c1.1 0 2-.9 2-2h-4c0 1.1.9 2 2 2zm6-6v-5c0-3.07-1.64-5.64-4.5-6.32V4c0-.83-.67-1.5-1.5-1.5s-1.5.67-1.5 1.5v.68C7.63 5.36 6 7.92 6 11v5l-2 2v1h16v-1l-2-2z"/></svg></div>
+        <h3>締切前に通知</h3>
+        <p>締切の3時間前と1時間前にデスクトップ通知でお知らせ。各課題につき1回だけ通知するので重複しません。</p>
+      </div>
+
+      <div class="feature-card">
+        <div class="feature-icon"><svg viewBox="0 0 24 24"><path d="M3 13h2v-2H3v2zm0 4h2v-2H3v2zm0-8h2V7H3v2zm4 4h14v-2H7v2zm0 4h14v-2H7v2zM7 7v2h14V7H7z"/></svg></div>
+        <h3>ダッシュボードで一覧管理</h3>
+        <p>課題を「24時間以内」「明日」「今週」「それ以降」のグループに分類して表示。提出状況も一目で確認できます。</p>
+      </div>
+
+      <div class="feature-card">
+        <div class="feature-icon"><svg viewBox="0 0 24 24"><path d="M12 4V1L8 5l4 4V6c3.31 0 6 2.69 6 6 0 1.01-.25 1.97-.7 2.8l1.46 1.46C19.54 15.03 20 13.57 20 12c0-4.42-3.58-8-8-8zm0 14c-3.31 0-6-2.69-6-6 0-1.01.25-1.97.7-2.8L5.24 7.74C4.46 8.97 4 10.43 4 12c0 4.42 3.58 8 8 8v3l4-4-4-4v3z"/></svg></div>
+        <h3>バックグラウンド自動更新</h3>
+        <p>2時間以上データが古くなると自動で再スキャン。「今すぐ更新」での手動更新も可能。</p>
+      </div>
+
+      <div class="feature-card">
+        <div class="feature-icon"><svg viewBox="0 0 24 24"><path d="M18 8h-1V6c0-2.76-2.24-5-5-5S7 3.24 7 6v2H6c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V10c0-1.1-.9-2-2-2zm-6 9c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2zm3.1-9H8.9V6c0-1.71 1.39-3.1 3.1-3.1 1.71 0 3.1 1.39 3.1 3.1v2z"/></svg></div>
+        <h3>データはすべてブラウザ内</h3>
+        <p>収集したデータはブラウザのローカルストレージにのみ保存。外部サーバーへの送信は一切行いません。</p>
+      </div>
+
+      <div class="feature-card">
+        <div class="feature-icon"><svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/></svg></div>
+        <h3>かんたん導入</h3>
+        <p>インストール後、LETUSにログインして拡張機能アイコンをクリックするだけ。設定不要で即使えます。</p>
+      </div>
+
+    </div>
+  </div>
+</section>
+
+<!-- HOW TO USE -->
+<section>
+  <div class="container">
+    <h2 class="section-title">使い方</h2>
+    <p class="section-sub">4ステップで完了</p>
+    <div class="steps">
+      <div class="step"><h3>インストール</h3><p>Chrome Web StoreからLETUS Task Watcherを追加します。</p></div>
+      <div class="step"><h3>LETUSにログイン</h3><p>普段通りLETUSにログインします。追加の操作は不要です。</p></div>
+      <div class="step"><h3>コースを選択</h3><p>ダッシュボードを開き、追跡したいコースにチェックを入れます。</p></div>
+      <div class="step"><h3>スキャン開始</h3><p>「今すぐ更新」をタップ。課題が締切順に一覧表示されます。</p></div>
+    </div>
+  </div>
+</section>
+
+<!-- PRIVACY -->
+<section>
+  <div class="container">
+    <h2 class="section-title">プライバシー</h2>
+    <p class="section-sub">あなたのデータを大切に扱います</p>
+    <div class="privacy-block">
+      <h3>収集・送信するデータについて</h3>
+      <ul>
+        <li>ログインID・パスワードは一切読み取りません</li>
+        <li>収集データはブラウザのローカルストレージ（chrome.storage.local）にのみ保存</li>
+        <li>外部サーバーへのデータ送信は行いません</li>
+        <li>ダッシュボードからいつでもデータを削除できます</li>
+        <li>アンインストールすると保存データもすべて削除されます</li>
+      </ul>
+      <div class="link-row">詳細は<a href="privacy.html">プライバシーポリシー</a>をご覧ください。</div>
+    </div>
+  </div>
+</section>
+
+<!-- SUPPORT -->
+<section>
+  <div class="container">
+    <h2 class="section-title">サポート</h2>
+    <div class="support-wrap">
+      <p>バグ報告・機能要望・ご質問はお気軽にどうぞ。</p>
+      <a href="https://docs.google.com/forms/d/e/1FAIpQLSe2bn8QfwsosZj3EON8uu85AkKa1_pjX0gQ7ptGE-ikqDXEYQ/viewform?usp=dialog" class="btn-support" target="_blank" rel="noopener">
+        <svg viewBox="0 0 24 24"><path d="M20 4H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 4-8 5-8-5V6l8 5 8-5v2z"/></svg>
+        お問い合わせフォームを開く
+      </a>
+    </div>
+  </div>
+</section>
+
+<!-- FOOTER -->
+<footer>
+  <div class="footer-links">
+    <a href="privacy.html">プライバシーポリシー</a>
+    <a href="https://chromewebstore.google.com/detail/letus-task-watcher/eofgkmpiadoeckkliialkddacidcinml" target="_blank" rel="noopener">Chrome Web Store</a>
+    <a href="https://github.com/waiteu-git/lms-task-watcher" target="_blank" rel="noopener">GitHub</a>
+  </div>
+  <p>© 2026 LETUS Task Watcher. 東京理科大学非公式の学生個人プロジェクトです。</p>
+</footer>
+
+</body>
+</html>
