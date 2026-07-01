@@ -356,6 +356,10 @@ export default function App() {
           setMessage('LETUSにログインしてからもう一度試してください。')
           return
         }
+        if (scanResponse.reason === 'network_error') {
+          setMessage('LETUSへの通信に失敗しました。ネットワーク接続を確認してください。')
+          return
+        }
         throw new Error(scanResponse.reason)
       }
 
@@ -525,6 +529,16 @@ export default function App() {
     assignmentScanStatus,
     deadlineScanStatus,
   ])
+
+  const scanErrorMessage = useMemo(() => {
+    if (assignmentScanStatus.state === 'error') {
+      return normalizeUpdateError(assignmentScanStatus.errorMessage ?? '')
+    }
+    if (deadlineScanStatus.state === 'error') {
+      return normalizeUpdateError(deadlineScanStatus.errorMessage ?? '')
+    }
+    return null
+  }, [assignmentScanStatus, deadlineScanStatus])
 
   const workingLabel = useMemo(() => {
     if (assignmentScanStatus.state === 'running') {
@@ -851,6 +865,13 @@ export default function App() {
           </>
         )}
       </div>
+
+      {scanErrorMessage && (
+        <div className="errorBanner">
+          <strong>更新に失敗しました。前回のデータを表示しています。</strong>
+          <span>{scanErrorMessage}</span>
+        </div>
+      )}
 
       {message && <p className="message">{message}</p>}
 
