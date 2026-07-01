@@ -1,6 +1,32 @@
-import type { Assignment, Course } from '../core/types'
-import { getCourses, getAssignments } from '../core/storage'
-import { addManualAssignment, type ManualAssignment } from '../core/manualAssignment'
+type Course = { id: string; name: string; url: string; enabled: boolean; lmsType: 'unknown' | 'letus' | 'moodle' | 'manaba' | 'webclass' | 'generic'; createdAt: string; updatedAt: string }
+type Assignment = { id: string; courseId: string; courseName: string; title: string; url: string; deadline: string | null; deadlineText: string; sourceText: string; submissionStatus: 'unknown' | 'not_submitted' | 'submitted' | 'completed'; lifecycleStatus: 'active' | 'new' | 'changed' | 'before_start' | 'submitted' | 'passed' | 'missing' | 'archived'; detectedAt: string; firstSeenAt: string; lastSeenAt: string; lastCheckedAt: string }
+type ManualAssignment = {
+  id: string
+  courseId: string
+  courseName: string
+  title: string
+  letusUrl: string | null
+  deadline: string
+  memo: string
+  submitted: boolean
+  createdAt: string
+}
+
+async function getCourses(): Promise<Course[]> {
+  const r = await chrome.storage.local.get('courses') as { courses?: Course[] }
+  return r.courses ?? []
+}
+
+async function getAssignments(): Promise<Assignment[]> {
+  const r = await chrome.storage.local.get('assignments') as { assignments?: Assignment[] }
+  return r.assignments ?? []
+}
+
+async function addManualAssignment(item: ManualAssignment): Promise<void> {
+  const r = await chrome.storage.local.get('manualAssignments') as { manualAssignments?: ManualAssignment[] }
+  const current = r.manualAssignments ?? []
+  await chrome.storage.local.set({ manualAssignments: [...current, item] })
+}
 
 function createId(): string {
   return crypto.randomUUID()
