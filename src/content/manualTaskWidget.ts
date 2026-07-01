@@ -270,10 +270,12 @@ function createBadgeHost(): { host: HTMLElement; shadow: ShadowRoot } {
     .badge.submitted { background: #d1fae5; border-color: #10b981; color: #065f46; }
     .badge.unadded {
       cursor: pointer; font-weight: 700; padding: 2px 9px;
-      background: #2563eb; color: #fff; border-color: #2563eb;
-      box-shadow: 0 1px 3px rgba(37,99,235,.35);
+      background: linear-gradient(135deg, #7e14ff 0%, #47bfff 100%);
+      color: #fff; border-color: transparent;
+      box-shadow: 0 1px 4px rgba(126,20,255,.4);
+      transition: filter .12s ease;
     }
-    .badge.unadded:hover { background: #1d4ed8; border-color: #1d4ed8; }
+    .badge.unadded:hover { filter: brightness(1.08); }
   `
   shadow.appendChild(style)
 
