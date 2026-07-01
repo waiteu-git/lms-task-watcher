@@ -2,13 +2,16 @@
 <html lang="ja">
 <head>
 <meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 <style>
-  html, body { margin:0; padding:0; background:#f5f5f5; }
+  html, body { margin:0; padding:0; background:#f5f5f5; overflow-x:hidden; }
   body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Hiragino Sans', sans-serif; }
+  .row-link { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; flex:1; min-width:0; color:#2563eb; font-size:14px; text-decoration:underline; }
+  .url-bar { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-size:11px; color:#6b7280; background:#fff; border:1px solid #e5e7eb; border-radius:6px; padding:3px 10px; max-width: 240px; }
 </style>
 </head>
 <body>
-<div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Hiragino Sans', sans-serif; width: 640px; margin: 0 auto; background: #f5f5f5; padding: 24px; border-radius: 16px; box-sizing: border-box;">
+<div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Hiragino Sans', sans-serif; max-width: 640px; width:100%; margin: 0 auto; background: #f5f5f5; padding: 20px; border-radius: 16px; box-sizing: border-box;">
 
   <div style="text-align:center; margin-bottom: 18px;">
     <div style="font-size: 12px; font-weight: 700; color: #7e14ff; letter-spacing: .06em; text-transform: uppercase; margin-bottom: 4px;">LETUS Task Watcher v1.1.0</div>
@@ -17,11 +20,11 @@
 
   <div style="background:#fff; border-radius: 14px; box-shadow: 0 8px 24px rgba(0,0,0,.08); overflow:hidden; border:1px solid #e5e7eb;">
 
-    <div style="display:flex; align-items:center; gap:6px; padding:10px 14px; background:#f1f1f3; border-bottom:1px solid #e5e7eb;">
-      <span style="width:10px;height:10px;border-radius:50%;background:#ff5f57;display:inline-block;"></span>
-      <span style="width:10px;height:10px;border-radius:50%;background:#febc2e;display:inline-block;"></span>
-      <span style="width:10px;height:10px;border-radius:50%;background:#28c840;display:inline-block;"></span>
-      <span style="margin-left:10px; font-size:11px; color:#6b7280; background:#fff; border:1px solid #e5e7eb; border-radius:6px; padding:3px 10px;">letus.ed.tus.ac.jp/course/view.php?id=216412</span>
+    <div style="display:flex; align-items:center; gap:6px; padding:10px 14px; background:#f1f1f3; border-bottom:1px solid #e5e7eb; overflow:hidden;">
+      <span style="width:10px;height:10px;border-radius:50%;background:#ff5f57;display:inline-block;flex-shrink:0;"></span>
+      <span style="width:10px;height:10px;border-radius:50%;background:#febc2e;display:inline-block;flex-shrink:0;"></span>
+      <span style="width:10px;height:10px;border-radius:50%;background:#28c840;display:inline-block;flex-shrink:0;"></span>
+      <span class="url-bar" style="margin-left:10px;">letus.ed.tus.ac.jp/course/view.php?id=216412</span>
     </div>
 
     <div style="padding:14px 20px 8px; border-bottom:1px solid #f3f4f6;">
@@ -30,51 +33,46 @@
 
     <div style="padding: 6px 0;">
 
-      <div style="position:relative; display:flex; align-items:center; gap:10px; padding:13px 20px; border-bottom:1px solid #f3f4f6;">
-        <span style="font-size:18px;">📎</span>
-        <span style="color:#2563eb; font-size:14px; text-decoration:underline;">課題レポート（第1回目） 提出はここをクリック</span>
-        <span style="position:absolute; right:16px; top:50%; transform:translateY(-50%); display:inline-flex; align-items:center; gap:4px; font-size:11px; font-weight:700; padding:3px 10px; border-radius:999px; color:#fff; white-space:nowrap; background:linear-gradient(135deg,#059669 0%,#34d399 100%); box-shadow:0 1px 3px rgba(5,150,105,.35);">4/21 16:00 ✓</span>
+      <div style="position:relative; display:flex; align-items:center; gap:10px; padding:13px 20px; padding-right:110px; border-bottom:1px solid #f3f4f6;">
+        <span style="font-size:18px;flex-shrink:0;">📎</span>
+        <span class="row-link">課題レポート（第1回目） 提出はここをクリック</span>
+        <span style="position:absolute; right:12px; top:50%; transform:translateY(-50%); display:inline-flex; align-items:center; gap:4px; font-size:11px; font-weight:700; padding:3px 10px; border-radius:999px; color:#fff; white-space:nowrap; background:linear-gradient(135deg,#059669 0%,#34d399 100%); box-shadow:0 1px 3px rgba(5,150,105,.35);">4/21 ✓</span>
       </div>
 
-      <div style="position:relative; display:flex; align-items:center; gap:10px; padding:13px 20px; border-bottom:1px solid #f3f4f6;">
-        <span style="font-size:18px;">📎</span>
-        <span style="color:#2563eb; font-size:14px; text-decoration:underline;">第2回課題レポート 提出フォーム</span>
-        <span style="position:absolute; right:16px; top:50%; transform:translateY(-50%); display:inline-flex; align-items:center; gap:4px; font-size:11px; font-weight:700; padding:3px 10px; border-radius:999px; color:#fff; white-space:nowrap; background:linear-gradient(135deg,#f59e0b 0%,#fbbf24 100%); box-shadow:0 1px 3px rgba(245,158,11,.35);">4/28 23:59 ！</span>
+      <div style="position:relative; display:flex; align-items:center; gap:10px; padding:13px 20px; padding-right:110px; border-bottom:1px solid #f3f4f6;">
+        <span style="font-size:18px;flex-shrink:0;">📎</span>
+        <span class="row-link">第2回課題レポート 提出フォーム</span>
+        <span style="position:absolute; right:12px; top:50%; transform:translateY(-50%); display:inline-flex; align-items:center; gap:4px; font-size:11px; font-weight:700; padding:3px 10px; border-radius:999px; color:#fff; white-space:nowrap; background:linear-gradient(135deg,#f59e0b 0%,#fbbf24 100%); box-shadow:0 1px 3px rgba(245,158,11,.35);">4/28 ！</span>
       </div>
 
-      <div style="position:relative; display:flex; align-items:center; gap:10px; padding:13px 20px; border-bottom:1px solid #f3f4f6;">
-        <span style="font-size:18px;">📝</span>
-        <span style="color:#2563eb; font-size:14px; text-decoration:underline;">小テスト（第3回：クーロンの法則）</span>
-        <span style="position:absolute; right:16px; top:50%; transform:translateY(-50%); display:inline-flex; align-items:center; gap:4px; font-size:11px; font-weight:700; padding:3px 10px; border-radius:999px; color:#fff; white-space:nowrap; background:linear-gradient(135deg,#7e14ff 0%,#47bfff 100%); box-shadow:0 1px 4px rgba(126,20,255,.4);">＋</span>
+      <div style="position:relative; display:flex; align-items:center; gap:10px; padding:13px 20px; padding-right:50px; border-bottom:1px solid #f3f4f6;">
+        <span style="font-size:18px;flex-shrink:0;">📝</span>
+        <span class="row-link">小テスト（第3回：クーロンの法則）</span>
+        <span style="position:absolute; right:12px; top:50%; transform:translateY(-50%); display:inline-flex; align-items:center; gap:4px; font-size:11px; font-weight:700; padding:3px 10px; border-radius:999px; color:#fff; white-space:nowrap; background:linear-gradient(135deg,#7e14ff 0%,#47bfff 100%); box-shadow:0 1px 4px rgba(126,20,255,.4);">＋</span>
       </div>
 
-      <div style="position:relative; display:flex; align-items:center; gap:10px; padding:13px 20px;">
-        <span style="font-size:18px;">📄</span>
-        <span style="color:#2563eb; font-size:14px; text-decoration:underline;">第3回スライド資料</span>
-        <span style="position:absolute; right:16px; top:50%; transform:translateY(-50%); display:inline-flex; align-items:center; gap:4px; font-size:11px; font-weight:700; padding:3px 10px; border-radius:999px; color:#fff; white-space:nowrap; background:linear-gradient(135deg,#7e14ff 0%,#47bfff 100%); box-shadow:0 1px 4px rgba(126,20,255,.4);">＋</span>
+      <div style="position:relative; display:flex; align-items:center; gap:10px; padding:13px 20px; padding-right:50px;">
+        <span style="font-size:18px;flex-shrink:0;">📄</span>
+        <span class="row-link">第3回スライド資料</span>
+        <span style="position:absolute; right:12px; top:50%; transform:translateY(-50%); display:inline-flex; align-items:center; gap:4px; font-size:11px; font-weight:700; padding:3px 10px; border-radius:999px; color:#fff; white-space:nowrap; background:linear-gradient(135deg,#7e14ff 0%,#47bfff 100%); box-shadow:0 1px 4px rgba(126,20,255,.4);">＋</span>
       </div>
 
     </div>
   </div>
 
-  <div style="display:flex; justify-content:center; gap:18px; margin-top:16px; flex-wrap:wrap;">
-    <div style="display:flex; align-items:center; gap:6px; font-size:12px; color:#374151;">
-      <span style="width:14px;height:14px;border-radius:50%;background:linear-gradient(135deg,#059669 0%,#34d399 100%); display:inline-block;"></span>
+  <div style="display:flex; justify-content:center; gap:14px; margin-top:14px; flex-wrap:wrap;">
+    <div style="display:flex; align-items:center; gap:5px; font-size:11px; color:#374151;">
+      <span style="width:12px;height:12px;border-radius:50%;background:linear-gradient(135deg,#059669 0%,#34d399 100%); display:inline-block;"></span>
       提出済み
     </div>
-    <div style="display:flex; align-items:center; gap:6px; font-size:12px; color:#374151;">
-      <span style="width:14px;height:14px;border-radius:50%;background:linear-gradient(135deg,#f59e0b 0%,#fbbf24 100%); display:inline-block;"></span>
+    <div style="display:flex; align-items:center; gap:5px; font-size:11px; color:#374151;">
+      <span style="width:12px;height:12px;border-radius:50%;background:linear-gradient(135deg,#f59e0b 0%,#fbbf24 100%); display:inline-block;"></span>
       未提出（締切あり）
     </div>
-    <div style="display:flex; align-items:center; gap:6px; font-size:12px; color:#374151;">
-      <span style="width:14px;height:14px;border-radius:50%;background:linear-gradient(135deg,#7e14ff 0%,#47bfff 100%); display:inline-block;"></span>
+    <div style="display:flex; align-items:center; gap:5px; font-size:11px; color:#374151;">
+      <span style="width:12px;height:12px;border-radius:50%;background:linear-gradient(135deg,#7e14ff 0%,#47bfff 100%); display:inline-block;"></span>
       未登録（＋で追加）
     </div>
-  </div>
-
-  <div style="text-align:center; margin-top:14px; font-size:12px; color:#6b7280;">
-    課題・資料・小テスト・お知らせなど、コースページ上のあらゆる項目に締切と提出状況を自動表示。<br/>
-    未登録のものはワンクリックで手動追加できます。
   </div>
 
 </div>
