@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>LETUS Task Watcher - 東京理科大学の課題を自動管理</title>
-  <meta name="description" content="東京理科大学のLMS「LETUS」の課題締切を自動収集・通知するChrome拡張機能。v1.0.4公開中。">
+  <meta name="description" content="東京理科大学のLMS「LETUS」の課題締切を自動収集・通知するChrome拡張機能。v1.0.5公開中。">
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -142,12 +142,27 @@
       border: 1px solid rgba(99,102,241,0.2);
     }
     .news-img-wrap { display: flex; align-items: center; justify-content: center; }
-    .news-img {
-      width: 100%; max-width: 420px;
+    .news-iframe {
+      width: 100%; max-width: 420px; height: 420px;
       border-radius: 16px;
       box-shadow: 0 16px 40px rgba(15,23,42,0.15);
       border: 1px solid rgba(99,102,241,0.15);
+      overflow: hidden;
     }
+
+    /* ── CHANGELOG ── */
+    .cl-list { list-style: none; display: flex; flex-direction: column; gap: 20px; max-width: 680px; margin: 0 auto; }
+    .cl-item { display: grid; gap: 0; }
+    @media (min-width: 560px) {
+      .cl-item { grid-template-columns: 120px 1fr; gap: 0 20px; }
+    }
+    .cl-meta { padding-top: 2px; }
+    .cl-ver { font-size: 0.78rem; font-weight: 900; color: var(--accent); font-family: monospace; }
+    .cl-date { font-size: 0.75rem; color: var(--text-light); font-weight: 700; margin-top: 2px; }
+    .cl-title { font-size: 0.93rem; font-weight: 950; color: var(--text-dark); margin-bottom: 6px; }
+    .cl-notes { list-style: none; }
+    .cl-notes li { font-size: 0.83rem; color: var(--text-mid); font-weight: 700; padding: 2px 0; display: flex; gap: 8px; line-height: 1.55; }
+    .cl-notes li::before { content: '—'; color: var(--text-light); flex-shrink: 0; }
 
     /* ── ROADMAP ── */
     .roadmap-grid {
@@ -282,7 +297,7 @@
 
 <!-- HERO -->
 <div class="hero">
-  <div class="hero-badge">東京理科大学 LETUS 対応 &nbsp;·&nbsp; v1.0.4 公開中</div>
+  <div class="hero-badge">東京理科大学 LETUS 対応 &nbsp;·&nbsp; v1.0.5 公開中</div>
   <h1>課題の締切、<br><em>もう見逃さない。</em></h1>
   <p>LETUSに登録されている課題を自動で収集し、締切前にデスクトップ通知でお知らせするChrome拡張機能です。</p>
   <a href="https://chromewebstore.google.com/detail/letus-task-watcher/eofgkmpiadoeckkliialkddacidcinml" class="btn-primary" target="_blank" rel="noopener">
@@ -294,10 +309,9 @@
 <!-- ANNOUNCEMENT -->
 <section>
   <div class="container">
-    <div class="news-label">🎉 &nbsp;COMING SOON</div>
     <div class="news-card">
       <div>
-        <div class="news-label">🎉 &nbsp;次のアップデート予告 <span class="news-version">v1.1.0</span></div>
+        <div class="news-label">次のアップデート予告 <span class="news-version">v1.1.0</span></div>
         <div class="news-title">コースページに課題ステータスを表示</div>
         <div class="news-desc">
           LETUSのコースページを開くだけで、各課題・資料・小テストの締切と提出状況がその場で確認できるようになります。未登録の項目は「＋」ボタンでワンクリック追加。<br><br>
@@ -310,7 +324,7 @@
         </div>
       </div>
       <div class="news-img-wrap">
-        <img src="v110-preview.png" alt="v1.1.0 プレビュー" class="news-img" onerror="this.style.display='none'">
+        <iframe src="v110-preview.html" title="v1.1.0 プレビュー" class="news-iframe" scrolling="no" loading="lazy"></iframe>
       </div>
     </div>
   </div>
@@ -436,6 +450,76 @@
       </ul>
       <div class="link-row">詳細は<a href="privacy.html">プライバシーポリシー</a>をご覧ください。</div>
     </div>
+  </div>
+</section>
+
+<!-- CHANGELOG -->
+<section>
+  <div class="container">
+    <h2 class="section-title">アップデート履歴</h2>
+    <p class="section-sub">継続的にバグ修正・機能改善を行っています</p>
+    <ul class="cl-list">
+
+      <li class="cl-item">
+        <div class="cl-meta">
+          <div class="cl-ver">v1.0.5</div>
+          <div class="cl-date">2026年7月</div>
+        </div>
+        <div class="cl-body">
+          <div class="cl-title">自動更新の信頼性向上</div>
+          <ul class="cl-notes">
+            <li>バックグラウンドスキャンの自動更新間隔を1日1回に変更</li>
+            <li>スキャン中・エラー発生時も既存の課題データを保持するよう改善</li>
+            <li>ログイン切れ・通信エラーを正確に区別して検出するよう改善</li>
+          </ul>
+        </div>
+      </li>
+
+      <li class="cl-item">
+        <div class="cl-meta">
+          <div class="cl-ver">v1.0.4</div>
+          <div class="cl-date">2026年6月</div>
+        </div>
+        <div class="cl-body">
+          <div class="cl-title">オンボーディングバナー・アップデート履歴ページ追加</div>
+          <ul class="cl-notes">
+            <li>初回起動時にオンボーディングバナーを表示</li>
+            <li>拡張機能内にアップデート履歴ページを追加</li>
+            <li>LETUSへのログイン状態検知バグを修正</li>
+          </ul>
+        </div>
+      </li>
+
+      <li class="cl-item">
+        <div class="cl-meta">
+          <div class="cl-ver">v1.0.3</div>
+          <div class="cl-date">2026年6月</div>
+        </div>
+        <div class="cl-body">
+          <div class="cl-title">通知・スキャンの安定性向上</div>
+          <ul class="cl-notes">
+            <li>バックグラウンドスキャンの安定性を向上</li>
+            <li>通知の重複送信バグを修正</li>
+          </ul>
+        </div>
+      </li>
+
+      <li class="cl-item">
+        <div class="cl-meta">
+          <div class="cl-ver">v1.0.0</div>
+          <div class="cl-date">2026年5月</div>
+        </div>
+        <div class="cl-body">
+          <div class="cl-title">初回リリース</div>
+          <ul class="cl-notes">
+            <li>LETUSの課題を自動収集・一覧表示</li>
+            <li>締切3時間前・1時間前のデスクトップ通知</li>
+            <li>バックグラウンド自動更新・ダッシュボード画面</li>
+          </ul>
+        </div>
+      </li>
+
+    </ul>
   </div>
 </section>
 
