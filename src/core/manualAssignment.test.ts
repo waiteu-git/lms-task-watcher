@@ -22,6 +22,7 @@ import {
   getManualAssignments,
   addManualAssignment,
   deleteManualAssignment,
+  toggleManualAssignmentSubmitted,
   type ManualAssignment,
 } from './manualAssignment'
 
@@ -34,6 +35,7 @@ function makeAssignment(overrides?: Partial<ManualAssignment>): ManualAssignment
     letusUrl: 'https://letus.ed.tus.ac.jp/mod/forum/discuss.php?d=123',
     deadline: '2026-07-05T23:59:00.000Z',
     memo: '',
+    submitted: false,
     createdAt: '2026-06-28T00:00:00.000Z',
     ...overrides,
   }
@@ -78,5 +80,50 @@ describe('deleteManualAssignment', () => {
     await deleteManualAssignment('non-existent')
     const result = await getManualAssignments()
     expect(result).toHaveLength(1)
+  })
+})
+
+describe('getManualAssignments の submitted マイグレーション', () => {
+  it('submitted フィールドが無い旧データは false として扱う', async () => {
+    const legacyRecord = {
+      id: 'legacy-1',
+      courseId: 'course-abc',
+      courseName: '数理統計学',
+      title: '旧データの課題',
+      letusUrl: null,
+      deadline: '2026-07-05T23:59:00.000Z',
+      memo: '',
+      createdAt: '2026-06-28T00:00:00.000Z',
+    }
+
+    mockStorage.manualAssignments = [legacyRecord]
+
+    const result = await getManualAssignments()
+    expect(result[0].submitted).toBe(false)
+  })
+})
+
+describe('toggleManualAssignmentSubmitted', () => {
+  it('submitted を true から false へ反転できる', async () => {
+    await addManualAssignment(makeAssignment({ id: 'toggle-1', submitted: false }))
+    await toggleManualAssignmentSubmitted('toggle-1')
+    const result = await getManualAssignments()
+    expect(result.find((a) => a.id === 'toggle-1')?.submitted).toBe(true)
+  })
+
+  it('再度呼ぶと false に戻る', async () => {
+    await addManualAssignment(makeAssignment({ id: 'toggle-2', submitted: false }))
+    await toggleManualAssignmentSubmitted('toggle-2')
+    await toggleManualAssignmentSubmitted('toggle-2')
+    const result = await getManualAssignments()
+    expect(result.find((a) => a.id === 'toggle-2')?.submitted).toBe(false)
+  })
+
+  it('存在しないIDを指定しても壊れない', async () => {
+    await addManualAssignment(makeAssignment({ id: 'keep-1', submitted: false }))
+    await toggleManualAssignmentSubmitted('non-existent')
+    const result = await getManualAssignments()
+    expect(result).toHaveLength(1)
+    expect(result[0].submitted).toBe(false)
   })
 })
