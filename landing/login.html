@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>アカウント登録 — LETUS Task Watcher</title>
+  <title>ログイン — LETUS Task Watcher</title>
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
     :root { --accent: #6366f1; --text-dark: #0f172a; --text-mid: #475569; --border: #e2e8f0; --bg-pale: #eef2ff; --border-pale: #e0e7ff; }
@@ -35,24 +35,24 @@
   </div>
 </header>
 <main>
-  <h1>アカウント登録</h1>
-  <p class="sub">登録後、Stripeの決済ページへ移動します。決済完了後にChrome拡張機能をインストールしてご利用ください。</p>
+  <h1>ログイン</h1>
+  <p class="sub">登録済みのメールアドレスでログインしてください。</p>
 
-  <form id="register-form">
+  <form id="login-form">
     <label for="email">メールアドレス</label>
     <input id="email" type="email" required autocomplete="email">
 
-    <label for="password">パスワード（8文字以上）</label>
-    <input id="password" type="password" required minlength="8" autocomplete="new-password">
+    <label for="password">パスワード</label>
+    <input id="password" type="password" required autocomplete="current-password">
 
     <div id="error" class="error" style="display:none;"></div>
 
-    <button id="submit-btn" type="submit">登録してStripeへ進む →</button>
+    <button id="submit-btn" type="submit">ログイン</button>
   </form>
 
   <p class="hint">
-    既にアカウントをお持ちの方は<a href="login.html">ログイン</a>してください。<br>
-    パスワードをお忘れの場合は<a href="forgot-password.html">こちら</a>
+    パスワードをお忘れの場合は<a href="forgot-password.html">こちら</a><br>
+    アカウントをお持ちでない方は<a href="register.html">新規登録</a>
   </p>
 </main>
 <footer>
@@ -61,14 +61,9 @@
 </footer>
 <script>
   const API_BASE_URL = 'https://api.waiteu.dev'
-  const form = document.getElementById('register-form')
+  const form = document.getElementById('login-form')
   const errorEl = document.getElementById('error')
   const submitBtn = document.getElementById('submit-btn')
-
-  function showError(message) {
-    errorEl.textContent = message
-    errorEl.style.display = 'block'
-  }
 
   form.addEventListener('submit', async (e) => {
     e.preventDefault()
@@ -80,39 +75,28 @@
     const password = document.getElementById('password').value
 
     try {
-      const regRes = await fetch(`${API_BASE_URL}/api/auth/register`, {
+      const res = await fetch(`${API_BASE_URL}/api/auth/login`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, password }),
       })
-      const regData = await regRes.json()
+      const data = await res.json()
 
-      if (!regRes.ok) {
-        if (regRes.status === 409) {
-          showError('このメールアドレスは登録済みです。パスワードをお忘れの場合は下のリンクからどうぞ。')
-        } else {
-          showError(regData.error || 'エラーが発生しました')
-        }
+      if (!res.ok) {
+        errorEl.textContent = data.error || 'メールアドレスまたはパスワードが正しくありません'
+        errorEl.style.display = 'block'
         return
       }
 
-      const checkRes = await fetch(`${API_BASE_URL}/api/subscription/checkout`, {
-        method: 'POST',
-        headers: { Authorization: `Bearer ${regData.token}` },
-      })
-      const checkData = await checkRes.json()
-
-      if (!checkRes.ok || !checkData.url) {
-        showError(checkData.error || 'チェックアウトの開始に失敗しました（登録は完了しています）')
-        return
-      }
-
-      window.location.href = checkData.url
+      localStorage.setItem('authToken', data.token)
+      localStorage.setItem('authTokenExpiresAt', data.expiresAt)
+      window.location.href = 'mypage.html'
     } catch {
-      showError('サーバーに接続できませんでした')
+      errorEl.textContent = 'サーバーに接続できませんでした'
+      errorEl.style.display = 'block'
     } finally {
       submitBtn.disabled = false
-      submitBtn.textContent = '登録してStripeへ進む →'
+      submitBtn.textContent = 'ログイン'
     }
   })
 </script>
