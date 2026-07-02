@@ -151,7 +151,7 @@ export default function App() {
 
       if (diff <= ONE_HOUR_MS && !notifiedSet.has(oneHourKey)) {
         createNotification(
-          `letus-task-watcher-deadline-1h-${assignment.id}-${Date.now()}`,
+          `letus-task-watcher-deadline-1h-${assignment.id}`,
           '締切まで1時間以内',
           `${assignment.title}\n${assignment.courseName}`,
         )
@@ -163,7 +163,7 @@ export default function App() {
 
       if (diff <= THREE_HOURS_MS && !notifiedSet.has(threeHourKey)) {
         createNotification(
-          `letus-task-watcher-deadline-3h-${assignment.id}-${Date.now()}`,
+          `letus-task-watcher-deadline-3h-${assignment.id}`,
           '締切まで3時間以内',
           `${assignment.title}\n${assignment.courseName}`,
         )
@@ -175,7 +175,7 @@ export default function App() {
 
       if (diff <= ONE_DAY_MS && !notifiedSet.has(oneDayKey)) {
         createNotification(
-          `letus-task-watcher-deadline-24h-${assignment.id}-${Date.now()}`,
+          `letus-task-watcher-deadline-24h-${assignment.id}`,
           '締切まで24時間以内',
           `${assignment.title}\n${assignment.courseName}`,
         )
@@ -310,13 +310,13 @@ export default function App() {
         const first = urgent[0]
 
         createNotification(
-          `letus-task-watcher-update-urgent-${Date.now()}`,
+          `letus-task-watcher-update-urgent`,
           `24時間以内の課題: ${urgent.length}件`,
           `${first.title}\n${first.courseName}`,
         )
       } else {
         createNotification(
-          `letus-task-watcher-update-completed-${Date.now()}`,
+          `letus-task-watcher-update-completed`,
           'LETUS Task Watcher',
           '更新が完了しました。24時間以内の未提出課題はありません。',
         )
@@ -334,7 +334,7 @@ export default function App() {
       console.error(error)
 
       createNotification(
-        `letus-task-watcher-update-error-${Date.now()}`,
+        `letus-task-watcher-update-error`,
         'LETUS Task Watcher',
         '更新中にエラーが発生しました。拡張機能を開いて状態を確認してください。',
       )
@@ -378,7 +378,7 @@ export default function App() {
 
       if (staleNotificationElapsed >= STALE_NOTIFICATION_INTERVAL_MS) {
         createNotification(
-          `letus-task-watcher-stale-${Date.now()}`,
+          `letus-task-watcher-stale`,
           'LETUS Task Watcher',
           `前回更新から${getElapsedText(savedLastRefreshAt)}です。自動更新を開始します。`,
         )

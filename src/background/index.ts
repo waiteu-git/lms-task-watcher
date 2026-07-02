@@ -872,7 +872,7 @@ async function checkDeadlineWarningNotifications(): Promise<void> {
 
     if (diff <= ONE_HOUR_MS && !notifiedSet.has(key1h)) {
       await createNotification({
-        id: `task-watcher-deadline-1h-${assignment.id}-${Date.now()}`,
+        id: `task-watcher-deadline-1h-${assignment.id}`,
         title: '締切まで1時間以内',
         message: `${assignment.title}\n${assignment.courseName}`,
         url: assignment.url,
@@ -881,7 +881,7 @@ async function checkDeadlineWarningNotifications(): Promise<void> {
       changed = true
     } else if (diff <= THREE_HOURS_MS && !notifiedSet.has(key3h)) {
       await createNotification({
-        id: `task-watcher-deadline-3h-${assignment.id}-${Date.now()}`,
+        id: `task-watcher-deadline-3h-${assignment.id}`,
         title: '締切まで3時間以内',
         message: `${assignment.title}\n${assignment.courseName}`,
         url: assignment.url,
@@ -890,7 +890,7 @@ async function checkDeadlineWarningNotifications(): Promise<void> {
       changed = true
     } else if (diff <= TWENTY_FOUR_HOURS_MS && !notifiedSet.has(key24h)) {
       await createNotification({
-        id: `task-watcher-deadline-24h-${assignment.id}-${Date.now()}`,
+        id: `task-watcher-deadline-24h-${assignment.id}`,
         title: '締切まで24時間以内',
         message: `${assignment.title}\n${assignment.courseName}`,
         url: assignment.url,
