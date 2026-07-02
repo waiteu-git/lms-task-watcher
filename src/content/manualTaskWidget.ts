@@ -1,10 +1,23 @@
-// Inline types to keep this file free of shared-chunk imports.
-// Content scripts must be self-contained (no ES module imports at runtime).
-type Course = { id: string; name: string; enabled: boolean }
-type Assignment = { id: string; url?: string; title: string; deadline: string | null; courseName: string }
+type Course = { id: string; name: string; url: string; enabled: boolean; lmsType: 'unknown' | 'letus' | 'moodle' | 'manaba' | 'webclass' | 'generic'; createdAt: string; updatedAt: string }
+type Assignment = { id: string; courseId: string; courseName: string; title: string; url: string; deadline: string | null; deadlineText: string; sourceText: string; submissionStatus: 'unknown' | 'not_submitted' | 'submitted' | 'completed'; lifecycleStatus: 'active' | 'new' | 'changed' | 'before_start' | 'submitted' | 'passed' | 'missing' | 'archived'; detectedAt: string; firstSeenAt: string; lastSeenAt: string; lastCheckedAt: string }
 type ManualAssignment = {
-  id: string; courseId: string; courseName: string; title: string
-  letusUrl: string | null; deadline: string; memo: string; createdAt: string
+  id: string
+  courseId: string
+  courseName: string
+  title: string
+  letusUrl: string | null
+  deadline: string
+  memo: string
+  submitted: boolean
+  createdAt: string
+}
+
+function escapeHtml(str: string): string {
+  return str
+    .replace(/&/g, '&amp;')
+    .replace(/"/g, '&quot;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
 }
 
 async function getCourses(): Promise<Course[]> {
@@ -17,32 +30,70 @@ async function getAssignments(): Promise<Assignment[]> {
   return r.assignments ?? []
 }
 
-async function addManualAssignment(item: ManualAssignment): Promise<void> {
-  const r = await chrome.storage.local.get('manualAssignments') as { manualAssignments?: ManualAssignment[] }
-  const current = r.manualAssignments ?? []
-  await chrome.storage.local.set({ manualAssignments: [...current, item] })
+async function getManualAssignments(): Promise<ManualAssignment[]> {
+  const r = await chrome.storage.local.get('manualAssignments') as { manualAssignments?: Array<Partial<ManualAssignment> & { id: string }> }
+  return (r.manualAssignments ?? []).map((record) => ({
+    ...record,
+    submitted: record.submitted ?? false,
+  })) as ManualAssignment[]
 }
 
-function escapeHtml(str: string): string {
-  return str
-    .replace(/&/g, '&amp;')
-    .replace(/"/g, '&quot;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
+async function addManualAssignment(item: ManualAssignment): Promise<void> {
+  const r = await chrome.storage.local.get('manualAssignments') as { manualAssignments?: Array<Partial<ManualAssignment> & { id: string }> }
+  const current = (r.manualAssignments ?? []).map((record) => ({
+    ...record,
+    submitted: record.submitted ?? false,
+  })) as ManualAssignment[]
+  await chrome.storage.local.set({ manualAssignments: [...current, item] })
 }
 
 function createId(): string {
   return crypto.randomUUID()
 }
 
-function buildWidget(courses: Course[]): void {
+function isCoursePage(): boolean {
+  return (
+    location.pathname.includes('/course/view.php') &&
+    new URLSearchParams(location.search).has('id')
+  )
+}
+
+function isAssignmentPage(): boolean {
+  return (
+    location.pathname.includes('/mod/assign/view.php') &&
+    new URLSearchParams(location.search).has('id')
+  )
+}
+
+function buildWidget(courses: Course[], defaultCourseId?: string): void {
   const host = document.createElement('div')
   host.id = 'letus-task-watcher-widget'
   host.style.cssText = 'position:fixed;bottom:16px;right:16px;z-index:2147483647;'
   document.body.appendChild(host)
 
   const shadow = host.attachShadow({ mode: 'closed' })
+  buildWidgetInto(shadow, courses, undefined, defaultCourseId)
+}
 
+function openQuickAddForm(courses: Course[], title: string, url: string, defaultCourseId?: string): void {
+  const existingHost = document.getElementById('letus-task-watcher-quickadd')
+  if (existingHost) existingHost.remove()
+
+  const host = document.createElement('div')
+  host.id = 'letus-task-watcher-quickadd'
+  host.style.cssText = 'position:fixed;bottom:16px;right:16px;z-index:2147483647;'
+  document.body.appendChild(host)
+
+  const shadow = host.attachShadow({ mode: 'closed' })
+  buildWidgetInto(shadow, courses, { title, url }, defaultCourseId)
+}
+
+function buildWidgetInto(
+  shadow: ShadowRoot,
+  courses: Course[],
+  prefill?: { title: string; url: string },
+  defaultCourseId?: string,
+): void {
   const style = document.createElement('style')
   style.textContent = `
     :host { all: initial; font-family: sans-serif; font-size: 13px; }
@@ -119,7 +170,7 @@ function buildWidget(courses: Course[]): void {
       </select>
     </div>
     <div class="field">
-      <div class="meta" id="wt-url-display">${escapeHtml(location.href)}</div>
+      <div class="meta" id="wt-url-display">${escapeHtml(prefill?.url ?? location.href)}</div>
     </div>
     <div class="field">
       <textarea id="wt-memo" placeholder="メモ（任意）"></textarea>
@@ -131,6 +182,15 @@ function buildWidget(courses: Course[]): void {
     <div class="error" id="wt-error"></div>
   `
   shadow.appendChild(panel)
+
+  if (defaultCourseId) {
+    ;(shadow.getElementById('wt-course') as HTMLSelectElement).value = defaultCourseId
+  }
+
+  if (prefill) {
+    ;(shadow.getElementById('wt-title') as HTMLInputElement).value = prefill.title
+    panel.classList.add('open')
+  }
 
   function openPanel(): void {
     panel.classList.add('open')
@@ -162,10 +222,11 @@ function buildWidget(courses: Course[]): void {
       courseId,
       courseName,
       title,
-      letusUrl: location.href,
+      letusUrl: prefill?.url ?? location.href,
       deadline: new Date(deadline).toISOString(),
       memo,
       createdAt: new Date().toISOString(),
+      submitted: false,
     }
 
     await addManualAssignment(item)
@@ -174,18 +235,174 @@ function buildWidget(courses: Course[]): void {
     ;(shadow.getElementById('wt-title') as HTMLInputElement).value = ''
     ;(shadow.getElementById('wt-deadline') as HTMLInputElement).value = ''
     ;(shadow.getElementById('wt-memo') as HTMLTextAreaElement).value = ''
+    ;(shadow.getElementById('wt-course') as HTMLSelectElement).selectedIndex = 0
   })
 }
 
-export async function initManualTaskWidget(): Promise<void> {
-  if (document.getElementById('letus-task-watcher-widget')) return
+function normalizeAssignmentUrl(url: string): string {
+  return url.split('#')[0]
+}
 
-  const [courses, assignments] = await Promise.all([
+const BADGE_TARGET_MODULE_TYPES = ['assign', 'resource', 'folder', 'url', 'page', 'forum', 'quiz']
+
+function findAssignmentLinks(): HTMLAnchorElement[] {
+  const selector = BADGE_TARGET_MODULE_TYPES.map(
+    (type) => `a[href*="/mod/${type}/view.php"]`,
+  ).join(',')
+  return Array.from(document.querySelectorAll<HTMLAnchorElement>(selector))
+}
+
+function createBadgeHost(): { host: HTMLElement; shadow: ShadowRoot } {
+  const host = document.createElement('span')
+  host.style.cssText = 'position:absolute;right:6px;transform:translateY(-50%);z-index:1;'
+  const shadow = host.attachShadow({ mode: 'closed' })
+
+  const style = document.createElement('style')
+  style.textContent = `
+    :host { all: initial; font-family: sans-serif; }
+    .badge {
+      display: inline-flex; align-items: center; gap: 4px;
+      font-size: 11px; padding: 2px 9px; border-radius: 999px;
+      border: 1px solid transparent; font-weight: 700;
+      background: linear-gradient(135deg, #f59e0b 0%, #fbbf24 100%);
+      color: #fff; white-space: nowrap; cursor: default;
+      box-shadow: 0 1px 3px rgba(245,158,11,.35);
+    }
+    .badge.clickable { cursor: pointer; transition: filter .12s ease; }
+    .badge.clickable:hover { filter: brightness(1.08); }
+    .badge.submitted {
+      background: linear-gradient(135deg, #059669 0%, #34d399 100%);
+      box-shadow: 0 1px 3px rgba(5,150,105,.35);
+    }
+    .badge.unadded {
+      background: linear-gradient(135deg, #7e14ff 0%, #47bfff 100%);
+      box-shadow: 0 1px 4px rgba(126,20,255,.4);
+    }
+  `
+  shadow.appendChild(style)
+
+  return { host, shadow }
+}
+
+async function toggleManualSubmitted(id: string): Promise<void> {
+  const r = await chrome.storage.local.get('manualAssignments') as { manualAssignments?: Array<Partial<ManualAssignment> & { id: string }> }
+  const current = (r.manualAssignments ?? []).map((record) => ({
+    ...record,
+    submitted: record.submitted ?? false,
+  })) as ManualAssignment[]
+  const updated = current.map((a) => (a.id === id ? { ...a, submitted: !a.submitted } : a))
+  await chrome.storage.local.set({ manualAssignments: updated })
+}
+
+function isScannedSubmitted(assignment: Assignment): boolean {
+  return (
+    assignment.lifecycleStatus === 'submitted' ||
+    assignment.submissionStatus === 'submitted' ||
+    assignment.submissionStatus === 'completed'
+  )
+}
+
+function buildCourseBadges(
+  courses: Course[],
+  assignments: Assignment[],
+  manualAssignments: ManualAssignment[],
+  currentCourseId?: string,
+): void {
+  const links = findAssignmentLinks()
+
+  for (const link of links) {
+    let url: string
+    try {
+      url = normalizeAssignmentUrl(new URL(link.href, location.href).toString())
+    } catch {
+      continue
+    }
+
+    if (link.dataset.letusTaskWatcherBadge === 'true') continue
+    link.dataset.letusTaskWatcherBadge = 'true'
+
+    const scanned = assignments.find(
+      (a) => a.url && normalizeAssignmentUrl(a.url) === url,
+    )
+    const manual = manualAssignments.find(
+      (a) => a.letusUrl && normalizeAssignmentUrl(a.letusUrl) === url,
+    )
+
+    const { host, shadow } = createBadgeHost()
+    const badge = document.createElement('span')
+
+    if (scanned) {
+      const submitted = isScannedSubmitted(scanned)
+      const icon = submitted ? '✓' : '！'
+      badge.className = `badge ${submitted ? 'submitted' : ''}`
+      badge.textContent = scanned.deadline
+        ? `${formatDeadlineShort(scanned.deadline)} ${icon}`
+        : icon
+    } else if (manual) {
+      let currentSubmitted = manual.submitted
+      badge.className = `badge clickable ${currentSubmitted ? 'submitted' : ''}`
+      badge.textContent = `${formatDeadlineShort(manual.deadline)} ${currentSubmitted ? '✓' : '！'}`
+      badge.addEventListener('click', async (event) => {
+        event.preventDefault()
+        event.stopPropagation()
+        await toggleManualSubmitted(manual.id)
+        currentSubmitted = !currentSubmitted
+        badge.classList.toggle('submitted', currentSubmitted)
+        badge.textContent = `${formatDeadlineShort(manual.deadline)} ${currentSubmitted ? '✓' : '！'}`
+      })
+    } else {
+      badge.className = 'badge unadded clickable'
+      badge.textContent = '+'
+      badge.addEventListener('click', (event) => {
+        event.preventDefault()
+        event.stopPropagation()
+        openQuickAddForm(courses, link.textContent ?? '', url, currentCourseId)
+      })
+    }
+
+    shadow.appendChild(badge)
+
+    const row = (link.closest('li, tr') ?? link.parentElement) as HTMLElement | null
+    if (row) {
+      if (getComputedStyle(row).position === 'static') {
+        row.style.position = 'relative'
+      }
+      const rowRect = row.getBoundingClientRect()
+      const linkRect = link.getBoundingClientRect()
+      const topPx = linkRect.top - rowRect.top + linkRect.height / 2
+      host.style.top = `${topPx}px`
+      row.appendChild(host)
+    } else {
+      link.insertAdjacentElement('afterend', host)
+    }
+  }
+}
+
+export async function initManualTaskWidget(): Promise<void> {
+  if (!isCoursePage() && !isAssignmentPage()) return
+
+  const [courses, assignments, manualAssignments] = await Promise.all([
     getCourses(),
     getAssignments(),
+    getManualAssignments(),
   ])
 
   if (courses.length === 0) return
+
+  if (isCoursePage()) {
+    const currentUrl = normalizeAssignmentUrl(location.href)
+    const currentCourseId = courses.find(
+      (c) => normalizeAssignmentUrl(c.url) === currentUrl,
+    )?.id
+
+    buildCourseBadges(courses, assignments, manualAssignments, currentCourseId)
+    if (!document.getElementById('letus-task-watcher-widget')) {
+      buildWidget(courses, currentCourseId)
+    }
+    return
+  }
+
+  if (document.getElementById('letus-task-watcher-widget')) return
 
   const currentUrl = location.href.split('#')[0]
   const matchedAssignment = assignments.find((a) => {
@@ -245,7 +462,9 @@ function buildScannedIndicator(assignment: Assignment): void {
 }
 
 function formatDeadlineShort(isoString: string): string {
+  if (!isoString) return '締切未取得'
   const d = new Date(isoString)
+  if (Number.isNaN(d.getTime())) return '締切未取得'
   const m = d.getMonth() + 1
   const day = d.getDate()
   const hh = String(d.getHours()).padStart(2, '0')

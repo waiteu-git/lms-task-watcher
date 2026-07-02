@@ -1448,6 +1448,45 @@ button:disabled {
   color: #6b7280;
 }
 
+/* ---- 手動課題カード（タイムライン統合） ---- */
+
+.manualCard {
+  display: grid;
+  gap: 4px;
+  padding: 10px 12px;
+  border-radius: 14px;
+  background: var(--color-surface, #fff);
+  border: 1px solid var(--color-border, #e5e7eb);
+  margin-bottom: 8px;
+}
+
+.manualCard[role="button"] {
+  cursor: pointer;
+  transition: transform 0.14s ease, border-color 0.14s ease;
+}
+
+.manualCard[role="button"]:hover {
+  transform: translateY(-1px);
+  border-color: rgba(99, 102, 241, 0.35);
+}
+
+.manualCardTop {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.manualCardTitle {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--color-text);
+}
+
+.manualCardMeta {
+  font-size: 11px;
+  color: #6b7280;
+}
+
 .premiumFeatureSection {
   display: grid;
   gap: 6px;
@@ -1700,4 +1739,33 @@ button:disabled {
   font-size: 12px;
   font-weight: 750;
   line-height: 1.5;
+}
+
+.manualCardMemo {
+  font-size: 11px;
+  color: #6b7280;
+}
+
+.manualCardFooter {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 4px;
+}
+
+.manualSubmitToggle {
+  font-size: 11px;
+  font-weight: 700;
+  padding: 3px 8px;
+  border-radius: 999px;
+  border: 1px solid var(--color-border, #e5e7eb);
+  background: var(--color-surface, #fff);
+  color: #6b7280;
+  cursor: pointer;
+}
+
+.manualSubmitToggle.submitted {
+  background: #d1fae5;
+  border-color: #10b981;
+  color: #065f46;
 }
