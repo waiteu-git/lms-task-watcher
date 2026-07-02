@@ -19,6 +19,7 @@
     "express": "^5.2.1",
     "helmet": "^8.2.0",
     "jsonwebtoken": "^9.0.3",
+    "resend": "^6.16.0",
     "stripe": "^22.3.0"
   },
   "devDependencies": {
