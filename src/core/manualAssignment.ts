@@ -8,18 +8,29 @@ export type ManualAssignment = {
   letusUrl: string | null
   deadline: string
   memo: string
+  submitted: boolean
   createdAt: string
 }
 
+type LegacyManualAssignment = Omit<ManualAssignment, 'submitted'> & {
+  submitted?: boolean
+}
+
 type ManualAssignmentsStorage = {
-  manualAssignments?: ManualAssignment[]
+  manualAssignments?: LegacyManualAssignment[]
 }
 
 export async function getManualAssignments(): Promise<ManualAssignment[]> {
   const result = (await chrome.storage.local.get(
     MANUAL_ASSIGNMENTS_KEY,
   )) as ManualAssignmentsStorage
-  return result.manualAssignments ?? []
+
+  const records = result.manualAssignments ?? []
+
+  return records.map((record) => ({
+    ...record,
+    submitted: record.submitted ?? false,
+  }))
 }
 
 export async function saveManualAssignments(
@@ -38,4 +49,12 @@ export async function addManualAssignment(
 export async function deleteManualAssignment(id: string): Promise<void> {
   const current = await getManualAssignments()
   await saveManualAssignments(current.filter((a) => a.id !== id))
+}
+
+export async function toggleManualAssignmentSubmitted(id: string): Promise<void> {
+  const current = await getManualAssignments()
+  const updated = current.map((a) =>
+    a.id === id ? { ...a, submitted: !a.submitted } : a,
+  )
+  await saveManualAssignments(updated)
 }

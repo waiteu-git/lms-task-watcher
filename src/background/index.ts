@@ -14,8 +14,10 @@ import {
   IGNORED_ASSIGNMENT_IDS_KEY,
   LAST_REFRESH_AT_KEY,
   NOTIFIED_DEADLINE_KEYS_KEY,
+  NOTIFICATION_TARGETS_KEY,
 } from './storageKeys'
 import type { AssignmentScanStatus, DeadlineScanStatus } from '../core/scanStatus'
+import { getManualAssignments } from '../core/manualAssignment'
 
 console.log('[LETUS Task Watcher] background service worker loaded')
 
@@ -462,8 +464,6 @@ async function saveDeadlineScanStatus(status: DeadlineScanStatus): Promise<void>
 
 // ─── Notifications ────────────────────────────────────────────────────────────
 
-const NOTIFICATION_TARGETS_KEY = 'notificationTargets'
-
 async function getNotificationTargets(): Promise<Record<string, string>> {
   const result = await chrome.storage.local.get(NOTIFICATION_TARGETS_KEY)
   return (result[NOTIFICATION_TARGETS_KEY] as Record<string, string> | undefined) ?? {}
@@ -839,10 +839,11 @@ const THREE_HOURS_MS = 3 * ONE_HOUR_MS
 const TWENTY_FOUR_HOURS_MS = 24 * ONE_HOUR_MS
 
 async function checkDeadlineWarningNotifications(): Promise<void> {
-  const [assignments, ignoredIds, notifiedKeys] = await Promise.all([
+  const [assignments, ignoredIds, notifiedKeys, manualAssignments] = await Promise.all([
     getAssignments(),
     getIgnoredAssignmentIds(),
     getNotifiedDeadlineKeys(),
+    getManualAssignments(),
   ])
 
   const ignoredSet = new Set(ignoredIds)
@@ -850,7 +851,7 @@ async function checkDeadlineWarningNotifications(): Promise<void> {
   const nextNotifiedKeys = new Set(notifiedKeys)
   let changed = false
 
-  const targets = assignments.filter(
+  const scanTargets = assignments.filter(
     (a) =>
       !ignoredSet.has(a.id) &&
       a.deadline !== null &&
@@ -860,40 +861,55 @@ async function checkDeadlineWarningNotifications(): Promise<void> {
       a.submissionStatus !== 'completed',
   )
 
-  for (const assignment of targets) {
-    if (!assignment.deadline) continue
+  const manualTargets = manualAssignments.filter((a) => !a.submitted)
 
-    const diff = new Date(assignment.deadline).getTime() - Date.now()
+  type NotifyTarget = { id: string; title: string; courseName: string; deadline: string; url?: string }
+
+  const allTargets: NotifyTarget[] = [
+    ...scanTargets
+      .filter((a): a is Assignment & { deadline: string } => a.deadline !== null)
+      .map((a) => ({ id: a.id, title: a.title, courseName: a.courseName, deadline: a.deadline, url: a.url })),
+    ...manualTargets.map((a) => ({
+      id: a.id,
+      title: a.title,
+      courseName: a.courseName,
+      deadline: a.deadline,
+      url: a.letusUrl ?? undefined,
+    })),
+  ]
+
+  for (const target of allTargets) {
+    const diff = new Date(target.deadline).getTime() - Date.now()
     if (diff <= 0) continue
 
-    const key1h = `${assignment.id}:1h`
-    const key3h = `${assignment.id}:3h`
-    const key24h = `${assignment.id}:24h`
+    const key1h = `${target.id}:1h`
+    const key3h = `${target.id}:3h`
+    const key24h = `${target.id}:24h`
 
     if (diff <= ONE_HOUR_MS && !notifiedSet.has(key1h)) {
       await createNotification({
-        id: `task-watcher-deadline-1h-${assignment.id}-${Date.now()}`,
+        id: `task-watcher-deadline-1h-${target.id}`,
         title: '締切まで1時間以内',
-        message: `${assignment.title}\n${assignment.courseName}`,
-        url: assignment.url,
+        message: `${target.title}\n${target.courseName}`,
+        url: target.url,
       })
       nextNotifiedKeys.add(key1h)
       changed = true
     } else if (diff <= THREE_HOURS_MS && !notifiedSet.has(key3h)) {
       await createNotification({
-        id: `task-watcher-deadline-3h-${assignment.id}-${Date.now()}`,
+        id: `task-watcher-deadline-3h-${target.id}`,
         title: '締切まで3時間以内',
-        message: `${assignment.title}\n${assignment.courseName}`,
-        url: assignment.url,
+        message: `${target.title}\n${target.courseName}`,
+        url: target.url,
       })
       nextNotifiedKeys.add(key3h)
       changed = true
     } else if (diff <= TWENTY_FOUR_HOURS_MS && !notifiedSet.has(key24h)) {
       await createNotification({
-        id: `task-watcher-deadline-24h-${assignment.id}-${Date.now()}`,
+        id: `task-watcher-deadline-24h-${target.id}`,
         title: '締切まで24時間以内',
-        message: `${assignment.title}\n${assignment.courseName}`,
-        url: assignment.url,
+        message: `${target.title}\n${target.courseName}`,
+        url: target.url,
       })
       nextNotifiedKeys.add(key24h)
       changed = true

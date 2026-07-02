@@ -67,14 +67,24 @@ import { getOnboardingCompleted, setOnboardingCompleted } from './core/onboardin
 import { OnboardingBanner } from './components/OnboardingBanner'
 import {
   getManualAssignments,
+  addManualAssignment,
   deleteManualAssignment,
+  toggleManualAssignmentSubmitted,
   type ManualAssignment,
 } from './core/manualAssignment'
 import { MANUAL_ASSIGNMENTS_KEY } from './background/storageKeys'
-import { ManualAssignmentSection } from './components/ManualAssignmentSection'
 import { AssignmentMemo } from './components/AssignmentMemo'
 import { SubscriberBadge } from './components/SubscriberBadge'
 import { ProBanner } from './components/ProBanner'
+import { ManualAssignmentCard } from './components/ManualAssignmentCard'
+import { mergeTimeline } from './utils/timeline'
+import {
+  getManualUrgent,
+  getManualTomorrow,
+  getManualThisWeek,
+  getManualLater,
+  getManualSubmitted,
+} from './utils/manualAssignment'
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL as string ?? ''
 
@@ -86,6 +96,8 @@ export default function App() {
   const [ignoredAssignmentIds, setIgnoredAssignmentIds] = useState<string[]>([])
   const [lastHiddenAssignment, setLastHiddenAssignment] =
     useState<Assignment | null>(null)
+  const [lastDeletedManualAssignment, setLastDeletedManualAssignment] =
+    useState<ManualAssignment | null>(null)
   const [assignmentScanStatus, setAssignmentScanStatus] =
     useState<AssignmentScanStatus>(initialAssignmentScanStatus)
   const [deadlineScanStatus, setDeadlineScanStatus] =
@@ -134,6 +146,7 @@ export default function App() {
     sourceAssignments: Assignment[],
     sourceCourses: Course[],
     sourceIgnoredIds: string[],
+    sourceManualAssignments: ManualAssignment[],
   ) {
     const ignoredSet = new Set(sourceIgnoredIds)
     const notifiedKeys = await getNotifiedDeadlineKeys()
@@ -153,26 +166,36 @@ export default function App() {
       })
       .sort(sortByDeadline)
 
-    for (const assignment of visibleTargets) {
-      if (!assignment.deadline) {
-        continue
-      }
+    const manualTargets = sourceManualAssignments.filter(
+      (assignment) => !assignment.submitted && assignment.deadline,
+    )
 
-      const diff = new Date(assignment.deadline).getTime() - Date.now()
+    type NotifyTarget = { id: string; title: string; courseName: string; deadline: string; url?: string }
+
+    const allTargets: NotifyTarget[] = [
+      ...visibleTargets
+        .filter((a): a is Assignment & { deadline: string } => a.deadline !== null)
+        .map((a) => ({ id: a.id, title: a.title, courseName: a.courseName, deadline: a.deadline, url: a.url })),
+      ...manualTargets.map((a) => ({ id: a.id, title: a.title, courseName: a.courseName, deadline: a.deadline, url: a.letusUrl ?? undefined })),
+    ]
+
+    for (const target of allTargets) {
+      const diff = new Date(target.deadline).getTime() - Date.now()
 
       if (diff <= 0) {
         continue
       }
 
-      const oneHourKey = `${assignment.id}:1h`
-      const threeHourKey = `${assignment.id}:3h`
-      const oneDayKey = `${assignment.id}:24h`
+      const oneHourKey = `${target.id}:1h`
+      const threeHourKey = `${target.id}:3h`
+      const oneDayKey = `${target.id}:24h`
 
       if (diff <= ONE_HOUR_MS && !notifiedSet.has(oneHourKey)) {
         createNotification(
-          `letus-task-watcher-deadline-1h-${assignment.id}-${Date.now()}`,
+          `letus-task-watcher-deadline-1h-${target.id}`,
           '締切まで1時間以内',
-          `${assignment.title}\n${assignment.courseName}`,
+          `${target.title}\n${target.courseName}`,
+          target.url,
         )
 
         nextNotifiedKeys.add(oneHourKey)
@@ -182,9 +205,10 @@ export default function App() {
 
       if (diff <= THREE_HOURS_MS && !notifiedSet.has(threeHourKey)) {
         createNotification(
-          `letus-task-watcher-deadline-3h-${assignment.id}-${Date.now()}`,
+          `letus-task-watcher-deadline-3h-${target.id}`,
           '締切まで3時間以内',
-          `${assignment.title}\n${assignment.courseName}`,
+          `${target.title}\n${target.courseName}`,
+          target.url,
         )
 
         nextNotifiedKeys.add(threeHourKey)
@@ -194,9 +218,10 @@ export default function App() {
 
       if (diff <= ONE_DAY_MS && !notifiedSet.has(oneDayKey)) {
         createNotification(
-          `letus-task-watcher-deadline-24h-${assignment.id}-${Date.now()}`,
+          `letus-task-watcher-deadline-24h-${target.id}`,
           '締切まで24時間以内',
-          `${assignment.title}\n${assignment.courseName}`,
+          `${target.title}\n${target.courseName}`,
+          target.url,
         )
 
         nextNotifiedKeys.add(oneDayKey)
@@ -290,11 +315,13 @@ export default function App() {
       const savedAssignments = await getAssignments()
       const savedCourses = await getCourses()
       const savedIgnoredIds = await getIgnoredAssignmentIds()
+      const savedManualAssignments = await getManualAssignments()
 
       await checkDeadlineWarningNotifications(
         savedAssignments,
         savedCourses,
         savedIgnoredIds,
+        savedManualAssignments,
       )
     })()
   }, [])
@@ -393,19 +420,21 @@ export default function App() {
         latestAssignments,
         latestCourses,
         latestIgnoredIds,
+        manualAssignments,
       )
 
       if (urgent.length > 0) {
         const first = urgent[0]
 
         createNotification(
-          `letus-task-watcher-update-urgent-${Date.now()}`,
+          `letus-task-watcher-update-urgent`,
           `24時間以内の課題: ${urgent.length}件`,
           `${first.title}\n${first.courseName}`,
+          first.url,
         )
       } else {
         createNotification(
-          `letus-task-watcher-update-completed-${Date.now()}`,
+          `letus-task-watcher-update-completed`,
           'LETUS Task Watcher',
           '更新が完了しました。24時間以内の未提出課題はありません。',
         )
@@ -423,7 +452,7 @@ export default function App() {
       console.error(error)
 
       createNotification(
-        `letus-task-watcher-update-error-${Date.now()}`,
+        `letus-task-watcher-update-error`,
         'LETUS Task Watcher',
         '更新中にエラーが発生しました。拡張機能を開いて状態を確認してください。',
       )
@@ -432,7 +461,7 @@ export default function App() {
     } finally {
       setIsUpdating(false)
     }
-  }, [showOnboarding])
+  }, [showOnboarding, manualAssignments])
 
   useEffect(() => {
     if (hasAutoRefreshCheckedRef.current) {
@@ -467,7 +496,7 @@ export default function App() {
 
       if (staleNotificationElapsed >= STALE_NOTIFICATION_INTERVAL_MS) {
         createNotification(
-          `letus-task-watcher-stale-${Date.now()}`,
+          `letus-task-watcher-stale`,
           'LETUS Task Watcher',
           `前回更新から${getElapsedText(savedLastRefreshAt)}です。自動更新を開始します。`,
         )
@@ -667,6 +696,56 @@ export default function App() {
       .sort(sortByDeadline)
   }, [visibleAssignments])
 
+  const manualUrgent = useMemo(
+    () => getManualUrgent(manualAssignments),
+    [manualAssignments],
+  )
+
+  const manualTomorrow = useMemo(
+    () => getManualTomorrow(manualAssignments),
+    [manualAssignments],
+  )
+
+  const manualThisWeek = useMemo(
+    () => getManualThisWeek(manualAssignments),
+    [manualAssignments],
+  )
+
+  const manualLater = useMemo(
+    () => getManualLater(manualAssignments),
+    [manualAssignments],
+  )
+
+  const manualSubmitted = useMemo(
+    () => getManualSubmitted(manualAssignments),
+    [manualAssignments],
+  )
+
+  const urgentTimeline = useMemo(
+    () => mergeTimeline(urgentAssignments, manualUrgent),
+    [urgentAssignments, manualUrgent],
+  )
+
+  const tomorrowTimeline = useMemo(
+    () => mergeTimeline(tomorrowAssignments, manualTomorrow),
+    [tomorrowAssignments, manualTomorrow],
+  )
+
+  const thisWeekTimeline = useMemo(
+    () => mergeTimeline(thisWeekAssignments, manualThisWeek),
+    [thisWeekAssignments, manualThisWeek],
+  )
+
+  const laterTimeline = useMemo(
+    () => mergeTimeline(laterAssignments, manualLater),
+    [laterAssignments, manualLater],
+  )
+
+  const submittedTimeline = useMemo(
+    () => mergeTimeline(submittedAssignments, manualSubmitted),
+    [submittedAssignments, manualSubmitted],
+  )
+
   const isBackgroundRunning =
     assignmentScanStatus.state === 'running' ||
     deadlineScanStatus.state === 'running'
@@ -767,8 +846,29 @@ export default function App() {
   }
 
   async function handleDeleteManualAssignment(id: string) {
+    const target = manualAssignments.find((a) => a.id === id)
     await deleteManualAssignment(id)
     setManualAssignments((prev) => prev.filter((a) => a.id !== id))
+    setLastDeletedManualAssignment(target ?? null)
+    setMessage('手動課題を削除しました。')
+  }
+
+  async function handleToggleManualSubmitted(id: string) {
+    await toggleManualAssignmentSubmitted(id)
+    setManualAssignments((prev) =>
+      prev.map((a) => (a.id === id ? { ...a, submitted: !a.submitted } : a)),
+    )
+  }
+
+  async function undoLastDeletedManualAssignment() {
+    if (!lastDeletedManualAssignment) {
+      return
+    }
+
+    await addManualAssignment(lastDeletedManualAssignment)
+    setManualAssignments((prev) => [...prev, lastDeletedManualAssignment])
+    setLastDeletedManualAssignment(null)
+    setMessage('手動課題を元に戻しました。')
   }
 
   async function clearTaskData() {
@@ -810,6 +910,7 @@ export default function App() {
       LAST_STALE_NOTIFICATION_AT_KEY,
       IGNORED_ASSIGNMENT_IDS_KEY,
       NOTIFIED_DEADLINE_KEYS_KEY,
+      MANUAL_ASSIGNMENTS_KEY,
     ])
 
     setAssignments([])
@@ -819,6 +920,7 @@ export default function App() {
     setAssignmentScanStatus(initialAssignmentScanStatus)
     setDeadlineScanStatus(initialDeadlineScanStatus)
     setLastRefreshAt(null)
+    setManualAssignments([])
     setMessage('保存データをすべて初期化しました。')
   }
 
@@ -885,6 +987,19 @@ export default function App() {
         </div>
       )}
 
+      {lastDeletedManualAssignment && (
+        <div className="undoToast">
+          <span>「{lastDeletedManualAssignment.title}」を削除しました。</span>
+
+          <button
+            type="button"
+            onClick={() => void undoLastDeletedManualAssignment()}
+          >
+            元に戻す
+          </button>
+        </div>
+      )}
+
       {!isDashboard && showOnboarding && (
         <OnboardingBanner courses={courses} lastRefreshAt={lastRefreshAt} />
       )}
@@ -908,13 +1023,13 @@ export default function App() {
           <section className="miniSummary">
             <div>
               <span>24時間以内</span>
-              <strong>{urgentAssignments.length}</strong>
+              <strong>{urgentTimeline.length}</strong>
             </div>
 
             <div>
               <span>今週</span>
               <strong>
-                {tomorrowAssignments.length + thisWeekAssignments.length}
+                {tomorrowTimeline.length + thisWeekTimeline.length}
               </strong>
             </div>
 
@@ -926,38 +1041,52 @@ export default function App() {
 
           <Section
             title="24時間以内"
-            count={urgentAssignments.length}
+            count={urgentTimeline.length}
             emptyText="24時間以内の提出物はありません。"
           >
-            {urgentAssignments.slice(0, 3).map((assignment) => (
-              <div key={assignment.id} className="popupCardWrap">
-                <AssignmentCard
-                  assignment={assignment}
-                  compact
-                />
-              </div>
-            ))}
+            {urgentTimeline.slice(0, 3).map((item) =>
+              item.kind === 'scan' ? (
+                <div key={item.assignment.id} className="popupCardWrap">
+                  <AssignmentCard assignment={item.assignment} compact />
+                </div>
+              ) : (
+                <div key={item.assignment.id} className="popupCardWrap">
+                  <ManualAssignmentCard
+                    assignment={item.assignment}
+                    onToggleSubmitted={(id) => void handleToggleManualSubmitted(id)}
+                    onDelete={(id) => void handleDeleteManualAssignment(id)}
+                  />
+                </div>
+              ),
+            )}
           </Section>
 
-          {tomorrowAssignments.length + thisWeekAssignments.length > 0 && (
+          {tomorrowTimeline.length + thisWeekTimeline.length > 0 && (
             <Section
               title="次の課題"
               count={Math.min(
-                tomorrowAssignments.length + thisWeekAssignments.length,
+                tomorrowTimeline.length + thisWeekTimeline.length,
                 3,
               )}
               emptyText="今後の課題はありません。"
             >
-              {[...tomorrowAssignments, ...thisWeekAssignments]
+              {[...tomorrowTimeline, ...thisWeekTimeline]
                 .slice(0, 3)
-                .map((assignment) => (
-                  <div key={assignment.id} className="popupCardWrap">
-                    <AssignmentCard
-                      assignment={assignment}
-                      compact
-                    />
-                  </div>
-                ))}
+                .map((item) =>
+                  item.kind === 'scan' ? (
+                    <div key={item.assignment.id} className="popupCardWrap">
+                      <AssignmentCard assignment={item.assignment} compact />
+                    </div>
+                  ) : (
+                    <div key={item.assignment.id} className="popupCardWrap">
+                      <ManualAssignmentCard
+                        assignment={item.assignment}
+                        onToggleSubmitted={(id) => void handleToggleManualSubmitted(id)}
+                        onDelete={(id) => void handleDeleteManualAssignment(id)}
+                      />
+                    </div>
+                  ),
+                )}
             </Section>
           )}
 
@@ -1022,70 +1151,106 @@ export default function App() {
 
           <Section
             title="24時間以内"
-            count={urgentAssignments.length}
+            count={urgentTimeline.length}
             emptyText="24時間以内の提出物はありません。"
           >
-            {urgentAssignments.map((assignment) => (
-              <div key={assignment.id}>
-                <AssignmentCard
-                  assignment={assignment}
-                  canHide
-                  onHide={hideAssignment}
+            {urgentTimeline.map((item) =>
+              item.kind === 'scan' ? (
+                <div key={item.assignment.id}>
+                  <AssignmentCard
+                    assignment={item.assignment}
+                    canHide
+                    onHide={hideAssignment}
+                  />
+                  <AssignmentMemo assignmentId={item.assignment.id} apiBaseUrl={API_BASE_URL} isSubscriber={isSubscriber} />
+                </div>
+              ) : (
+                <ManualAssignmentCard
+                  key={item.assignment.id}
+                  assignment={item.assignment}
+                  onToggleSubmitted={(id) => void handleToggleManualSubmitted(id)}
+                  onDelete={(id) => void handleDeleteManualAssignment(id)}
                 />
-                <AssignmentMemo assignmentId={assignment.id} apiBaseUrl={API_BASE_URL} isSubscriber={isSubscriber} />
-              </div>
-            ))}
+              ),
+            )}
           </Section>
 
           <Section
             title="明日まで"
-            count={tomorrowAssignments.length}
+            count={tomorrowTimeline.length}
             emptyText="明日までの課題はありません。"
           >
-            {tomorrowAssignments.map((assignment) => (
-              <div key={assignment.id}>
-                <AssignmentCard
-                  assignment={assignment}
-                  canHide
-                  onHide={hideAssignment}
+            {tomorrowTimeline.map((item) =>
+              item.kind === 'scan' ? (
+                <div key={item.assignment.id}>
+                  <AssignmentCard
+                    assignment={item.assignment}
+                    canHide
+                    onHide={hideAssignment}
+                  />
+                  <AssignmentMemo assignmentId={item.assignment.id} apiBaseUrl={API_BASE_URL} isSubscriber={isSubscriber} />
+                </div>
+              ) : (
+                <ManualAssignmentCard
+                  key={item.assignment.id}
+                  assignment={item.assignment}
+                  onToggleSubmitted={(id) => void handleToggleManualSubmitted(id)}
+                  onDelete={(id) => void handleDeleteManualAssignment(id)}
                 />
-                <AssignmentMemo assignmentId={assignment.id} apiBaseUrl={API_BASE_URL} isSubscriber={isSubscriber} />
-              </div>
-            ))}
+              ),
+            )}
           </Section>
 
           <Section
             title="今週"
-            count={thisWeekAssignments.length}
+            count={thisWeekTimeline.length}
             emptyText="今週中の課題はありません。"
           >
-            {thisWeekAssignments.map((assignment) => (
-              <div key={assignment.id}>
-                <AssignmentCard
-                  assignment={assignment}
-                  canHide
-                  onHide={hideAssignment}
+            {thisWeekTimeline.map((item) =>
+              item.kind === 'scan' ? (
+                <div key={item.assignment.id}>
+                  <AssignmentCard
+                    assignment={item.assignment}
+                    canHide
+                    onHide={hideAssignment}
+                  />
+                  <AssignmentMemo assignmentId={item.assignment.id} apiBaseUrl={API_BASE_URL} isSubscriber={isSubscriber} />
+                </div>
+              ) : (
+                <ManualAssignmentCard
+                  key={item.assignment.id}
+                  assignment={item.assignment}
+                  onToggleSubmitted={(id) => void handleToggleManualSubmitted(id)}
+                  onDelete={(id) => void handleDeleteManualAssignment(id)}
                 />
-                <AssignmentMemo assignmentId={assignment.id} apiBaseUrl={API_BASE_URL} isSubscriber={isSubscriber} />
-              </div>
-            ))}
+              ),
+            )}
           </Section>
 
           <Section
             title="それ以降"
-            count={laterAssignments.length}
+            count={laterTimeline.length}
             emptyText="それ以降の課題はありません。"
           >
-            {laterAssignments.map((assignment) => (
-              <div key={assignment.id}>
-                <AssignmentCard
-                  assignment={assignment}
-                  canHide
-                  onHide={hideAssignment}
+            {laterTimeline.map((item) =>
+              item.kind === 'scan' ? (
+                <div key={item.assignment.id}>
+                  <AssignmentCard
+                    assignment={item.assignment}
+                    canHide
+                    onHide={hideAssignment}
+                  />
+                  <AssignmentMemo assignmentId={item.assignment.id} apiBaseUrl={API_BASE_URL} isSubscriber={isSubscriber} />
+                </div>
+              ) : (
+                <ManualAssignmentCard
+                  key={item.assignment.id}
+                  assignment={item.assignment}
+                  onToggleSubmitted={(id) => void handleToggleManualSubmitted(id)}
+                  onDelete={(id) => void handleDeleteManualAssignment(id)}
                 />
-                <AssignmentMemo assignmentId={assignment.id} apiBaseUrl={API_BASE_URL} isSubscriber={isSubscriber} />
-              </div>
-            ))}
+              ),
+            )}
           </Section>
 
           <CollapsibleSection
@@ -1105,17 +1270,26 @@ export default function App() {
 
           <CollapsibleSection
             title="提出済み・完了"
-            count={submittedAssignments.length}
+            count={submittedTimeline.length}
             emptyText="提出済みの課題はありません。"
           >
-            {submittedAssignments.map((assignment) => (
-              <AssignmentCard
-                key={assignment.id}
-                assignment={assignment}
-                canHide
-                onHide={hideAssignment}
-              />
-            ))}
+            {submittedTimeline.map((item) =>
+              item.kind === 'scan' ? (
+                <AssignmentCard
+                  key={item.assignment.id}
+                  assignment={item.assignment}
+                  canHide
+                  onHide={hideAssignment}
+                />
+              ) : (
+                <ManualAssignmentCard
+                  key={item.assignment.id}
+                  assignment={item.assignment}
+                  onToggleSubmitted={(id) => void handleToggleManualSubmitted(id)}
+                  onDelete={(id) => void handleDeleteManualAssignment(id)}
+                />
+              ),
+            )}
           </CollapsibleSection>
 
           <CollapsibleSection
@@ -1147,11 +1321,6 @@ export default function App() {
               />
             ))}
           </CollapsibleSection>
-
-          <ManualAssignmentSection
-            assignments={manualAssignments}
-            onDelete={(id) => void handleDeleteManualAssignment(id)}
-          />
 
           {isSubscriber ? (
             <details className="settings" open>
