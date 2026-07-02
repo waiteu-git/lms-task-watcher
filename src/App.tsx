@@ -1165,12 +1165,15 @@ export default function App() {
                   <AssignmentMemo assignmentId={item.assignment.id} apiBaseUrl={API_BASE_URL} isSubscriber={isSubscriber} />
                 </div>
               ) : (
-                <ManualAssignmentCard
-                  key={item.assignment.id}
-                  assignment={item.assignment}
-                  onToggleSubmitted={(id) => void handleToggleManualSubmitted(id)}
-                  onDelete={(id) => void handleDeleteManualAssignment(id)}
-                />
+                <div key={item.assignment.id}>
+                  <ManualAssignmentCard
+                    assignment={item.assignment}
+                    onToggleSubmitted={(id) => void handleToggleManualSubmitted(id)}
+                    onDelete={(id) => void handleDeleteManualAssignment(id)}
+                    isSubscriber={isSubscriber}
+                  />
+                  <AssignmentMemo assignmentId={item.assignment.id} apiBaseUrl={API_BASE_URL} isSubscriber={isSubscriber} />
+                </div>
               ),
             )}
           </Section>
@@ -1191,12 +1194,15 @@ export default function App() {
                   <AssignmentMemo assignmentId={item.assignment.id} apiBaseUrl={API_BASE_URL} isSubscriber={isSubscriber} />
                 </div>
               ) : (
-                <ManualAssignmentCard
-                  key={item.assignment.id}
-                  assignment={item.assignment}
-                  onToggleSubmitted={(id) => void handleToggleManualSubmitted(id)}
-                  onDelete={(id) => void handleDeleteManualAssignment(id)}
-                />
+                <div key={item.assignment.id}>
+                  <ManualAssignmentCard
+                    assignment={item.assignment}
+                    onToggleSubmitted={(id) => void handleToggleManualSubmitted(id)}
+                    onDelete={(id) => void handleDeleteManualAssignment(id)}
+                    isSubscriber={isSubscriber}
+                  />
+                  <AssignmentMemo assignmentId={item.assignment.id} apiBaseUrl={API_BASE_URL} isSubscriber={isSubscriber} />
+                </div>
               ),
             )}
           </Section>
@@ -1217,12 +1223,15 @@ export default function App() {
                   <AssignmentMemo assignmentId={item.assignment.id} apiBaseUrl={API_BASE_URL} isSubscriber={isSubscriber} />
                 </div>
               ) : (
-                <ManualAssignmentCard
-                  key={item.assignment.id}
-                  assignment={item.assignment}
-                  onToggleSubmitted={(id) => void handleToggleManualSubmitted(id)}
-                  onDelete={(id) => void handleDeleteManualAssignment(id)}
-                />
+                <div key={item.assignment.id}>
+                  <ManualAssignmentCard
+                    assignment={item.assignment}
+                    onToggleSubmitted={(id) => void handleToggleManualSubmitted(id)}
+                    onDelete={(id) => void handleDeleteManualAssignment(id)}
+                    isSubscriber={isSubscriber}
+                  />
+                  <AssignmentMemo assignmentId={item.assignment.id} apiBaseUrl={API_BASE_URL} isSubscriber={isSubscriber} />
+                </div>
               ),
             )}
           </Section>
@@ -1243,12 +1252,15 @@ export default function App() {
                   <AssignmentMemo assignmentId={item.assignment.id} apiBaseUrl={API_BASE_URL} isSubscriber={isSubscriber} />
                 </div>
               ) : (
-                <ManualAssignmentCard
-                  key={item.assignment.id}
-                  assignment={item.assignment}
-                  onToggleSubmitted={(id) => void handleToggleManualSubmitted(id)}
-                  onDelete={(id) => void handleDeleteManualAssignment(id)}
-                />
+                <div key={item.assignment.id}>
+                  <ManualAssignmentCard
+                    assignment={item.assignment}
+                    onToggleSubmitted={(id) => void handleToggleManualSubmitted(id)}
+                    onDelete={(id) => void handleDeleteManualAssignment(id)}
+                    isSubscriber={isSubscriber}
+                  />
+                  <AssignmentMemo assignmentId={item.assignment.id} apiBaseUrl={API_BASE_URL} isSubscriber={isSubscriber} />
+                </div>
               ),
             )}
           </Section>
