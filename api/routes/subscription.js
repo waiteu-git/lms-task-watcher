@@ -51,6 +51,29 @@ router.post('/checkout', requireAuth, async (req, res) => {
   }
 })
 
+// POST /api/subscription/billing-portal
+router.post('/billing-portal', requireAuth, async (req, res) => {
+  const sub = db.prepare(
+    'SELECT stripe_customer_id FROM subscriptions WHERE user_id = ?'
+  ).get(req.userId)
+
+  if (!sub || !sub.stripe_customer_id) {
+    return res.status(404).json({ error: 'Stripe顧客情報が見つかりません' })
+  }
+
+  try {
+    const session = await stripe.billingPortal.sessions.create({
+      customer: sub.stripe_customer_id,
+      return_url: 'https://lms.waiteu.dev/mypage.html',
+    })
+
+    return res.json({ url: session.url })
+  } catch (err) {
+    console.error(err)
+    return res.status(500).json({ error: 'カスタマーポータルセッションの作成に失敗しました' })
+  }
+})
+
 // POST /api/subscription/cancel
 router.post('/cancel', (_req, res) => {
   res.status(501).json({ error: 'Not implemented' })
