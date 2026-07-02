@@ -1,5 +1,7 @@
 process.env.JWT_SECRET = 'test-secret-min-32-chars-xxxxxxxxxx'
 process.env.DB_PATH = ':memory:'
+process.env.RESEND_API_KEY = 'test-api-key'
+process.env.RESEND_FROM_EMAIL = 'noreply@waiteu.dev'
 
 const request = require('supertest')
 const app = require('../server')
