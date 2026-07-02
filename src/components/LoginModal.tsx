@@ -8,7 +8,7 @@ type Props = {
   onClose: () => void
 }
 
-type Mode = 'subscribe' | 'login'
+type Mode = 'subscribe' | 'login' | 'forgot'
 
 export function LoginModal({ apiBaseUrl, initialMode = 'subscribe', onSuccess, onClose }: Props) {
   const [mode, setMode] = useState<Mode>(initialMode)
@@ -17,6 +17,7 @@ export function LoginModal({ apiBaseUrl, initialMode = 'subscribe', onSuccess, o
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
   const [checkoutOpened, setCheckoutOpened] = useState(false)
+  const [forgotSent, setForgotSent] = useState(false)
 
   function switchMode(next: Mode) {
     setMode(next)
@@ -62,7 +63,7 @@ export function LoginModal({ apiBaseUrl, initialMode = 'subscribe', onSuccess, o
 
         chrome.tabs.create({ url: checkData.url })
         setCheckoutOpened(true)
-      } else {
+      } else if (mode === 'login') {
         const res = await fetch(`${apiBaseUrl}/api/auth/login`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -78,6 +79,18 @@ export function LoginModal({ apiBaseUrl, initialMode = 'subscribe', onSuccess, o
         if (data.token && data.expiresAt) {
           await saveAuthSession(data.token, data.expiresAt, email)
           onSuccess()
+        }
+      } else {
+        const res = await fetch(`${apiBaseUrl}/api/auth/request-password-reset`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email }),
+        })
+        // request-password-resetは常に200を返す仕様（メール列挙対策）なのでres.okのチェックのみ
+        if (res.ok) {
+          setForgotSent(true)
+        } else {
+          setError('サーバーに接続できませんでした')
         }
       }
     } catch {
@@ -106,18 +119,36 @@ export function LoginModal({ apiBaseUrl, initialMode = 'subscribe', onSuccess, o
     )
   }
 
+  if (forgotSent) {
+    return (
+      <div className="proModal">
+        <div className="proModalCard">
+          <p className="proModalTitle">メールを送信しました</p>
+          <p className="proModalSubtitle">
+            該当するアカウントが存在する場合、パスワード再設定用のリンクをお送りしました。メールをご確認ください。
+          </p>
+          <button type="button" className="proModalSubmitBtn" style={{ marginTop: '16px' }} onClick={onClose}>
+            閉じる
+          </button>
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div className="proModal">
       <div className="proModalCard">
         <button type="button" className="proModalClose" onClick={onClose}>×</button>
 
         <p className="proModalTitle">
-          {mode === 'subscribe' ? 'LETUS Premium に登録' : 'ログイン'}
+          {mode === 'subscribe' ? 'LETUS Premium に登録' : mode === 'login' ? 'ログイン' : 'パスワード再設定'}
         </p>
         <p className="proModalSubtitle">
           {mode === 'subscribe'
             ? '登録後、Stripeの決済ページへ移動します。'
-            : 'アカウントにログインしてください。'}
+            : mode === 'login'
+              ? 'アカウントにログインしてください。'
+              : '登録済みのメールアドレスを入力してください。再設定用のリンクをお送りします。'}
         </p>
 
         <form onSubmit={handleSubmit}>
@@ -134,17 +165,19 @@ export function LoginModal({ apiBaseUrl, initialMode = 'subscribe', onSuccess, o
             />
           </div>
 
-          <div className="proModalField">
-            <label className="proModalLabel">パスワード（8文字以上）</label>
-            <input
-              className="proModalInput"
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              required
-              minLength={8}
-            />
-          </div>
+          {mode !== 'forgot' && (
+            <div className="proModalField">
+              <label className="proModalLabel">パスワード（8文字以上）</label>
+              <input
+                className="proModalInput"
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                required
+                minLength={8}
+              />
+            </div>
+          )}
 
           {error && <p className="proModalError">{error}</p>}
 
@@ -153,7 +186,9 @@ export function LoginModal({ apiBaseUrl, initialMode = 'subscribe', onSuccess, o
               ? '処理中...'
               : mode === 'subscribe'
                 ? '登録してStripeへ進む →'
-                : 'ログイン'}
+                : mode === 'login'
+                  ? 'ログイン'
+                  : '再設定メールを送る'}
           </button>
         </form>
 
@@ -163,11 +198,15 @@ export function LoginModal({ apiBaseUrl, initialMode = 'subscribe', onSuccess, o
               既にアカウントをお持ちの方は{' '}
               <button type="button" onClick={() => switchMode('login')}>ログイン</button>
             </>
-          ) : (
+          ) : mode === 'login' ? (
             <>
               アカウントをお持ちでない方は{' '}
               <button type="button" onClick={() => switchMode('subscribe')}>新規登録</button>
+              <br />
+              <button type="button" onClick={() => switchMode('forgot')}>パスワードをお忘れですか？</button>
             </>
+          ) : (
+            <button type="button" onClick={() => switchMode('login')}>ログイン画面に戻る</button>
           )}
         </p>
       </div>
