@@ -4,6 +4,26 @@
 
 ---
 
+## 2026-07-02 — v1.2.0本格開発着手、qa/v1.1.x-releaseをdevelopにマージ
+
+### 経緯
+
+v1.2.0の残タスク（Phase A）着手前に、`develop`が`qa/v1.1.x-release`から35コミット分（手動課題タイムライン統合・通知ID固定化・バッジ修正等）遅れていることが判明。ユーザー確認のうえ、先に全件マージしてからPhase Aを続行する方針にした。
+
+### 対応
+
+- `git merge qa/v1.1.x-release` を実行、実コンテンツ衝突4ファイル（`public/changelog.html`, `src/App.css`, `src/App.tsx`, `src/content/manualTaskWidget.ts`）を手動解決
+  - `App.tsx`: developの独立`ManualAssignmentSection`を廃止し、qaの統合タイムライン（`mergeTimeline`+`ManualAssignmentCard`）を採用。`AssignmentMemo`は元々のスコープ通り`scan`種別のみに再接続
+  - `manualTaskWidget.ts`: qa側の新しい型・CRUD関数を採用。その過程で **qa側に未定義変数`enabledCourses`参照のバグ（2026-06-29に一度修正したはずの「有効/無効に関わらず全コース表示」の巻き戻り）を発見し修正**
+- マージ後 `pnpm tsc -b` エラーなし、`vitest run` 82/82件成功（`api/tests/*`のjest形式失敗はマージ前から存在する既知の問題で無関係）、`pnpm build` 成功を確認
+- コミット `a267155` としてpush済み
+
+### 一時的な混乱（マージ失敗→reset）
+
+初回の`git merge`試行時にgitが中途半端な状態（`.git/MERGE_HEAD`なしだがワーキングツリーにリネーム・削除が部分適用）を残した。未コミット変更のみだったため、ユーザー確認のうえ`git reset --hard HEAD`で復元してから再実行した。
+
+---
+
 ## 2026-07-01 — バージョンロードマップ確定
 
 ### 決定事項
