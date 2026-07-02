@@ -19,7 +19,6 @@
     .status-inactive { background: var(--bg-pale); border-color: var(--border-pale); }
     button { width: 100%; padding: 12px; background: var(--accent); color: #fff; border: none; border-radius: 999px; font-size: 0.95rem; font-weight: 800; cursor: pointer; }
     button:disabled { opacity: 0.6; cursor: not-allowed; }
-    .register-link { display: inline-block; margin-top: 8px; color: var(--accent); font-weight: 700; }
     .logout-btn { width: auto; background: none; color: var(--text-mid); font-weight: 700; font-size: 0.85rem; padding: 8px 0; text-decoration: underline; }
     .error { background: #fef2f2; color: #dc2626; border-radius: 10px; padding: 10px 14px; font-size: 0.85rem; margin-bottom: 16px; }
     footer { background: #0f172a; color: rgba(255,255,255,0.55); text-align: center; padding: 20px; font-size: 0.82rem; }
@@ -107,9 +106,40 @@
         <div class="card status-inactive">
           <p class="card-label">サブスクリプション状態</p>
           <p class="card-value">現在サブスクリプションが有効ではありません</p>
-          <a class="register-link" href="register.html">サブスクリプションに登録する →</a>
+          <button id="subscribe-btn" type="button">サブスクライブする</button>
         </div>
       `
+
+      document.getElementById('subscribe-btn').addEventListener('click', subscribeNow)
+    }
+  }
+
+  async function subscribeNow() {
+    const btn = document.getElementById('subscribe-btn')
+    btn.disabled = true
+    btn.textContent = '処理中...'
+
+    try {
+      const res = await fetch(`${API_BASE_URL}/api/subscription/checkout`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}` },
+      })
+      const data = await res.json()
+
+      if (!res.ok || !data.url) {
+        errorEl.textContent = data.error || 'チェックアウトの開始に失敗しました'
+        errorEl.style.display = 'block'
+        btn.disabled = false
+        btn.textContent = 'サブスクライブする'
+        return
+      }
+
+      window.location.href = data.url
+    } catch {
+      errorEl.textContent = 'サーバーに接続できませんでした'
+      errorEl.style.display = 'block'
+      btn.disabled = false
+      btn.textContent = 'サブスクライブする'
     }
   }
 
