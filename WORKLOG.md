@@ -4,6 +4,31 @@
 
 ---
 
+## 2026-07-02 — Webアカウント登録・パスワード再設定機能を実装完了
+
+Subagent-Driven Developmentで8タスクを実装（コミット`d73a301`〜`3dcafe2`、最終review-fixとして`91aed7b`）。
+
+- `api/lib/email.js`: Resendによるメール送信モジュール
+- `password_reset_tokens`テーブル + `POST /api/auth/request-password-reset`・`POST /api/auth/reset-password`
+- CORSに`https://lms.waiteu.dev`を追加、`/checkout-success`の文言を未インストールユーザー向けに修正
+- `landing/register.html`・`forgot-password.html`・`reset-password.html`（素のHTML/JS）
+- 拡張機能`LoginModal`に`forgot`モードを追加
+
+各タスクは実装→レビューの2段階チェックを経て全て承認（Spec ✅、Minor指摘のみ）。最終全体レビューで`api/.env.example`に新規環境変数（`RESEND_API_KEY`・`RESEND_FROM_EMAIL`）が抜けている点のみ指摘され、修正済み。
+
+### 事故: api/node_modulesの一時破損
+
+作業途中、コマンドの`cd api &&`チェーンが後続コマンドにも影響し、誤って`api/`配下でpnpmコマンドを実行してしまい、`node_modules`がpnpm構造に変換され`better-sqlite3`のネイティブバイナリが壊れた（`api/pnpm-lock.yaml`・`api/pnpm-workspace.yaml`も誤生成）。該当ファイルを削除し`npm install && npm rebuild better-sqlite3 bcrypt`で復旧、テスト全件成功を再確認した。
+
+### 未実施・要フォローアップ
+
+- Resendアカウント作成・送信ドメインのDNS認証（ユーザー側の作業）
+- ラズパイの`.env`・`.env.production`・`.env.test`に`RESEND_API_KEY`・`RESEND_FROM_EMAIL`を追加
+- 実際のブラウザでの動作確認（登録→Stripeチェックアウト→パスワード再設定メール受信→新パスワード設定→ログイン）は未実施
+- `develop`は`main`から104コミット先行中。main へのマージ・PRはPhase C（Phase B完了後）まで行わない方針を維持
+
+---
+
 ## 2026-07-02 — Phase A完了: 本番モードへ切り替え
 
 `bash ~/pm2-env.sh prod`を実行し本番Stripeキーへ切り替え。`letus-api`再起動・ヘルスチェック正常を確認。
