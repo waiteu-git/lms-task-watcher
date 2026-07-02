@@ -4,7 +4,7 @@ const db = require('../db/sqlite')
 
 const router = express.Router()
 
-router.post('/stripe', (req, res) => {
+router.post('/stripe', async (req, res) => {
   const sig = req.headers['stripe-signature']
   let event
 
@@ -24,7 +24,7 @@ router.post('/stripe', (req, res) => {
   switch (event.type) {
     case 'customer.subscription.created':
     case 'customer.subscription.updated': {
-      const periodEnd = new Date(obj.current_period_end * 1000).toISOString()
+      const periodEnd = obj.current_period_end ? new Date(obj.current_period_end * 1000).toISOString() : null
       db.prepare(`
         UPDATE subscriptions
         SET status = ?, stripe_subscription_id = ?, current_period_end = ?, updated_at = datetime('now')
@@ -46,11 +46,23 @@ router.post('/stripe', (req, res) => {
       if (obj.mode === 'subscription') {
         db.prepare(`
           UPDATE subscriptions
-          SET stripe_customer_id = ?, updated_at = datetime('now')
-          WHERE user_id = (
-            SELECT id FROM users WHERE email = ?
-          )
-        `).run(obj.customer, obj.customer_email)
+          SET stripe_customer_id = ?, stripe_subscription_id = ?, status = 'active', updated_at = datetime('now')
+          WHERE user_id = (SELECT id FROM users WHERE email = ?)
+        `).run(obj.customer, obj.subscription, obj.customer_email)
+
+        try {
+          const sub = await stripe.subscriptions.retrieve(obj.subscription)
+          const periodEnd = sub.current_period_end
+            ? new Date(sub.current_period_end * 1000).toISOString()
+            : null
+          db.prepare(`
+            UPDATE subscriptions
+            SET current_period_end = ?, updated_at = datetime('now')
+            WHERE stripe_customer_id = ?
+          `).run(periodEnd, obj.customer)
+        } catch (e) {
+          console.error('Failed to fetch subscription period_end:', e.message)
+        }
       }
       break
     }
