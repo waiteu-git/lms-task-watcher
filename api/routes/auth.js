@@ -131,4 +131,33 @@ router.post('/request-password-reset', async (req, res) => {
   return res.json({ ok: true })
 })
 
+router.post('/reset-password', async (req, res) => {
+  const { token, newPassword } = req.body
+
+  if (!token || !newPassword || newPassword.length < 8) {
+    return res.status(400).json({ error: 'トークンと8文字以上の新しいパスワードが必要です' })
+  }
+
+  const tokenHash = crypto.createHash('sha256').update(token).digest('hex')
+
+  const tokenRow = db.prepare(
+    `SELECT * FROM password_reset_tokens
+     WHERE token_hash = ? AND used_at IS NULL AND datetime(expires_at) > datetime('now')`
+  ).get(tokenHash)
+
+  if (!tokenRow) {
+    return res.status(400).json({ error: 'トークンが無効か期限切れです' })
+  }
+
+  const passwordHash = await bcrypt.hash(newPassword, SALT_ROUNDS)
+
+  const updatePassword = db.transaction(() => {
+    db.prepare('UPDATE users SET password_hash = ? WHERE id = ?').run(passwordHash, tokenRow.user_id)
+    db.prepare("UPDATE password_reset_tokens SET used_at = datetime('now') WHERE id = ?").run(tokenRow.id)
+  })
+  updatePassword()
+
+  return res.json({ ok: true })
+})
+
 module.exports = router
