@@ -3,45 +3,56 @@
 ## Short description（manifest.json / ストア概要欄 — 132文字以内）
 
 ```
-Never miss a LETUS assignment deadline. Automatically scans your courses and shows upcoming due dates with browser notifications.
+LETUSの課題締切を自動収集し、ブラウザ通知でお知らせ。ダッシュボードで全課題を一覧管理できます。
 ```
-128文字 ✓
+50文字 ✓
 
 ## Long description（ストア詳細説明 — 16,000文字以内）
 
 ```
-LETUS Task Watcher helps students at Tokyo University of Science stay on top of assignment deadlines on LETUS, the university's learning management system.
+LETUS Task Watcherは、東京理科大学のLMS「LETUS」で課題の締切を見逃さないためのChrome拡張機能です。
 
-— WHAT IT DOES —
+— できること —
 
-• Scans all your registered LETUS courses and collects assignment links automatically
-• Reads each assignment page to extract the deadline date and submission status
-• Displays upcoming deadlines grouped by urgency: within 24 hours, tomorrow, this week, and later
-• Sends browser notifications 3 hours and 1 hour before each deadline (once per assignment)
-• Automatically re-scans when data is more than 2 hours old
+・登録したコースの課題ページを自動で巡回し、締切日時を収集
+・締切の3時間前・1時間前にブラウザ通知でお知らせ
+・1日1回、自動でデータを最新の状態に更新
+・ポップアップとダッシュボードで、全課題の締切を一覧表示
+・監視対象にするコースを自由に選択・管理
 
-— HOW TO USE —
+— 使い方 —
 
-1. Log in to LETUS in your browser as usual
-2. Click the extension icon to open the popup
-3. Open the Dashboard and select the courses you want to track
-4. Click "今すぐ更新" (Update now) to start scanning
-5. Deadlines will appear sorted by urgency
+1. いつも通りLETUSにログイン
+2. 拡張機能アイコンをクリックしてポップアップを開く
+3. ダッシュボードで監視したいコースを選択
+4. 「今すぐ更新」で課題データを取得
+5. 締切が近い順に自動で並び替えて表示
 
-— PRIVACY —
+— このバージョンの改善点（v1.0.5）—
 
-• Your login credentials are never read or stored
-• All data stays in your browser (chrome.storage.local) and is never sent to any server
-• You can delete all stored data at any time from the Dashboard → Data Management
+・更新中でも既存の課題データが消えず、コース単位で取得完了したものから順に反映
+・LETUS未ログインや通信エラー時に、既存データを保持したままエラー内容を画面上部に表示
+・一部のコース・課題だけ取得に失敗しても、その項目以外は正常に更新
+・ゲスト閲覧可能なコースで未ログイン状態を正しく検知できるように修正
+・一部ページの通信エラーで更新処理全体が止まる不具合を修正
 
-— PERMISSIONS —
+— プライバシー —
 
-• storage: Save assignment data in your browser
-• notifications: Show deadline reminders
-• https://letus.ed.tus.ac.jp/*: Fetch your course and assignment pages using your existing login session
+・ログイン情報を読み取ったり保存したりすることは一切ありません
+・すべてのデータはブラウザ内（chrome.storage.local）に保存され、外部サーバーへ送信されません
+・保存したデータはいつでもダッシュボードから削除できます
 
-This extension is an independent student project and is not affiliated with Tokyo University of Science or the LETUS platform.
+— 権限について —
+
+・storage：課題データをブラウザ内に保存するため
+・notifications：締切が近づいたことを通知するため
+・alarms：定期的な自動更新を実行するため
+・https://letus.ed.tus.ac.jp/*：ログイン中のセッションを使って課題ページを取得するため
+
+本拡張機能は学生による個人開発であり、東京理科大学およびLETUSとは関係ありません。
 ```
+
+※ 手動での課題追加・LETUS上の「登録済み」インジケーターは `release/v1.1.x` 側の機能（ベータテスト中）のため、v1.0.5の説明文には含めていない。
 
 ## スクリーンショット撮影ガイド
 

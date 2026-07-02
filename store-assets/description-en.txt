@@ -1,0 +1,51 @@
+⚠️ This extension is not affiliated with Tokyo University of Science.
+
+Never miss a LETUS assignment deadline.
+
+Automatically scans all your enrolled courses on LETUS — the LMS used at Tokyo University of Science — and keeps you on top of every due date with browser notifications and a clean popup view.
+
+■ Key Features
+
+[Auto Scan]
+Stay up to date without lifting a finger. While you're logged into LETUS, the extension periodically fetches assignments from all your enrolled courses automatically.
+
+[Deadline List by Period]
+Click the toolbar icon to see all upcoming deadlines grouped by "This Week," "Next Week," and "Later." A summary badge shows counts at a glance.
+
+[Browser Notifications]
+Get reminded before a deadline hits — even when you're working in another tab.
+
+[Open Assignments Directly]
+Click any assignment card to open the corresponding LETUS page in a new tab instantly.
+
+[Hide & Restore]
+Clean up your list by hiding assignments you've already submitted or don't need to track. Restore them anytime.
+
+[Dashboard View]
+Need the full picture? Open the dashboard for a wide-screen view of all assignments across every course.
+
+■ How to Use
+
+1. Install the extension
+2. Log in to LETUS (letus.ed.tus.ac.jp)
+3. Click the toolbar icon to open the popup
+4. Press "Scan" to fetch your assignments
+5. After that, scans run automatically on a schedule
+
+■ Target Users
+
+Students enrolled at Tokyo University of Science who use LETUS.
+
+■ Privacy
+
+· Assignment data is stored locally on your device only
+· No assignment data is sent to external servers
+· The extension only activates on letus.ed.tus.ac.jp
+
+■ Disclaimer
+
+This extension is an independent student-built tool and is not affiliated with Tokyo University of Science. No official support is provided.
+
+---
+Search terms (7):
+LETUS / Tokyo University of Science / assignment tracker / Moodle / deadline reminder / university LMS / TUS

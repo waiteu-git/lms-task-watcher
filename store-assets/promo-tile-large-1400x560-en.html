@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { width: 1400px; height: 560px; overflow: hidden; font-family: system-ui,-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif; }
+  .card { display: grid; gap: 8px; padding: 16px 17px; border-radius: 22px; background: rgba(255,255,255,0.96); box-shadow: 0 12px 30px rgba(15,23,42,0.07); cursor: default; }
+  .card.new-c { border: 1px solid #ddd6fe; background: linear-gradient(180deg,#f5f3ff 0%,#fff 100%); }
+  .card.def { border: 1px solid rgba(226,232,240,0.95); }
+  .card.blue-c { border: 1px solid #bfdbfe; background: linear-gradient(180deg,#eff6ff 0%,#fff 100%); }
+  .card.done-c { border: 1px solid #bbf7d0; background: linear-gradient(180deg,#ecfdf3 0%,#fff 100%); }
+  .card-top { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+  .remain { padding: 3px 9px; border-radius: 999px; background: #fff7ed; color: #ea580c; font-size: 11px; font-weight: 900; }
+  .card-foot { display: flex; align-items: center; justify-content: space-between; }
+  .status { padding: 3px 8px; border-radius: 999px; font-size: 11px; font-weight: 900; }
+  .s-def { background: #f8fafc; color: #475569; }
+  .s-new { background: #ede9fe; color: #6d28d9; }
+  .s-blue { background: #dbeafe; color: #1d4ed8; }
+  .s-done { background: #dcfce7; color: #15803d; }
+  .feat { display: flex; align-items: flex-start; gap: 12px; }
+  .feat-icon { width: 36px; height: 36px; border-radius: 10px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; font-size: 17px; background: rgba(99,102,241,0.28); }
+</style>
+</head>
+<body>
+<div style="width:1400px;height:560px;background:linear-gradient(135deg,#1e1b4b 0%,#312e81 30%,#4c1d95 65%,#5b21b6 100%);display:flex;align-items:center;position:relative;overflow:hidden">
+  <div style="position:absolute;top:-80px;left:320px;width:320px;height:320px;background:rgba(99,102,241,0.22);border-radius:50%;filter:blur(70px)"></div>
+  <div style="position:absolute;bottom:-60px;right:480px;width:280px;height:280px;background:rgba(139,92,246,0.2);border-radius:50%;filter:blur(60px)"></div>
+  <div style="position:absolute;top:40px;right:120px;width:200px;height:200px;background:rgba(14,165,233,0.12);border-radius:50%;filter:blur(50px)"></div>
+
+  <!-- LEFT -->
+  <div style="width:420px;padding:0 0 0 64px;flex-shrink:0;z-index:1">
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:20px">
+      <svg width="36" height="34" viewBox="0 0 48 46" fill="none"><path fill="#c4b5fd" d="M25.946 44.938c-.664.845-2.021.375-2.021-.698V33.937a2.26 2.26 0 0 0-2.262-2.262H10.287c-.92 0-1.456-1.04-.92-1.788l7.48-10.471c1.07-1.497 0-3.578-1.842-3.578H1.237c-.92 0-1.456-1.04-.92-1.788L10.013.474c.214-.297.556-.474.92-.474h28.894c.92 0 1.456 1.04.92 1.788l-7.48 10.471c-1.07 1.498 0 3.579 1.842 3.579h11.377c.943 0 1.473 1.088.89 1.83L25.947 44.94z"/></svg>
+      <span style="font-size:13px;font-weight:800;color:#a5b4fc;letter-spacing:0.08em">LETUS TASK WATCHER</span>
+    </div>
+    <h1 style="font-size:40px;font-weight:950;color:#ffffff;line-height:1.1;letter-spacing:-0.03em;margin-bottom:16px">Never miss an<br>assignment deadline</h1>
+    <p style="font-size:15px;font-weight:700;color:#a5b4fc;line-height:1.65;margin-bottom:32px">Automatically tracks LETUS assignments<br>and reminds you before they're due</p>
+    <div style="display:flex;flex-direction:column;gap:12px">
+      <div class="feat"><div class="feat-icon">🔄</div><div><div style="font-size:14px;font-weight:900;color:#e0e7ff;margin-bottom:2px">Auto-scan all courses</div><div style="font-size:12px;color:#818cf8;line-height:1.5">Assignments fetched automatically while you browse</div></div></div>
+      <div class="feat"><div class="feat-icon">📋</div><div><div style="font-size:14px;font-weight:900;color:#e0e7ff;margin-bottom:2px">Grouped by deadline period</div><div style="font-size:12px;color:#818cf8;line-height:1.5">This Week / Next Week / Later — always know what's urgent</div></div></div>
+      <div class="feat"><div class="feat-icon">🔔</div><div><div style="font-size:14px;font-weight:900;color:#e0e7ff;margin-bottom:2px">Browser notifications</div><div style="font-size:12px;color:#818cf8;line-height:1.5">Get reminded before deadlines hit — even in other tabs</div></div></div>
+    </div>
+  </div>
+
+  <!-- CENTER: popup -->
+  <div style="flex-shrink:0;margin:0 32px;z-index:1">
+    <div style="width:310px;background:radial-gradient(circle at top left,rgba(99,102,241,0.14),transparent 40%),radial-gradient(circle at top right,rgba(14,165,233,0.1),transparent 35%),linear-gradient(180deg,#fff 0%,#f8fafc 100%);border-radius:18px;box-shadow:0 32px 80px rgba(0,0,0,0.35);overflow:hidden">
+      <div style="display:flex;align-items:center;gap:8px;padding:12px 14px;background:rgba(255,255,255,0.93);border-bottom:1px solid rgba(226,232,240,0.9)">
+        <svg width="20" height="19" viewBox="0 0 48 46"><path fill="#863bff" d="M25.946 44.938c-.664.845-2.021.375-2.021-.698V33.937a2.26 2.26 0 0 0-2.262-2.262H10.287c-.92 0-1.456-1.04-.92-1.788l7.48-10.471c1.07-1.497 0-3.578-1.842-3.578H1.237c-.92 0-1.456-1.04-.92-1.788L10.013.474c.214-.297.556-.474.92-.474h28.894c.92 0 1.456 1.04.92 1.788l-7.48 10.471c-1.07 1.498 0 3.579 1.842 3.579h11.377c.943 0 1.473 1.088.89 1.83L25.947 44.94z"/></svg>
+        <span style="font-size:12px;font-weight:900;color:#0f172a;flex:1">LETUS Task Watcher</span>
+        <div style="text-align:right;padding:4px 7px;border-radius:10px;background:#f8fafc;border:1px solid #e2e8f0;font-size:9px;font-weight:850;line-height:1.3"><span style="display:block;color:#334155">Last scan</span><span style="color:#6366f1">2:22 PM</span></div>
+        <button style="padding:6px 13px;border-radius:999px;background:linear-gradient(135deg,#6366f1,#8b5cf6);color:#fff;font-size:11px;font-weight:900;border:none;box-shadow:0 6px 16px rgba(99,102,241,0.3)">Scan</button>
+      </div>
+      <div style="padding:12px 12px 14px">
+        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-bottom:12px">
+          <div style="padding:10px 4px;border-radius:14px;background:#fff;border:1px solid #e2e8f0;box-shadow:0 4px 10px rgba(15,23,42,0.04);text-align:center"><span style="display:block;color:#475569;font-size:8px;font-weight:800;margin-bottom:3px">This Week</span><strong style="color:#0f172a;font-size:20px;line-height:1">3</strong></div>
+          <div style="padding:10px 4px;border-radius:14px;background:#fff;border:1px solid #e2e8f0;box-shadow:0 4px 10px rgba(15,23,42,0.04);text-align:center"><span style="display:block;color:#475569;font-size:8px;font-weight:800;margin-bottom:3px">Next Week</span><strong style="color:#0f172a;font-size:20px;line-height:1">2</strong></div>
+          <div style="padding:10px 4px;border-radius:14px;background:#fff;border:1px solid #e2e8f0;box-shadow:0 4px 10px rgba(15,23,42,0.04);text-align:center"><span style="display:block;color:#475569;font-size:8px;font-weight:800;margin-bottom:3px">Later</span><strong style="color:#0f172a;font-size:20px;line-height:1">5</strong></div>
+        </div>
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:9px">
+          <h2 style="margin:0;font-size:14px;font-weight:950;color:#0f172a;letter-spacing:-0.02em">Due This Week</h2>
+          <span style="padding:3px 8px;border-radius:999px;background:#f1f5f9;color:#475569;font-size:10px;font-weight:900">3 items</span>
+        </div>
+        <div class="card def" style="margin-bottom:6px">
+          <div class="card-top"><span style="font-size:11px;font-weight:900;color:#334155">Jul 3 · 11:59 PM</span><span class="remain">3 days left</span></div>
+          <div style="font-size:12.5px;font-weight:850;color:#0f172a;line-height:1.4">Linear Algebra II — Report</div>
+          <div class="card-foot"><span style="font-size:11px;font-weight:700;color:#475569">Dept. of Mathematics / Y2</span><span class="status s-def">Not submitted</span></div>
+        </div>
+        <div class="card new-c" style="margin-bottom:6px">
+          <div class="card-top"><span style="font-size:11px;font-weight:900;color:#334155">Jul 6 · 11:59 PM</span><span class="remain">6 days left</span></div>
+          <div style="font-size:12.5px;font-weight:850;color:#0f172a;line-height:1.4">Programming Basics — HW3</div>
+          <div class="card-foot"><span style="font-size:11px;font-weight:700;color:#475569">Dept. of Comp. Science / Y1</span><span class="status s-new">NEW</span></div>
+        </div>
+        <div class="card blue-c">
+          <div class="card-top"><span style="font-size:11px;font-weight:900;color:#334155">Jul 7 · 5:00 PM</span><span class="remain">7 days left</span></div>
+          <div style="font-size:12.5px;font-weight:850;color:#0f172a;line-height:1.4">Probability Theory — Report</div>
+          <div class="card-foot"><span style="font-size:11px;font-weight:700;color:#475569">Dept. of Mathematics / Y2</span><span class="status s-blue">Not started</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- RIGHT: dashboard -->
+  <div style="flex:1;padding-right:48px;z-index:1;min-width:0">
+    <div style="background:rgba(255,255,255,0.96);border-radius:18px;box-shadow:0 32px 80px rgba(0,0,0,0.3);overflow:hidden">
+      <div style="padding:14px 18px;background:rgba(255,255,255,0.95);border-bottom:1px solid #e2e8f0;display:flex;align-items:center;gap:10px">
+        <svg width="18" height="17" viewBox="0 0 48 46"><path fill="#863bff" d="M25.946 44.938c-.664.845-2.021.375-2.021-.698V33.937a2.26 2.26 0 0 0-2.262-2.262H10.287c-.92 0-1.456-1.04-.92-1.788l7.48-10.471c1.07-1.497 0-3.578-1.842-3.578H1.237c-.92 0-1.456-1.04-.92-1.788L10.013.474c.214-.297.556-.474.92-.474h28.894c.92 0 1.456 1.04.92 1.788l-7.48 10.471c-1.07 1.498 0 3.579 1.842 3.579h11.377c.943 0 1.473 1.088.89 1.83L25.947 44.94z"/></svg>
+        <span style="font-size:13px;font-weight:900;color:#0f172a;flex:1">Dashboard</span>
+        <button style="padding:7px 14px;border-radius:999px;background:linear-gradient(135deg,#6366f1,#8b5cf6);color:#fff;font-size:11px;font-weight:900;border:none;box-shadow:0 6px 16px rgba(99,102,241,0.28)">Scan Now</button>
+      </div>
+      <div style="padding:14px 16px">
+        <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:8px;margin-bottom:14px">
+          <div style="padding:11px 8px;border-radius:16px;background:#fff;border:1px solid #e2e8f0;box-shadow:0 4px 10px rgba(15,23,42,0.04);text-align:center"><span style="display:block;color:#475569;font-size:9px;font-weight:800;margin-bottom:3px">Total</span><strong style="color:#0f172a;font-size:22px;line-height:1">10</strong></div>
+          <div style="padding:11px 8px;border-radius:16px;background:#fff;border:1px solid #e2e8f0;box-shadow:0 4px 10px rgba(15,23,42,0.04);text-align:center"><span style="display:block;color:#475569;font-size:9px;font-weight:800;margin-bottom:3px">This Week</span><strong style="color:#0f172a;font-size:22px;line-height:1">3</strong></div>
+          <div style="padding:11px 8px;border-radius:16px;background:#fff;border:1px solid #e2e8f0;box-shadow:0 4px 10px rgba(15,23,42,0.04);text-align:center"><span style="display:block;color:#475569;font-size:9px;font-weight:800;margin-bottom:3px">Next Week</span><strong style="color:#0f172a;font-size:22px;line-height:1">2</strong></div>
+          <div style="padding:11px 8px;border-radius:16px;background:#dcfce7;border:1px solid #bbf7d0;box-shadow:0 4px 10px rgba(15,23,42,0.04);text-align:center"><span style="display:block;color:#15803d;font-size:9px;font-weight:800;margin-bottom:3px">Submitted</span><strong style="color:#15803d;font-size:22px;line-height:1">4</strong></div>
+          <div style="padding:11px 8px;border-radius:16px;background:#fff;border:1px solid #e2e8f0;box-shadow:0 4px 10px rgba(15,23,42,0.04);text-align:center"><span style="display:block;color:#475569;font-size:9px;font-weight:800;margin-bottom:3px">Courses</span><strong style="color:#0f172a;font-size:22px;line-height:1">8</strong></div>
+        </div>
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+          <h2 style="margin:0;font-size:14px;font-weight:950;color:#0f172a;letter-spacing:-0.02em">All Assignments</h2>
+          <span style="padding:3px 8px;border-radius:999px;background:#f1f5f9;color:#475569;font-size:10px;font-weight:900">10 items</span>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:7px">
+          <div class="card def">
+            <div class="card-top"><span style="font-size:10px;font-weight:900;color:#334155">Jul 3</span><span class="remain" style="font-size:10px">3 days</span></div>
+            <div style="font-size:11.5px;font-weight:850;color:#0f172a">Linear Algebra II Report</div>
+            <div class="card-foot"><span style="font-size:10px;color:#475569">Dept. of Mathematics</span><span class="status s-def" style="font-size:10px">Not submitted</span></div>
+          </div>
+          <div class="card new-c">
+            <div class="card-top"><span style="font-size:10px;font-weight:900;color:#334155">Jul 6</span><span class="remain" style="font-size:10px">6 days</span></div>
+            <div style="font-size:11.5px;font-weight:850;color:#0f172a">Programming Basics HW3</div>
+            <div class="card-foot"><span style="font-size:10px;color:#475569">Dept. of Comp. Science</span><span class="status s-new" style="font-size:10px">NEW</span></div>
+          </div>
+          <div class="card blue-c">
+            <div class="card-top"><span style="font-size:10px;font-weight:900;color:#334155">Jul 7</span><span class="remain" style="font-size:10px">7 days</span></div>
+            <div style="font-size:11.5px;font-weight:850;color:#0f172a">Probability Theory Report</div>
+            <div class="card-foot"><span style="font-size:10px;color:#475569">Dept. of Mathematics</span><span class="status s-blue" style="font-size:10px">Not started</span></div>
+          </div>
+          <div class="card done-c">
+            <div class="card-top"><span style="font-size:10px;font-weight:900;color:#334155">Jun 28</span><span style="padding:2px 7px;border-radius:999px;background:#dcfce7;color:#15803d;font-size:10px;font-weight:900">Submitted</span></div>
+            <div style="font-size:11.5px;font-weight:850;color:#0f172a">Calculus — Midterm Report</div>
+            <div class="card-foot"><span style="font-size:10px;color:#475569">Dept. of Mathematics</span><span class="status s-done" style="font-size:10px">Done</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+</body>
+</html>
