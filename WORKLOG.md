@@ -30,7 +30,15 @@ Subagent-Driven Developmentで8タスクを実装（コミット`d73a301`〜`3dc
 
 `landing/`の新規ページをpushしても`lms.waiteu.dev`に反映されず、`.html`パスにアクセスすると`index.html`の内容が返る現象が発生。Cloudflareダッシュボードで調査した結果、**Cloudflare Pagesプロジェクト（`lms-task-watcher`）にGitリポジトリが接続されておらず、これまで手動（wranglerまたはダッシュボードアップロード）でデプロイされていた**ことが判明。過去のデプロイ履歴にコミットメッセージ風の表示があったのは、手動デプロイ時に`--commit-message`相当の説明を都度入力していたため（自動デプロイではない）。
 
-`npx wrangler pages deploy landing/ --project-name=lms-task-watcher --branch=develop`で手動デプロイして解決。**今後`landing/`配下を変更した場合、git pushだけでは本番に反映されない。上記コマンドでの手動デプロイ、またはユーザーによるCloudflareダッシュボードでのフォルダアップロードが別途必要**（詳細はメモリ`feedback_cloudflare_pages_manual_deploy.md`参照）。
+`npx wrangler pages deploy landing/ --project-name=lms-task-watcher --branch=develop`で手動デプロイして応急対応した後、根本解決のためユーザーとCloudflareダッシュボードを見ながらGit連携を設定した。
+
+### 修正: Cloudflare PagesにGit連携を設定し自動デプロイ化
+
+- GitHub App「Cloudflare Workers and Pages」を`lms-task-watcher`リポジトリのみに限定して認可
+- Settings → Build: Git repository = `waiteu-git/lms-task-watcher`、Production branch = `develop`、Root directory = `landing`
+- Build watch paths を試行錯誤: `landing/**`ではマッチせず自動デプロイがスキップされた（`landing/index.html`の変更コミットが「skipped」に）。`landing/*`に変更したところ正常にビルド・デプロイされることを確認（Cloudflare Pagesのglobパターンの癖として要記憶）
+- 検証を兼ねて`landing/index.html`のプライバシー文言修正（`chrome.storage.local`という技術用語を削除）をpush → 自動デプロイが正常動作することを確認
+- **今後`landing/`配下の変更はpushのみで本番反映される**（詳細はメモリ`feedback_cloudflare_pages_manual_deploy.md`参照）
 
 ### 残タスク
 
