@@ -1,7 +1,9 @@
 const express = require('express')
 const bcrypt = require('bcrypt')
 const jwt = require('jsonwebtoken')
+const crypto = require('crypto')
 const db = require('../db/sqlite')
+const { sendPasswordResetEmail } = require('../lib/email')
 
 const router = express.Router()
 const SALT_ROUNDS = 10
@@ -95,6 +97,38 @@ router.post('/refresh', (req, res) => {
   } catch {
     return res.status(401).json({ error: 'トークンが無効です' })
   }
+})
+
+const RESET_TOKEN_EXPIRY_MS = 60 * 60 * 1000 // 1時間
+
+router.post('/request-password-reset', async (req, res) => {
+  const { email } = req.body
+
+  if (!email) {
+    return res.status(400).json({ error: 'メールアドレスが必要です' })
+  }
+
+  const user = db.prepare('SELECT id, email FROM users WHERE email = ?').get(email)
+
+  if (user) {
+    const rawToken = crypto.randomBytes(32).toString('hex')
+    const tokenHash = crypto.createHash('sha256').update(rawToken).digest('hex')
+    const expiresAt = new Date(Date.now() + RESET_TOKEN_EXPIRY_MS).toISOString()
+
+    db.prepare(
+      'INSERT INTO password_reset_tokens (user_id, token_hash, expires_at) VALUES (?, ?, ?)'
+    ).run(user.id, tokenHash, expiresAt)
+
+    const resetUrl = `https://lms.waiteu.dev/reset-password.html?token=${rawToken}`
+
+    try {
+      await sendPasswordResetEmail(user.email, resetUrl)
+    } catch (err) {
+      console.error('パスワード再設定メールの送信に失敗:', err.message)
+    }
+  }
+
+  return res.json({ ok: true })
 })
 
 module.exports = router

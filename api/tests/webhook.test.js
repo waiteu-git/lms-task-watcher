@@ -2,6 +2,8 @@ process.env.JWT_SECRET = 'test-secret-min-32-chars-xxxxxxxxxx'
 process.env.DB_PATH = ':memory:'
 process.env.STRIPE_WEBHOOK_SECRET = 'whsec_test'
 process.env.STRIPE_SECRET_KEY = 'sk_test_dummy'
+process.env.RESEND_API_KEY = 'test-api-key'
+process.env.RESEND_FROM_EMAIL = 'noreply@waiteu.dev'
 
 // Stripeのwebhook署名検証をモックする
 // constructEventを共有モック関数にして、テストから制御できるようにする
