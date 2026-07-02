@@ -65,3 +65,38 @@ describe('POST /api/subscription/billing-portal', () => {
     expect(res.status).toBe(401)
   })
 })
+
+describe('GET /api/subscription/status hasStripeCustomer', () => {
+  it('stripe_customer_idがあればhasStripeCustomer: trueを返す（statusに関わらず）', async () => {
+    const reg = await request(app)
+      .post('/api/auth/register')
+      .send({ email: 'past-payer@example.com', password: 'password123' })
+    const token = reg.body.token
+
+    db.prepare(
+      "UPDATE subscriptions SET stripe_customer_id = 'cus_cancelled', status = 'inactive' WHERE user_id = (SELECT id FROM users WHERE email = 'past-payer@example.com')"
+    ).run()
+
+    const res = await request(app)
+      .get('/api/subscription/status')
+      .set('Authorization', `Bearer ${token}`)
+
+    expect(res.status).toBe(200)
+    expect(res.body.status).toBe('inactive')
+    expect(res.body.hasStripeCustomer).toBe(true)
+  })
+
+  it('stripe_customer_idが無ければhasStripeCustomer: falseを返す', async () => {
+    const reg = await request(app)
+      .post('/api/auth/register')
+      .send({ email: 'never-paid@example.com', password: 'password123' })
+    const token = reg.body.token
+
+    const res = await request(app)
+      .get('/api/subscription/status')
+      .set('Authorization', `Bearer ${token}`)
+
+    expect(res.status).toBe(200)
+    expect(res.body.hasStripeCustomer).toBe(false)
+  })
+})
