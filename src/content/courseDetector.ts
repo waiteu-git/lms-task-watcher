@@ -35,6 +35,11 @@ function detectCourses(): Course[] {
   for (const link of links) {
     const href = link.getAttribute('href') ?? ''
 
+    // ページ内アンカー（例: 「メインコンテンツへスキップする」等のアクセシビリティ用リンク）は
+    // 現在のコースページ自身を指すフラグメント付きURLになりがちで、DOM順で先に見つかると
+    // 本来のコース名を上書きしてしまうため除外する
+    if (href.includes('#')) continue
+
     let url: string
     try {
       url = new URL(href, location.href).toString().split('#')[0]
