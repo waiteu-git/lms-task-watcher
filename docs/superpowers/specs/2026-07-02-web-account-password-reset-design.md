@@ -100,7 +100,9 @@ module.exports = { sendPasswordResetEmail }
 
 ## テスト・検証方針
 
-`api/tests/*.test.js`は現状jest形式で書かれておりvitestでは実行できない状態（`jest is not defined`等、本設計とは無関係の既存の問題）。新規エンドポイントも同じ理由で自動テストは書かず、Task 2で行ったのと同様にcurlおよびNodeスクリプトでの手動検証（トークン発行→メール受信確認→再設定→新パスワードでのログイン確認）を行う。テストランナーの整備自体は別タスクとして切り出す。
+（訂正: 当初「`api/tests/*`はvitestでは実行できず自動テストなし」としていたが、`cd api && npx jest`で正しく実行すれば全テストが正常に通ることを確認した。リポジトリルートから`vitest run`を実行した際にvitestがjest形式のテストファイルを誤って拾っていたことが原因で、api側のテスト基盤自体は壊れていない。）
+
+新規エンドポイント（`request-password-reset`・`reset-password`）は既存の`api/tests/auth.test.js`と同じパターン（supertest + インメモリsqlite）でJestテストを書く。Resendのメール送信は`api/tests/webhook.test.js`がStripeをモックしているのと同様に`jest.mock('resend', ...)`でモックする。Webサイトの静的HTML/JSページは既存の`landing/`同様に自動テストを設けず、ブラウザでの手動確認とする。
 
 ## 完了の定義
 
