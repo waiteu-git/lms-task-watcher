@@ -4,6 +4,21 @@
 
 ---
 
+## 2026-07-02 — マイページ機能を実装完了
+
+Subagent-Driven Developmentで3タスクを実装（コミット`b04a175`〜`61bc625`）。
+
+- `POST /api/subscription/billing-portal`: Stripeカスタマーポータルセッションを発行
+- `landing/login.html`（新規）: メール+パスワードログイン、JWTを`localStorage`（`authToken`/`authTokenExpiresAt`）に保存
+- `landing/mypage.html`（新規）: サブスク状態・次回請求日表示、支払い方法管理ボタン、非アクティブ時は再登録導線、ログアウト
+- `register.html`にログインへのリンクを追加
+
+各タスクは実装→レビューの2段階チェックを経て全て承認（Spec ✅、Minor指摘のみ）。最終全体レビューも「そのままマージ可能」。統計機能（提出タイミング傾向）は、背景スキャナーが提出日時を一切パースしていないため今回のスコープ外とし、設計段階で明示的に除外した。
+
+これでv1.2.0追加要望3件（パスワード再設定・ホームページ登録・マイページ）が全て完了。
+
+---
+
 ## 2026-07-02 — Webアカウント登録・パスワード再設定機能を実装完了
 
 Subagent-Driven Developmentで8タスクを実装（コミット`d73a301`〜`3dcafe2`、最終review-fixとして`91aed7b`）。
