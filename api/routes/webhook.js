@@ -4,6 +4,14 @@ const db = require('../db/sqlite')
 
 const router = express.Router()
 
+// Stripeの新しいAPIバージョンではcurrent_period_endがSubscription直下ではなく
+// items.data[0]に移動している。旧APIバージョンのアカウント向けにトップレベルへも
+// フォールバックする。
+function getPeriodEndIso(subscription) {
+  const periodEnd = subscription.items?.data?.[0]?.current_period_end ?? subscription.current_period_end
+  return periodEnd ? new Date(periodEnd * 1000).toISOString() : null
+}
+
 router.post('/stripe', async (req, res) => {
   const sig = req.headers['stripe-signature']
   let event
@@ -24,7 +32,7 @@ router.post('/stripe', async (req, res) => {
   switch (event.type) {
     case 'customer.subscription.created':
     case 'customer.subscription.updated': {
-      const periodEnd = obj.current_period_end ? new Date(obj.current_period_end * 1000).toISOString() : null
+      const periodEnd = getPeriodEndIso(obj)
       db.prepare(`
         UPDATE subscriptions
         SET status = ?, stripe_subscription_id = ?, current_period_end = ?, updated_at = datetime('now')
@@ -52,9 +60,7 @@ router.post('/stripe', async (req, res) => {
 
         try {
           const sub = await stripe.subscriptions.retrieve(obj.subscription)
-          const periodEnd = sub.current_period_end
-            ? new Date(sub.current_period_end * 1000).toISOString()
-            : null
+          const periodEnd = getPeriodEndIso(sub)
           db.prepare(`
             UPDATE subscriptions
             SET current_period_end = ?, updated_at = datetime('now')
