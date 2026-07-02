@@ -107,6 +107,17 @@
       transition: transform 0.14s, box-shadow 0.14s;
     }
     .btn-primary:hover { transform: translateY(-1px); box-shadow: 0 16px 34px rgba(99,102,241,0.34); text-decoration: none; }
+    .hero-btns { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; }
+    .btn-edge {
+      display: inline-flex; align-items: center; gap: 10px;
+      background: var(--bg-card); color: var(--text-dark);
+      padding: 14px 28px; border-radius: var(--r-pill);
+      font-size: 1rem; font-weight: 900;
+      border: 1.5px solid var(--border);
+      box-shadow: var(--shadow);
+      transition: transform 0.14s, border-color 0.14s, box-shadow 0.14s;
+    }
+    .btn-edge:hover { transform: translateY(-1px); border-color: var(--accent); box-shadow: 0 16px 34px rgba(99,102,241,0.14); text-decoration: none; }
     .hero-note { margin-top: 12px; font-size: 0.8rem; color: var(--text-light); font-weight: 800; }
 
     /* ── SECTION BASE ── */
@@ -302,19 +313,24 @@
       <img src="icon-128.png" alt="LETUS Task Watcher">
       <span>LETUS Task Watcher</span>
     </div>
-    <a href="https://chromewebstore.google.com/detail/letus-task-watcher/eofgkmpiadoeckkliialkddacidcinml" class="btn-cws" target="_blank" rel="noopener">Chromeに追加</a>
+    <a href="https://chromewebstore.google.com/detail/letus-task-watcher/eofgkmpiadoeckkliialkddacidcinml" class="btn-cws" target="_blank" rel="noopener">インストール（無料）</a>
   </div>
 </header>
 
 <!-- HERO -->
 <div class="hero">
-  <div class="hero-badge">東京理科大学 LETUS 対応 &nbsp;·&nbsp; v1.0.5 公開中</div>
+  <div class="hero-badge">東京理科大学 LETUS 対応 &nbsp;·&nbsp; v1.0.5 公開中 &nbsp;·&nbsp; Chrome / Edge 対応</div>
   <h1>課題の締切、<br><em>もう見逃さない。</em></h1>
-  <p>LETUSに登録されている課題を自動で収集し、締切前にデスクトップ通知でお知らせするChrome拡張機能です。</p>
-  <a href="https://chromewebstore.google.com/detail/letus-task-watcher/eofgkmpiadoeckkliialkddacidcinml" class="btn-primary" target="_blank" rel="noopener">
-    Chromeに追加（無料）
-  </a>
-  <div class="hero-note">Chrome Web Store より無料でインストール</div>
+  <p>LETUSに登録されている課題を自動で収集し、締切前にデスクトップ通知でお知らせするブラウザ拡張機能です。</p>
+  <div class="hero-btns">
+    <a href="https://chromewebstore.google.com/detail/letus-task-watcher/eofgkmpiadoeckkliialkddacidcinml" class="btn-primary" target="_blank" rel="noopener">
+      Chromeに追加（無料）
+    </a>
+    <a href="https://microsoftedge.microsoft.com/addons/detail/femdjgdgelnbdpgnfehacobmpbfmbdoa" class="btn-edge" target="_blank" rel="noopener">
+      Edgeに追加（無料）
+    </a>
+  </div>
+  <div class="hero-note">Chrome Web Store / Microsoft Edge Add-ons より無料でインストール</div>
 </div>
 
 <!-- ANNOUNCEMENT -->
@@ -555,6 +571,7 @@
   <div class="footer-links">
     <a href="privacy.html">プライバシーポリシー</a>
     <a href="https://chromewebstore.google.com/detail/letus-task-watcher/eofgkmpiadoeckkliialkddacidcinml" target="_blank" rel="noopener">Chrome Web Store</a>
+    <a href="https://microsoftedge.microsoft.com/addons/detail/femdjgdgelnbdpgnfehacobmpbfmbdoa" target="_blank" rel="noopener">Edge Add-ons</a>
     <a href="https://github.com/waiteu-git/lms-task-watcher" target="_blank" rel="noopener">GitHub</a>
   </div>
   <p>© 2026 LETUS Task Watcher. 東京理科大学非公式の学生個人プロジェクトです。</p>
