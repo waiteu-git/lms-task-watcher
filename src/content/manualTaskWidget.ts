@@ -47,6 +47,18 @@ async function addManualAssignment(item: ManualAssignment): Promise<void> {
   await chrome.storage.local.set({ manualAssignments: [...current, item] })
 }
 
+// プレミアムのメモ・優先度機能（src/core/premium.ts）と同じストレージ形式。
+// content scriptは自己完結が必須のためロジックをインライン化している。
+async function seedAssignmentMemo(assignmentId: string, memo: string): Promise<void> {
+  const r = await chrome.storage.local.get('assignmentMemos') as {
+    assignmentMemos?: Record<string, { priority: 0 | 1 | 2 | 3; memo: string }>
+  }
+  const current = r.assignmentMemos ?? {}
+  await chrome.storage.local.set({
+    assignmentMemos: { ...current, [assignmentId]: { priority: 0, memo } },
+  })
+}
+
 function createId(): string {
   return crypto.randomUUID()
 }
@@ -230,6 +242,9 @@ function buildWidgetInto(
     }
 
     await addManualAssignment(item)
+    if (memo) {
+      await seedAssignmentMemo(item.id, memo)
+    }
     closePanel()
 
     ;(shadow.getElementById('wt-title') as HTMLInputElement).value = ''
