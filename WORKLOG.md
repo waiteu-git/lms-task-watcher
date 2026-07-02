@@ -20,11 +20,20 @@ Subagent-Driven Developmentで8タスクを実装（コミット`d73a301`〜`3dc
 
 作業途中、コマンドの`cd api &&`チェーンが後続コマンドにも影響し、誤って`api/`配下でpnpmコマンドを実行してしまい、`node_modules`がpnpm構造に変換され`better-sqlite3`のネイティブバイナリが壊れた（`api/pnpm-lock.yaml`・`api/pnpm-workspace.yaml`も誤生成）。該当ファイルを削除し`npm install && npm rebuild better-sqlite3 bcrypt`で復旧、テスト全件成功を再確認した。
 
-### 未実施・要フォローアップ
+### フォローアップ完了・実ブラウザE2E確認済み（同日中）
 
-- Resendアカウント作成・送信ドメインのDNS認証（ユーザー側の作業）
-- ラズパイの`.env`・`.env.production`・`.env.test`に`RESEND_API_KEY`・`RESEND_FROM_EMAIL`を追加
-- 実際のブラウザでの動作確認（登録→Stripeチェックアウト→パスワード再設定メール受信→新パスワード設定→ログイン）は未実施
+- Resendアカウント作成・`mail.waiteu.dev`のドメイン認証（SPF/DKIM、Cloudflare Domain Connect経由で一括設定）完了
+- ラズパイ`.env.production`に`RESEND_API_KEY`・`RESEND_FROM_EMAIL`（`noreply@mail.waiteu.dev`）を追加、`pm2-env.sh prod`で反映・再起動
+- 実ブラウザで一連のフローを確認: Webサイトから新規登録→Stripeチェックアウト遷移、パスワード再設定メールの実受信、リンクからの新パスワード設定、拡張機能`LoginModal`からの再設定リクエスト — 全て成功
+
+### 発覚した問題: Cloudflare Pagesがgit連携されておらず自動デプロイされていなかった
+
+`landing/`の新規ページをpushしても`lms.waiteu.dev`に反映されず、`.html`パスにアクセスすると`index.html`の内容が返る現象が発生。Cloudflareダッシュボードで調査した結果、**Cloudflare Pagesプロジェクト（`lms-task-watcher`）にGitリポジトリが接続されておらず、これまで手動（wranglerまたはダッシュボードアップロード）でデプロイされていた**ことが判明。過去のデプロイ履歴にコミットメッセージ風の表示があったのは、手動デプロイ時に`--commit-message`相当の説明を都度入力していたため（自動デプロイではない）。
+
+`npx wrangler pages deploy landing/ --project-name=lms-task-watcher --branch=develop`で手動デプロイして解決。**今後`landing/`配下を変更した場合、git pushだけでは本番に反映されない。上記コマンドでの手動デプロイ、またはユーザーによるCloudflareダッシュボードでのフォルダアップロードが別途必要**（詳細はメモリ`feedback_cloudflare_pages_manual_deploy.md`参照）。
+
+### 残タスク
+
 - `develop`は`main`から104コミット先行中。main へのマージ・PRはPhase C（Phase B完了後）まで行わない方針を維持
 
 ---
