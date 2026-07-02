@@ -19,6 +19,7 @@
     .status-inactive { background: var(--bg-pale); border-color: var(--border-pale); }
     button { width: 100%; padding: 12px; background: var(--accent); color: #fff; border: none; border-radius: 999px; font-size: 0.95rem; font-weight: 800; cursor: pointer; }
     button:disabled { opacity: 0.6; cursor: not-allowed; }
+    button.secondary { background: #fff; color: var(--accent); border: 1.5px solid var(--border); margin-top: 10px; }
     .logout-btn { width: auto; background: none; color: var(--text-mid); font-weight: 700; font-size: 0.85rem; padding: 8px 0; text-decoration: underline; }
     .error { background: #fef2f2; color: #dc2626; border-radius: 10px; padding: 10px 14px; font-size: 0.85rem; margin-bottom: 16px; }
     footer { background: #0f172a; color: rgba(255,255,255,0.55); text-align: center; padding: 20px; font-size: 0.82rem; }
@@ -102,15 +103,23 @@
 
       document.getElementById('portal-btn').addEventListener('click', openBillingPortal)
     } else {
+      const portalButtonHtml = data.hasStripeCustomer
+        ? '<button id="portal-btn" type="button" class="secondary">請求履歴を確認</button>'
+        : ''
+
       contentEl.innerHTML = `
         <div class="card status-inactive">
           <p class="card-label">サブスクリプション状態</p>
           <p class="card-value">現在サブスクリプションが有効ではありません</p>
           <button id="subscribe-btn" type="button">サブスクライブする</button>
+          ${portalButtonHtml}
         </div>
       `
 
       document.getElementById('subscribe-btn').addEventListener('click', subscribeNow)
+      if (data.hasStripeCustomer) {
+        document.getElementById('portal-btn').addEventListener('click', openBillingPortal)
+      }
     }
   }
 
@@ -145,6 +154,7 @@
 
   async function openBillingPortal() {
     const btn = document.getElementById('portal-btn')
+    const originalLabel = btn.textContent
     btn.disabled = true
     btn.textContent = '処理中...'
 
@@ -159,7 +169,7 @@
         errorEl.textContent = data.error || 'カスタマーポータルの取得に失敗しました'
         errorEl.style.display = 'block'
         btn.disabled = false
-        btn.textContent = '支払い方法を管理'
+        btn.textContent = originalLabel
         return
       }
 
@@ -168,7 +178,7 @@
       errorEl.textContent = 'サーバーに接続できませんでした'
       errorEl.style.display = 'block'
       btn.disabled = false
-      btn.textContent = '支払い方法を管理'
+      btn.textContent = originalLabel
     }
   }
 

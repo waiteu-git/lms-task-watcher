@@ -8,7 +8,7 @@ const router = express.Router()
 // GET /api/subscription/status
 router.get('/status', requireAuth, (req, res) => {
   const sub = db.prepare(
-    'SELECT status, current_period_end FROM subscriptions WHERE user_id = ?'
+    'SELECT status, current_period_end, stripe_customer_id FROM subscriptions WHERE user_id = ?'
   ).get(req.userId)
 
   if (!sub) {
@@ -18,6 +18,7 @@ router.get('/status', requireAuth, (req, res) => {
   return res.json({
     status: sub.status,
     currentPeriodEnd: sub.current_period_end ?? null,
+    hasStripeCustomer: Boolean(sub.stripe_customer_id),
   })
 })
 
