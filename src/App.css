@@ -1448,6 +1448,24 @@ button:disabled {
   color: #6b7280;
 }
 
+.premiumMyPageBtn {
+  justify-self: start;
+  margin-top: 4px;
+  padding: 4px 12px;
+  width: auto;
+  background: #fff;
+  color: #4f46e5;
+  border: 1px solid #ddd6fe;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.premiumMyPageBtn:hover {
+  background: #eef2ff;
+}
+
 /* ---- 手動課題カード（タイムライン統合） ---- */
 
 .manualCard {

@@ -934,6 +934,10 @@ export default function App() {
     void chrome.tabs.create({ url: FEEDBACK_FORM_URL })
   }
 
+  function openMyPage() {
+    void chrome.tabs.create({ url: 'https://lms.waiteu.dev/mypage.html' })
+  }
+
   return (
     <main className={`app ${isDashboard ? 'dashboard' : 'popup'}`}>
       <div className="top">
@@ -1351,6 +1355,13 @@ export default function App() {
                       次回請求日: {new Date(nextPaymentDate).toLocaleDateString('ja-JP')}
                     </p>
                   )}
+                  <button
+                    type="button"
+                    className="premiumMyPageBtn"
+                    onClick={openMyPage}
+                  >
+                    マイページを開く
+                  </button>
                 </div>
 
                 <div className="premiumFeatureSection">
