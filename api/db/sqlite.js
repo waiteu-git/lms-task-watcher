@@ -66,6 +66,32 @@ db.exec(`
     created_at TEXT NOT NULL DEFAULT (datetime('now')),
     FOREIGN KEY (user_id) REFERENCES users(id)
   );
+
+  CREATE TABLE IF NOT EXISTS user_courses (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id INTEGER NOT NULL,
+    course_id TEXT NOT NULL,
+    course_name TEXT NOT NULL,
+    discord_role_wanted INTEGER NOT NULL DEFAULT 0,
+    updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+    UNIQUE(user_id, course_id),
+    FOREIGN KEY (user_id) REFERENCES users(id)
+  );
+
+  CREATE TABLE IF NOT EXISTS discord_course_roles (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    course_id TEXT NOT NULL UNIQUE,
+    course_name TEXT NOT NULL,
+    discord_role_id TEXT NOT NULL,
+    discord_channel_id TEXT NOT NULL,
+    created_at TEXT NOT NULL DEFAULT (datetime('now'))
+  );
 `)
+
+const subscriptionColumns = db.prepare("PRAGMA table_info(subscriptions)").all()
+const hasDiscordUserId = subscriptionColumns.some((col) => col.name === 'discord_user_id')
+if (!hasDiscordUserId) {
+  db.exec('ALTER TABLE subscriptions ADD COLUMN discord_user_id TEXT')
+}
 
 module.exports = db
