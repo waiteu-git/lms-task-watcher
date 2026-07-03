@@ -65,4 +65,44 @@ router.post('/settings', requireAuth, (req, res) => {
   return res.json({ ok: true })
 })
 
+router.post('/courses', requireAuth, (req, res) => {
+  const { courses } = req.body
+
+  if (!Array.isArray(courses)) {
+    return res.status(400).json({ error: 'courses は配列である必要があります' })
+  }
+
+  const upsert = db.prepare(`
+    INSERT INTO user_courses (user_id, course_id, course_name, updated_at)
+    VALUES (?, ?, ?, datetime('now'))
+    ON CONFLICT(user_id, course_id) DO UPDATE SET
+      course_name = excluded.course_name,
+      updated_at = excluded.updated_at
+  `)
+
+  const insertMany = db.transaction((rows) => {
+    for (const course of rows) {
+      upsert.run(req.userId, course.id, course.name)
+    }
+  })
+
+  insertMany(courses)
+
+  return res.json({ ok: true })
+})
+
+router.get('/courses', requireAuth, (req, res) => {
+  const rows = db.prepare(
+    `SELECT course_id as courseId, course_name as courseName, discord_role_wanted as discordRoleWanted
+     FROM user_courses WHERE user_id = ?`
+  ).all(req.userId)
+
+  const courses = rows.map((row) => ({
+    ...row,
+    discordRoleWanted: Boolean(row.discordRoleWanted),
+  }))
+
+  return res.json({ courses })
+})
+
 module.exports = router
