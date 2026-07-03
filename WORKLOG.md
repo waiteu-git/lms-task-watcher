@@ -21,7 +21,13 @@ Subagent-Driven Developmentで8タスクを実装（コミット`a0eaaa9`〜`c65
 **最終レビュー（opus）で発見したセキュリティ問題と修正:**
 - Issue 1: OAuthの`state`に30日有効なセッションJWTをそのまま渡しており、Discordのリダイレクトチェーンやアクセスログに長期資格情報が残る問題。→ `GET /api/discord/oauth-state`で5分・`purpose: 'discord-oauth'`の短命JWTを別途発行する方式に変更。callbackは`purpose`を検証。さらに`requireAuth`が`purpose`付きトークンを拒否するよう強化し、短命トークンの他ルートへの再利用（トークン種別混同）も防止。
 
-**本番反映完了（2026-07-03）:** Discordサーバー/Bot/OAuthアプリの手動セットアップ完了、ラズパイ`.env`にDiscord環境変数6つ設定、`develop`をpush（landing自動デプロイ）、ラズパイ`git pull`+`pm2 restart`。検証: 本番DBにスキーマ移行適用済み、外部URL経由で`/api/discord/oauth-state`・`/callback`が401応答（ルートマウント確認）、`lms.waiteu.dev/mypage`に実client id反映済み（`curl`確認は`.html`→clean URLの308リダイレクトを`-L`で追う必要あり）。残: サブスクライバーによる実機E2E（連携→コース選択→ロール/チャンネル自動作成→解約kick）。
+**本番反映完了（2026-07-03）:** Discordサーバー/Bot/OAuthアプリの手動セットアップ完了、ラズパイ`.env`にDiscord環境変数6つ設定、`develop`をpush（landing自動デプロイ）、ラズパイ`git pull`+`pm2 restart`。検証: 本番DBにスキーマ移行適用済み、外部URL経由で`/api/discord/oauth-state`・`/callback`が401応答（ルートマウント確認）、`lms.waiteu.dev/mypage`に実client id反映済み（`curl`確認は`.html`→clean URLの308リダイレクトを`-L`で追う必要あり）。
+
+**実機E2E検証（2026-07-03、実データ）:** サブスクライバー実アカウントで一連を検証。追加修正3件:
+- `fix(discord)`: OAuth連携で既にサーバーにいるメンバー（所有者・招待リンク先行参加のベータテスター等）にロールが付かない問題。joinGuildのbody内rolesは新規参加(201)時のみ適用されるため、joinGuild後に`assignRoleToMember`で明示付与するよう修正。検証: 所有者アカウントでSubscriberロール付与を確認
+- `feat(discord)`: コース別チャンネルを`DISCORD_COURSE_CATEGORY_ID`のカテゴリ配下に配置（`parent_id`）。既存17チャンネルはカテゴリへ移動
+- `fix(discord)`: コースチャンネル作成時に`@everyone`のVIEW拒否のみだとBot自身が自作チャンネルを管理できなくなる（VIEW拒否はManage Channelsで上書き不可、Administratorのみバイパス）。Bot user id(=DISCORD_CLIENT_ID)へのmember overrideでVIEW権を明示付与。既存17チャンネルは一時Administrator付与で「Bot閲覧権追加＋カテゴリ移動」を一括実行→admin解除後もoverride有効を確認
+- 検証結果: 拡張機能→コース同期56件、コース選択→ロール/チャンネル自動作成17件、全17件カテゴリ配下・Botがadminなしで管理可能。解約kickは`at_period_end`設定確認済み（実発火は有効期間末）
 
 **別件対応:** ラズパイの`STRIPE_PRICE_ID`が$0テスト価格のままだったのを本番価格（`price_1TncGqFFvmJkAgmIsnzEVlV6`）に戻し`.env`/`.env.production`両方更新・pm2 restart済み。
 
