@@ -860,7 +860,13 @@ export async function checkIsLoggedIn(
   const course = courses.find((c) => c.enabled)
   if (!course) return 'ok'
   try {
-    const response = await fetch(course.url, { credentials: 'include' })
+    const response = await fetch(course.url, {
+      credentials: 'include',
+      redirect: 'manual',
+    })
+    // 未ログイン時は course ページが login/SSO へリダイレクトする。
+    // redirect:'manual' では（同一/別オリジン問わず）opaqueredirect になる。
+    if (response.type === 'opaqueredirect') return 'login_required'
     if (!response.ok) return 'network_error'
     if (response.url.includes('/login/')) return 'login_required'
     const html = await response.text()
