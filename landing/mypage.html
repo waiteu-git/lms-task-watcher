@@ -191,10 +191,26 @@
 
   const DISCORD_CLIENT_ID = 'YOUR_DISCORD_CLIENT_ID'
 
-  function connectDiscord() {
-    const redirectUri = encodeURIComponent('https://api.waiteu.dev/api/discord/callback')
-    const url = `https://discord.com/api/oauth2/authorize?client_id=${DISCORD_CLIENT_ID}&redirect_uri=${redirectUri}&response_type=code&scope=identify%20guilds.join&state=${encodeURIComponent(token)}`
-    window.location.href = url
+  async function connectDiscord() {
+    try {
+      const res = await fetch(`${API_BASE_URL}/api/discord/oauth-state`, {
+        headers: { Authorization: `Bearer ${token}` },
+      })
+      const data = await res.json()
+
+      if (!res.ok || !data.state) {
+        errorEl.textContent = data.error || 'Discord連携の準備に失敗しました'
+        errorEl.style.display = 'block'
+        return
+      }
+
+      const redirectUri = encodeURIComponent('https://api.waiteu.dev/api/discord/callback')
+      const url = `https://discord.com/api/oauth2/authorize?client_id=${DISCORD_CLIENT_ID}&redirect_uri=${redirectUri}&response_type=code&scope=identify%20guilds.join&state=${encodeURIComponent(data.state)}`
+      window.location.href = url
+    } catch {
+      errorEl.textContent = 'サーバーに接続できませんでした'
+      errorEl.style.display = 'block'
+    }
   }
 
   async function loadCourses() {

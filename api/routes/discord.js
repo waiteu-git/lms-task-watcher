@@ -2,12 +2,27 @@ const express = require('express')
 const jwt = require('jsonwebtoken')
 const db = require('../db/sqlite')
 const discord = require('../lib/discord')
+const { requireAuth } = require('../middleware/auth')
 
 const router = express.Router()
 
+// GET /api/discord/oauth-state
+// mypage.htmlがDiscord OAuth認可URLへ遷移する直前に呼び出し、
+// stateパラメータ専用の短命JWT（5分・purpose: 'discord-oauth'）を発行する。
+// 既存の30日間有効なセッションJWTをstateにそのまま使うと、
+// Discordのリダイレクトチェーンやアクセスログに長期有効な資格情報が
+// クエリ文字列として残ってしまうため、用途を限定した使い捨てトークンを別途発行する。
+router.get('/oauth-state', requireAuth, (req, res) => {
+  const state = jwt.sign(
+    { userId: req.userId, purpose: 'discord-oauth' },
+    process.env.JWT_SECRET,
+    { expiresIn: '5m' }
+  )
+
+  return res.json({ state })
+})
+
 // GET /api/discord/callback
-// Discord OAuth2のstateパラメータにJWTをそのまま渡す方式を採る
-// （mypage.htmlがOAuth認可URLへ遷移する際、state=<現在のauthToken>を付与する）
 router.get('/callback', async (req, res) => {
   const { code, state } = req.query
 
@@ -15,6 +30,10 @@ router.get('/callback', async (req, res) => {
   try {
     payload = jwt.verify(state, process.env.JWT_SECRET)
   } catch {
+    return res.status(401).json({ error: 'トークンが無効です' })
+  }
+
+  if (payload.purpose !== 'discord-oauth') {
     return res.status(401).json({ error: 'トークンが無効です' })
   }
 

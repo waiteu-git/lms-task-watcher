@@ -10,13 +10,19 @@ process.env.DISCORD_GUILD_ID = 'test-guild-id'
 process.env.DISCORD_SUBSCRIBER_ROLE_ID = 'subscriber-role-id'
 process.env.DISCORD_REDIRECT_URI = 'https://api.waiteu.dev/api/discord/callback'
 
+const jwt = require('jsonwebtoken')
 const request = require('supertest')
 const app = require('../server')
 const db = require('../db/sqlite')
 const discordLib = require('../lib/discord')
 
+function signOAuthState(userId) {
+  return jwt.sign({ userId, purpose: 'discord-oauth' }, process.env.JWT_SECRET, { expiresIn: '5m' })
+}
+
 describe('GET /api/discord/callback', () => {
   let token
+  let oauthState
   let userId
   let testEmail
 
@@ -27,6 +33,7 @@ describe('GET /api/discord/callback', () => {
       .send({ email: testEmail, password: 'password123' })
     token = reg.body.token
     userId = db.prepare('SELECT id FROM users WHERE email = ?').get(testEmail).id
+    oauthState = signOAuthState(userId)
 
     jest.spyOn(discordLib, 'exchangeOAuthCode').mockResolvedValue({ access_token: 'discord-oauth-token' })
     jest.spyOn(discordLib, 'getDiscordUser').mockResolvedValue({ id: 'discord-user-999' })
@@ -42,7 +49,7 @@ describe('GET /api/discord/callback', () => {
   it('連携成功でdiscord_user_idを保存しmypageへリダイレクトする', async () => {
     const res = await request(app)
       .get('/api/discord/callback')
-      .query({ code: 'auth-code-abc', state: token })
+      .query({ code: 'auth-code-abc', state: oauthState })
 
     expect(res.status).toBe(302)
     expect(res.headers.location).toBe('https://lms.waiteu.dev/mypage.html?discord=connected')
@@ -69,7 +76,7 @@ describe('GET /api/discord/callback', () => {
 
     await request(app)
       .get('/api/discord/callback')
-      .query({ code: 'auth-code-def', state: token })
+      .query({ code: 'auth-code-def', state: oauthState })
 
     expect(discordLib.joinGuild).toHaveBeenCalledWith(
       'discord-user-999',
@@ -84,5 +91,46 @@ describe('GET /api/discord/callback', () => {
       .query({ code: 'auth-code-abc', state: 'invalid-token' })
 
     expect(res.status).toBe(401)
+  })
+
+  it('purposeがdiscord-oauthでない通常セッションJWTをstateに使うと401', async () => {
+    const res = await request(app)
+      .get('/api/discord/callback')
+      .query({ code: 'auth-code-abc', state: token })
+
+    expect(res.status).toBe(401)
+  })
+})
+
+describe('GET /api/discord/oauth-state', () => {
+  let token
+  let testEmail
+
+  beforeEach(async () => {
+    testEmail = `discord-oauth-state-${Date.now()}-${Math.random()}@example.com`
+    const reg = await request(app)
+      .post('/api/auth/register')
+      .send({ email: testEmail, password: 'password123' })
+    token = reg.body.token
+  })
+
+  it('Authorizationヘッダーがなければ401', async () => {
+    const res = await request(app).get('/api/discord/oauth-state')
+
+    expect(res.status).toBe(401)
+  })
+
+  it('認証済みならJWT形式のstateを返す', async () => {
+    const res = await request(app)
+      .get('/api/discord/oauth-state')
+      .set('Authorization', `Bearer ${token}`)
+
+    expect(res.status).toBe(200)
+    expect(typeof res.body.state).toBe('string')
+    expect(res.body.state.split('.')).toHaveLength(3)
+
+    const payload = jwt.verify(res.body.state, process.env.JWT_SECRET)
+    expect(payload.purpose).toBe('discord-oauth')
+    expect(payload).toHaveProperty('userId')
   })
 })
