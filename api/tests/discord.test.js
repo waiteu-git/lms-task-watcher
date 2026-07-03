@@ -10,6 +10,10 @@ const {
   getDiscordUser,
   joinGuild,
   kickMember,
+  createCourseRoleAndChannel,
+  assignRoleToMember,
+  removeRoleFromMember,
+  ensureCourseRole,
 } = require('../lib/discord')
 
 describe('exchangeOAuthCode', () => {
@@ -109,5 +113,114 @@ describe('kickMember', () => {
     global.fetch = jest.fn().mockResolvedValue({ ok: false, status: 404 })
 
     await expect(kickMember('gone-user')).resolves.toBeUndefined()
+  })
+})
+
+describe('createCourseRoleAndChannel', () => {
+  afterEach(() => {
+    global.fetch.mockRestore?.()
+  })
+
+  it('ロールとチャンネルを作成し、両方のidを返す', async () => {
+    global.fetch = jest.fn()
+      .mockResolvedValueOnce({ ok: true, json: async () => ({ id: 'role-abc' }) })
+      .mockResolvedValueOnce({ ok: true, json: async () => ({ id: 'channel-xyz' }) })
+
+    const result = await createCourseRoleAndChannel('物理学A1')
+
+    expect(result).toEqual({ roleId: 'role-abc', channelId: 'channel-xyz' })
+
+    const roleCall = global.fetch.mock.calls[0]
+    expect(roleCall[0]).toBe('https://discord.com/api/v10/guilds/test-guild-id/roles')
+    expect(JSON.parse(roleCall[1].body)).toEqual({ name: '物理学A1' })
+
+    const channelCall = global.fetch.mock.calls[1]
+    expect(channelCall[0]).toBe('https://discord.com/api/v10/guilds/test-guild-id/channels')
+    const channelBody = JSON.parse(channelCall[1].body)
+    expect(channelBody.name).toBe('物理学A1')
+    expect(channelBody.type).toBe(0)
+    expect(channelBody.permission_overwrites).toEqual([
+      { id: 'test-guild-id', type: 0, deny: '1024' },
+      { id: 'role-abc', type: 0, allow: '3072' },
+    ])
+  })
+})
+
+describe('assignRoleToMember / removeRoleFromMember', () => {
+  afterEach(() => {
+    global.fetch.mockRestore?.()
+  })
+
+  it('ロール付与はPUT /members/{id}/roles/{roleId}', async () => {
+    global.fetch = jest.fn().mockResolvedValue({ ok: true, status: 204 })
+
+    await assignRoleToMember('discord-user-1', 'role-abc')
+
+    expect(global.fetch).toHaveBeenCalledWith(
+      'https://discord.com/api/v10/guilds/test-guild-id/members/discord-user-1/roles/role-abc',
+      expect.objectContaining({ method: 'PUT' })
+    )
+  })
+
+  it('ロール剥奪はDELETE /members/{id}/roles/{roleId}', async () => {
+    global.fetch = jest.fn().mockResolvedValue({ ok: true, status: 204 })
+
+    await removeRoleFromMember('discord-user-1', 'role-abc')
+
+    expect(global.fetch).toHaveBeenCalledWith(
+      'https://discord.com/api/v10/guilds/test-guild-id/members/discord-user-1/roles/role-abc',
+      expect.objectContaining({ method: 'DELETE' })
+    )
+  })
+})
+
+describe('ensureCourseRole', () => {
+  const Database = require('better-sqlite3')
+  let db
+
+  beforeEach(() => {
+    db = new Database(':memory:')
+    db.exec(`
+      CREATE TABLE discord_course_roles (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        course_id TEXT NOT NULL UNIQUE,
+        course_name TEXT NOT NULL,
+        discord_role_id TEXT NOT NULL,
+        discord_channel_id TEXT NOT NULL,
+        created_at TEXT NOT NULL DEFAULT (datetime('now'))
+      )
+    `)
+  })
+
+  afterEach(() => {
+    global.fetch.mockRestore?.()
+    db.close()
+  })
+
+  it('既存のマッピングがあればDiscord APIを呼ばずそれを返す', async () => {
+    db.prepare(
+      'INSERT INTO discord_course_roles (course_id, course_name, discord_role_id, discord_channel_id) VALUES (?, ?, ?, ?)'
+    ).run('course-1', '物理学A1', 'existing-role', 'existing-channel')
+
+    global.fetch = jest.fn()
+
+    const result = await ensureCourseRole(db, 'course-1', '物理学A1')
+
+    expect(result).toEqual({ roleId: 'existing-role', channelId: 'existing-channel' })
+    expect(global.fetch).not.toHaveBeenCalled()
+  })
+
+  it('マッピングが無ければ作成してDBに保存する', async () => {
+    global.fetch = jest.fn()
+      .mockResolvedValueOnce({ ok: true, json: async () => ({ id: 'new-role' }) })
+      .mockResolvedValueOnce({ ok: true, json: async () => ({ id: 'new-channel' }) })
+
+    const result = await ensureCourseRole(db, 'course-2', '化学実験')
+
+    expect(result).toEqual({ roleId: 'new-role', channelId: 'new-channel' })
+
+    const row = db.prepare('SELECT * FROM discord_course_roles WHERE course_id = ?').get('course-2')
+    expect(row.discord_role_id).toBe('new-role')
+    expect(row.discord_channel_id).toBe('new-channel')
   })
 })
