@@ -21,7 +21,7 @@ Subagent-Driven Developmentで8タスクを実装（コミット`a0eaaa9`〜`c65
 **最終レビュー（opus）で発見したセキュリティ問題と修正:**
 - Issue 1: OAuthの`state`に30日有効なセッションJWTをそのまま渡しており、Discordのリダイレクトチェーンやアクセスログに長期資格情報が残る問題。→ `GET /api/discord/oauth-state`で5分・`purpose: 'discord-oauth'`の短命JWTを別途発行する方式に変更。callbackは`purpose`を検証。さらに`requireAuth`が`purpose`付きトークンを拒否するよう強化し、短命トークンの他ルートへの再利用（トークン種別混同）も防止。
 
-**Chrome Web Store公開前の残作業:** Discordサーバー/Bot/OAuthアプリの手動セットアップ、`mypage.html`の`DISCORD_CLIENT_ID`を実IDに置換。
+**本番反映完了（2026-07-03）:** Discordサーバー/Bot/OAuthアプリの手動セットアップ完了、ラズパイ`.env`にDiscord環境変数6つ設定、`develop`をpush（landing自動デプロイ）、ラズパイ`git pull`+`pm2 restart`。検証: 本番DBにスキーマ移行適用済み、外部URL経由で`/api/discord/oauth-state`・`/callback`が401応答（ルートマウント確認）、`lms.waiteu.dev/mypage`に実client id反映済み（`curl`確認は`.html`→clean URLの308リダイレクトを`-L`で追う必要あり）。残: サブスクライバーによる実機E2E（連携→コース選択→ロール/チャンネル自動作成→解約kick）。
 
 **別件対応:** ラズパイの`STRIPE_PRICE_ID`が$0テスト価格のままだったのを本番価格（`price_1TncGqFFvmJkAgmIsnzEVlV6`）に戻し`.env`/`.env.production`両方更新・pm2 restart済み。
 
