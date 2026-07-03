@@ -121,3 +121,10 @@ export function parseDeadline(deadlineText: string): string | null {
 
   return null
 }
+
+export function parseDeadlineFromTitle(title: string): string | null {
+  const text = normalizeText(title)
+  // 締切を示す語が含まれるときのみ推定する（無関係な数字の誤検知を防ぐ）
+  if (!/(締切|締め切り|〆|期限|due|close)/i.test(text)) return null
+  return parseDeadline(text)
+}
