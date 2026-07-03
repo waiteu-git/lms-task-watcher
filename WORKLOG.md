@@ -4,6 +4,29 @@
 
 ---
 
+## 2026-07-03 — Discordコミュニティ機能を実装完了（Phase B①）
+
+Subagent-Driven Developmentで8タスクを実装（コミット`a0eaaa9`〜`c653699`）、最終レビュー後のセキュリティ修正2件（`9802c81`・`4d76a9a`）。全58テスト合格。
+
+- `api/lib/discord.js`: Discord REST API v10ラッパー（常時接続Botなし）。OAuth交換・ギルド参加/退出・コース別ロール/チャンネル作成・付与/剥奪
+- 新規テーブル`user_courses`・`discord_course_roles`、`subscriptions.discord_user_id`カラム追加
+- `GET/POST /api/user/courses`（コース同期）、`PATCH /api/user/courses/:courseId`（ロール希望トグル）
+- `GET /api/discord/callback`（OAuth連携）、`GET /api/discord/oauth-state`（後述のセキュリティ修正で追加）
+- 解約webhook（`customer.subscription.deleted`）に自動kickを追加
+- 拡張機能`src/background/index.ts`: サブスクライバーのみ検出コースをサーバー同期
+- `landing/mypage.html`: コース選択チェックリスト＋Discord連携ボタン
+
+**設計の要点:** コース同定は安定した`Course.id`をキーにし、コースごと1組のロール/チャンネルを全受講者で共有。拡張機能の「スキャン対象の有効/無効」とDiscordロール希望（`discord_role_wanted`）は完全に独立。
+
+**最終レビュー（opus）で発見したセキュリティ問題と修正:**
+- Issue 1: OAuthの`state`に30日有効なセッションJWTをそのまま渡しており、Discordのリダイレクトチェーンやアクセスログに長期資格情報が残る問題。→ `GET /api/discord/oauth-state`で5分・`purpose: 'discord-oauth'`の短命JWTを別途発行する方式に変更。callbackは`purpose`を検証。さらに`requireAuth`が`purpose`付きトークンを拒否するよう強化し、短命トークンの他ルートへの再利用（トークン種別混同）も防止。
+
+**Chrome Web Store公開前の残作業:** Discordサーバー/Bot/OAuthアプリの手動セットアップ、`mypage.html`の`DISCORD_CLIENT_ID`を実IDに置換。
+
+**別件対応:** ラズパイの`STRIPE_PRICE_ID`が$0テスト価格のままだったのを本番価格（`price_1TncGqFFvmJkAgmIsnzEVlV6`）に戻し`.env`/`.env.production`両方更新・pm2 restart済み。
+
+---
+
 ## 2026-07-02 — マイページ機能を実装完了
 
 Subagent-Driven Developmentで3タスクを実装（コミット`b04a175`〜`61bc625`）。
