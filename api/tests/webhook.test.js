@@ -20,6 +20,7 @@ jest.mock('stripe', () => {
 const request = require('supertest')
 const app = require('../server')
 const db = require('../db/sqlite')
+const discordLib = require('../lib/discord')
 
 describe('POST /api/webhook/stripe', () => {
   let userId
@@ -79,6 +80,31 @@ describe('POST /api/webhook/stripe', () => {
 
     const sub = db.prepare('SELECT status FROM subscriptions WHERE user_id = ?').get(userId)
     expect(sub.status).toBe('inactive')
+  })
+
+  it('customer.subscription.deleted でdiscord_user_idがあればkickする', async () => {
+    jest.spyOn(discordLib, 'kickMember').mockResolvedValue(undefined)
+
+    db.prepare('UPDATE subscriptions SET discord_user_id = ? WHERE user_id = ?').run('discord-kick-me', userId)
+
+    mockConstructEvent.mockReturnValue({
+      type: 'customer.subscription.deleted',
+      data: {
+        object: {
+          customer: 'cus_test',
+        },
+      },
+    })
+
+    const res = await request(app)
+      .post('/api/webhook/stripe')
+      .set('stripe-signature', 'test-sig')
+      .send(Buffer.from('{}'))
+
+    expect(res.status).toBe(200)
+    expect(discordLib.kickMember).toHaveBeenCalledWith('discord-kick-me')
+
+    discordLib.kickMember.mockRestore()
   })
 
   it('checkout.session.completed で stripe_customer_id が更新される', async () => {

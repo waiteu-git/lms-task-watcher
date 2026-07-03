@@ -1,6 +1,7 @@
 const express = require('express')
 const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY)
 const db = require('../db/sqlite')
+const discord = require('../lib/discord')
 
 const router = express.Router()
 
@@ -42,11 +43,23 @@ router.post('/stripe', async (req, res) => {
     }
 
     case 'customer.subscription.deleted': {
+      const sub = db.prepare(
+        'SELECT discord_user_id FROM subscriptions WHERE stripe_customer_id = ?'
+      ).get(obj.customer)
+
       db.prepare(`
         UPDATE subscriptions
         SET status = 'inactive', current_period_end = NULL, updated_at = datetime('now')
         WHERE stripe_customer_id = ?
       `).run(obj.customer)
+
+      if (sub?.discord_user_id) {
+        try {
+          await discord.kickMember(sub.discord_user_id)
+        } catch (err) {
+          console.error('Discord自動kickに失敗:', err.message)
+        }
+      }
       break
     }
 
