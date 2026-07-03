@@ -25,3 +25,20 @@ describe('extractDeadlineText + parseDeadline (実データ回帰)', () => {
     expect(parseDeadline(extractDeadlineText(text))).toBe(null)
   })
 })
+
+describe('② コロン付きラベル優先', () => {
+  it('タイトルの締切(パレン)を無視し本文の期限:を優先', () => {
+    const text = '締切（5/29 14:40) | LETUS 2026 ナビ 期限: 2026年 05月 29日(金曜日) 14:40 以下について取り組み'
+    expect(jst(parseDeadline(extractDeadlineText(text)))).toBe('2026/5/29 14:40:00')
+  })
+
+  it('ナビの締切：7月3日より本文の終了済み:を優先', () => {
+    const text = '創域特別講義: 小試験 終了済み: 2026年 06月 19日(金曜日) 23:59 ……ナビ…… 第13回小テスト（締切：7月3日） 履修方法'
+    expect(jst(parseDeadline(extractDeadlineText(text)))).toBe('2026/6/19 23:59:00')
+  })
+
+  it('コロン付きが無ければ従来どおり最早キーワードにフォールバック', () => {
+    const text = '締切 2026年 06月 01日(月曜日) 23:59'
+    expect(jst(parseDeadline(extractDeadlineText(text)))).toBe('2026/6/1 23:59:00')
+  })
+})

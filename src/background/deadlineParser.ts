@@ -38,17 +38,27 @@ const START_KEYWORDS = [
 export function extractDeadlineText(plainText: string): string {
   const text = normalizeText(plainText)
   const lowerText = text.toLowerCase()
-  let bestIndex = -1
+  let bestColonIndex = -1
+  let bestBareIndex = -1
 
   for (const keyword of DEADLINE_KEYWORDS) {
-    const index = lowerText.indexOf(keyword.toLowerCase())
-    if (index >= 0 && (bestIndex === -1 || index < bestIndex)) {
-      bestIndex = index
+    const lowerKeyword = keyword.toLowerCase()
+    let from = 0
+    let index: number
+    while ((index = lowerText.indexOf(lowerKeyword, from)) >= 0) {
+      if (bestBareIndex === -1 || index < bestBareIndex) bestBareIndex = index
+      // キーワード直後（空白を挟んで）が : or ： なら実フィールドとみなす
+      const after = text.slice(index + keyword.length, index + keyword.length + 3)
+      if (/^\s*[:：]/.test(after)) {
+        if (bestColonIndex === -1 || index < bestColonIndex) bestColonIndex = index
+      }
+      from = index + keyword.length
     }
   }
 
-  if (bestIndex >= 0) {
-    return text.slice(bestIndex, Math.min(text.length, bestIndex + 320))
+  const chosen = bestColonIndex >= 0 ? bestColonIndex : bestBareIndex
+  if (chosen >= 0) {
+    return text.slice(chosen, Math.min(text.length, chosen + 320))
   }
 
   const hasStartOnlyKeyword = START_KEYWORDS.some((keyword) =>
