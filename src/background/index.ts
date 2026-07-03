@@ -18,8 +18,11 @@ import {
 } from './storageKeys'
 import type { AssignmentScanStatus, DeadlineScanStatus } from '../core/scanStatus'
 import { getManualAssignments } from '../core/manualAssignment'
+import { getAuthToken, isSubscriptionActive } from '../core/auth'
 
 console.log('[LETUS Task Watcher] background service worker loaded')
+
+const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL as string) ?? ''
 
 // ─── State ───────────────────────────────────────────────────────────────────
 
@@ -418,6 +421,29 @@ async function upsertCourses(newCourses: Course[]): Promise<void> {
   }
 
   await saveCourses(Array.from(courseMap.values()))
+}
+
+async function syncCoursesToServerIfSubscriber(courses: Course[]): Promise<void> {
+  const [token, active] = await Promise.all([getAuthToken(), isSubscriptionActive()])
+
+  if (!token || !active) {
+    return
+  }
+
+  try {
+    await fetch(`${API_BASE_URL}/api/user/courses`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({
+        courses: courses.map((c) => ({ id: c.id, name: c.name })),
+      }),
+    })
+  } catch {
+    // サーバー同期の失敗は無視する（次回のコース検出時に再試行される）
+  }
 }
 
 async function getAssignmentCandidates(): Promise<AssignmentCandidate[]> {
@@ -1017,9 +1043,11 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
   if (message?.type === 'UPSERT_COURSES') {
     const courses = (message.courses ?? []) as Course[]
     sendResponse({ ok: true, count: courses.length })
-    upsertCourses(courses).catch((error) => {
-      console.error('[LETUS Task Watcher] upsertCourses failed', error)
-    })
+    upsertCourses(courses)
+      .then(() => syncCoursesToServerIfSubscriber(courses))
+      .catch((error) => {
+        console.error('[LETUS Task Watcher] upsertCourses failed', error)
+      })
     return false
   }
 
