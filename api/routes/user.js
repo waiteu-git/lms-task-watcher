@@ -1,6 +1,7 @@
 const express = require('express')
 const db = require('../db/sqlite')
 const { requireAuth } = require('../middleware/auth')
+const discord = require('../lib/discord')
 
 const router = express.Router()
 
@@ -103,6 +104,48 @@ router.get('/courses', requireAuth, (req, res) => {
   }))
 
   return res.json({ courses })
+})
+
+router.patch('/courses/:courseId', requireAuth, async (req, res) => {
+  const { courseId } = req.params
+  const { discordRoleWanted } = req.body
+
+  const courseRow = db.prepare(
+    'SELECT course_name FROM user_courses WHERE user_id = ? AND course_id = ?'
+  ).get(req.userId, courseId)
+
+  if (!courseRow) {
+    return res.status(404).json({ error: 'コースが見つかりません' })
+  }
+
+  db.prepare(
+    `UPDATE user_courses SET discord_role_wanted = ?, updated_at = datetime('now')
+     WHERE user_id = ? AND course_id = ?`
+  ).run(discordRoleWanted ? 1 : 0, req.userId, courseId)
+
+  const sub = db.prepare(
+    'SELECT discord_user_id FROM subscriptions WHERE user_id = ?'
+  ).get(req.userId)
+
+  if (sub?.discord_user_id) {
+    try {
+      if (discordRoleWanted) {
+        const { roleId } = await discord.ensureCourseRole(db, courseId, courseRow.course_name)
+        await discord.assignRoleToMember(sub.discord_user_id, roleId)
+      } else {
+        const mapping = db.prepare(
+          'SELECT discord_role_id FROM discord_course_roles WHERE course_id = ?'
+        ).get(courseId)
+        if (mapping) {
+          await discord.removeRoleFromMember(sub.discord_user_id, mapping.discord_role_id)
+        }
+      }
+    } catch (err) {
+      console.error('Discordロール更新に失敗:', err.message)
+    }
+  }
+
+  return res.json({ ok: true })
 })
 
 module.exports = router
