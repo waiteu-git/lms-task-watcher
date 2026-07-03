@@ -18,7 +18,7 @@ import {
 } from './storageKeys'
 import type { AssignmentScanStatus, DeadlineScanStatus } from '../core/scanStatus'
 import { getManualAssignments } from '../core/manualAssignment'
-import { extractDeadlineText, parseDeadline } from './deadlineParser'
+import { extractDeadlineText, parseDeadline, parseDeadlineFromTitle } from './deadlineParser'
 
 console.log('[LETUS Task Watcher] background service worker loaded')
 
@@ -647,7 +647,16 @@ export async function scanDeadlinesInBackground(): Promise<{
         const html = await response.text()
         const plainText = htmlToPlainText(html)
         const deadlineText = extractDeadlineText(plainText)
-        const deadline = deadlineText ? parseDeadline(deadlineText) : null
+        const fieldDeadline = deadlineText ? parseDeadline(deadlineText) : null
+        const titleDeadline = fieldDeadline
+          ? null
+          : parseDeadlineFromTitle(candidate.title)
+        const deadline = fieldDeadline ?? titleDeadline
+        const deadlineSource: 'field' | 'title' | null = fieldDeadline
+          ? 'field'
+          : titleDeadline
+            ? 'title'
+            : null
         const submissionStatus = extractSubmissionStatus(plainText, candidate.url)
         const lifecycleStatus = resolveLifecycleStatus(plainText, submissionStatus, deadline)
         const now = new Date().toISOString()
@@ -660,6 +669,7 @@ export async function scanDeadlinesInBackground(): Promise<{
           url: candidate.url,
           deadline,
           deadlineText: deadlineText ?? '',
+          deadlineSource,
           sourceText: plainText.slice(0, 1200),
           submissionStatus,
           lifecycleStatus,

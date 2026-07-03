@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { extractDeadlineText, parseDeadline } from './deadlineParser'
+import { extractDeadlineText, parseDeadline, parseDeadlineFromTitle } from './deadlineParser'
 
 const jst = (iso: string | null) =>
   iso ? new Date(iso).toLocaleString('ja-JP', { timeZone: 'Asia/Tokyo' }) : null
@@ -62,5 +62,20 @@ describe('③ スラッシュ日付', () => {
   it('日本語日付が優先される(スラッシュより先)', () => {
     const text = '期限: 2026年 06月 19日 23:59 (7/3更新)'
     expect(jst(parseDeadline(text))).toBe('2026/6/19 23:59:00')
+  })
+})
+
+describe('④ タイトル締切フォールバック', () => {
+  it('（締切：7月3日）を推定', () => {
+    expect(jst(parseDeadlineFromTitle('第13回小テスト（締切：7月3日）'))).toBe('2026/7/3 23:59:00')
+  })
+  it('（提出締め切り5月18日）を推定', () => {
+    expect(jst(parseDeadlineFromTitle('課題提出フォーム（提出締め切り5月18日）'))).toBe('2026/5/18 23:59:00')
+  })
+  it('締切（5/29 14:40) を推定', () => {
+    expect(jst(parseDeadlineFromTitle('締切（5/29 14:40)'))).toBe('2026/5/29 14:40:00')
+  })
+  it('日付の無い曜日〆は null', () => {
+    expect(parseDeadlineFromTitle('WK1 宿題窓口（金曜日〆）')).toBe(null)
   })
 })
