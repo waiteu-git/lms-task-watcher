@@ -260,12 +260,12 @@ function toIsoStringFromParts(
 function extractDeadlineText(plainText: string): string {
   const text = normalizeText(plainText)
   const deadlineKeywords = [
-    '提出期限', '提出締切', '締切日時', '締切', '期限', '終了予定', '終了日時',
+    '提出期限', '提出締切', '締切日時', '締切', '期限', '終了予定', '終了済み', '終了日時',
     '利用終了日時', '受験終了', '回答終了',
     'Due date', 'Closing date', 'Close date', 'Closes', 'Due', 'Close',
   ]
   const startKeywords = [
-    '開始予定', '開始日時', '開始', '利用開始日時', '受験開始', '公開日時', '公開',
+    '開始予定', '開始日時', '開始済み', '開始', '利用開始日時', '受験開始', '公開日時', '公開',
     'Open date', 'Opened', 'Available from',
   ]
   const lowerText = text.toLowerCase()
