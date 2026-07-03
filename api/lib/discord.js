@@ -91,8 +91,14 @@ async function createCourseRoleAndChannel(courseName) {
     name: courseName,
     type: 0,
     permission_overwrites: [
+      // @everyone は閲覧不可
       { id: process.env.DISCORD_GUILD_ID, type: 0, deny: '1024' },
+      // 対象コースのロールのみ閲覧・投稿可
       { id: role.id, type: 0, allow: '3072' },
+      // Bot自身（type:1=メンバー、id=アプリID=Bot user id）に閲覧権を明示付与。
+      // これを付けないと@everyoneのVIEW拒否でBotが自作チャンネルを管理できなくなる
+      // （Manage Channels権限があってもVIEW拒否は上書きできず、Administratorのみバイパス）。
+      { id: process.env.DISCORD_CLIENT_ID, type: 1, allow: '1024' },
     ],
   }
   if (process.env.DISCORD_COURSE_CATEGORY_ID) {

@@ -142,6 +142,8 @@ describe('createCourseRoleAndChannel', () => {
     expect(channelBody.permission_overwrites).toEqual([
       { id: 'test-guild-id', type: 0, deny: '1024' },
       { id: 'role-abc', type: 0, allow: '3072' },
+      // Bot自身(member override)に閲覧権を付与し、自作チャンネルの管理権を保持する
+      { id: 'test-client-id', type: 1, allow: '1024' },
     ])
     // カテゴリ未設定時はparent_idを付けない（トップレベルに作成）
     expect(channelBody.parent_id).toBeUndefined()
