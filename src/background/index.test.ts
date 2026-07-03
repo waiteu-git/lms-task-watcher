@@ -93,6 +93,7 @@ function makeAssignment(overrides: Partial<Assignment> = {}): Assignment {
     url: 'https://letus.ed.tus.ac.jp/mod/assign/view.php?id=1',
     deadline: null,
     deadlineText: '',
+    deadlineSource: null,
     sourceText: '課題1',
     submissionStatus: 'unknown',
     lifecycleStatus: 'active',

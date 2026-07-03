@@ -12,6 +12,7 @@ function makeAssignment(overrides?: Partial<Assignment>): Assignment {
     url: 'https://letus.ed.tus.ac.jp/mod/assign/view.php?id=1',
     deadline: '2026-07-05T12:00:00.000Z',
     deadlineText: '',
+    deadlineSource: null,
     sourceText: '',
     submissionStatus: 'not_submitted',
     lifecycleStatus: 'active',

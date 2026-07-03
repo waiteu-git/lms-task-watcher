@@ -52,7 +52,14 @@ export function AssignmentCard({
       title="クリックしてLETUSの課題ページを開く"
     >
       <div className="topRow">
-        <span className="dateText">{formatDeadline(assignment.deadline)}</span>
+        <span className="dateText">
+          {formatDeadline(assignment.deadline)}
+          {assignment.deadlineSource === 'title' && (
+            <span className="estimatedBadge" title="課題名から推定した締切です">
+              （推定）
+            </span>
+          )}
+        </span>
         <span className="remain">{getRemaining(assignment.deadline)}</span>
       </div>
 
