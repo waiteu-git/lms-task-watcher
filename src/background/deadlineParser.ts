@@ -101,7 +101,7 @@ export function parseDeadline(deadlineText: string): string | null {
   }
 
   const slashDateMatch = text.match(
-    /(?:(20\d{2})\/)?(\d{1,2})\/(\d{1,2})(?:\s*[(（][^)）]*[)）])?\s*(?:(\d{1,2})\s*[:：]\s*(\d{1,2}))?/,
+    /(?:^\s*|[：:（(]\s*)(?:(20\d{2})\/)?(\d{1,2})\/(\d{1,2})(?:\s*[(（][^)）]*[)）])?\s*(?:(\d{1,2})\s*[:：]\s*(\d{1,2}))?/,
   )
   if (slashDateMatch) {
     const month = Number(slashDateMatch[2])

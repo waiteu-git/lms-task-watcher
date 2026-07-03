@@ -1,8 +1,16 @@
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect, vi, beforeAll, afterAll } from 'vitest'
 import { extractDeadlineText, parseDeadline, parseDeadlineFromTitle } from './deadlineParser'
 
 const jst = (iso: string | null) =>
   iso ? new Date(iso).toLocaleString('ja-JP', { timeZone: 'Asia/Tokyo' }) : null
+
+beforeAll(() => {
+  vi.useFakeTimers()
+  vi.setSystemTime(new Date('2026-07-04T00:00:00'))
+})
+afterAll(() => {
+  vi.useRealTimers()
+})
 
 describe('extractDeadlineText + parseDeadline (実データ回帰)', () => {
   it('終了済みの閉じた小テストを拾う', () => {
@@ -62,6 +70,14 @@ describe('③ スラッシュ日付', () => {
   it('日本語日付が優先される(スラッシュより先)', () => {
     const text = '期限: 2026年 06月 19日 23:59 (7/3更新)'
     expect(jst(parseDeadline(text))).toBe('2026/6/19 23:59:00')
+  })
+
+  it('ラベル値でない比率トークン(10/10問)は拾わずnull', () => {
+    expect(parseDeadline('締切: 制限時間 10/10問 正解')).toBe(null)
+  })
+
+  it('区切りの無い文中の分数(3/4)は拾わずnull', () => {
+    expect(parseDeadline('期限のヒント 3/4 の割合')).toBe(null)
   })
 })
 
