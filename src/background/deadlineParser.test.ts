@@ -42,3 +42,25 @@ describe('② コロン付きラベル優先', () => {
     expect(jst(parseDeadline(extractDeadlineText(text)))).toBe('2026/6/1 23:59:00')
   })
 })
+
+describe('③ スラッシュ日付', () => {
+  it('M/D HH:MM を解析', () => {
+    const text = '締切: 5/29 14:40 まで'
+    expect(jst(parseDeadline(text))).toBe('2026/5/29 14:40:00')
+  })
+
+  it('YYYY/M/D を解析(時刻なし→23:59)', () => {
+    const text = '締切: 2026/6/1 提出のこと'
+    expect(jst(parseDeadline(text))).toBe('2026/6/1 23:59:00')
+  })
+
+  it('不正な月日(13/40)は不採用でnull', () => {
+    const text = '締切: 13/40'
+    expect(parseDeadline(text)).toBe(null)
+  })
+
+  it('日本語日付が優先される(スラッシュより先)', () => {
+    const text = '期限: 2026年 06月 19日 23:59 (7/3更新)'
+    expect(jst(parseDeadline(text))).toBe('2026/6/19 23:59:00')
+  })
+})

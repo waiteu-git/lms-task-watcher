@@ -100,5 +100,24 @@ export function parseDeadline(deadlineText: string): string | null {
     )
   }
 
+  const slashDateMatch = text.match(
+    /(?:(20\d{2})\/)?(\d{1,2})\/(\d{1,2})(?:\s*[(（][^)）]*[)）])?\s*(?:(\d{1,2})\s*[:：]\s*(\d{1,2}))?/,
+  )
+  if (slashDateMatch) {
+    const month = Number(slashDateMatch[2])
+    const day = Number(slashDateMatch[3])
+    if (month >= 1 && month <= 12 && day >= 1 && day <= 31) {
+      const year = slashDateMatch[1] ?? String(new Date().getFullYear())
+      const hasHour = slashDateMatch[4] !== undefined
+      return toIsoStringFromParts(
+        year,
+        slashDateMatch[2],
+        slashDateMatch[3],
+        hasHour ? slashDateMatch[4] : '23',
+        hasHour ? (slashDateMatch[5] ?? '00') : '59',
+      )
+    }
+  }
+
   return null
 }
