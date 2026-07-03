@@ -84,19 +84,27 @@ async function createCourseRoleAndChannel(courseName) {
 
   const role = await roleRes.json()
 
+  // DISCORD_COURSE_CATEGORY_IDが設定されていれば、作成するコースチャンネルを
+  // そのカテゴリ配下に配置する。未設定なら parent_id は付けず（undefinedはJSONから
+  // 除外される）トップレベルに作成される。
+  const channelBody = {
+    name: courseName,
+    type: 0,
+    permission_overwrites: [
+      { id: process.env.DISCORD_GUILD_ID, type: 0, deny: '1024' },
+      { id: role.id, type: 0, allow: '3072' },
+    ],
+  }
+  if (process.env.DISCORD_COURSE_CATEGORY_ID) {
+    channelBody.parent_id = process.env.DISCORD_COURSE_CATEGORY_ID
+  }
+
   const channelRes = await fetch(
     `${DISCORD_API_BASE}/guilds/${process.env.DISCORD_GUILD_ID}/channels`,
     {
       method: 'POST',
       headers: botHeaders(),
-      body: JSON.stringify({
-        name: courseName,
-        type: 0,
-        permission_overwrites: [
-          { id: process.env.DISCORD_GUILD_ID, type: 0, deny: '1024' },
-          { id: role.id, type: 0, allow: '3072' },
-        ],
-      }),
+      body: JSON.stringify(channelBody),
     }
   )
 

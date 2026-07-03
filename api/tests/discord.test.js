@@ -143,6 +143,22 @@ describe('createCourseRoleAndChannel', () => {
       { id: 'test-guild-id', type: 0, deny: '1024' },
       { id: 'role-abc', type: 0, allow: '3072' },
     ])
+    // カテゴリ未設定時はparent_idを付けない（トップレベルに作成）
+    expect(channelBody.parent_id).toBeUndefined()
+  })
+
+  it('DISCORD_COURSE_CATEGORY_ID設定時はチャンネルをそのカテゴリ配下に作る', async () => {
+    process.env.DISCORD_COURSE_CATEGORY_ID = 'category-123'
+    global.fetch = jest.fn()
+      .mockResolvedValueOnce({ ok: true, json: async () => ({ id: 'role-abc' }) })
+      .mockResolvedValueOnce({ ok: true, json: async () => ({ id: 'channel-xyz' }) })
+
+    await createCourseRoleAndChannel('物理学A1')
+
+    const channelBody = JSON.parse(global.fetch.mock.calls[1][1].body)
+    expect(channelBody.parent_id).toBe('category-123')
+
+    delete process.env.DISCORD_COURSE_CATEGORY_ID
   })
 })
 
