@@ -99,9 +99,16 @@
           <p class="card-value">${periodEndText}</p>
           <button id="portal-btn" type="button">支払い方法を管理</button>
         </div>
+        <div class="card" id="discord-card">
+          <p class="card-label">Discordコミュニティ</p>
+          <button id="discord-connect-btn" type="button">Discordと連携する</button>
+          <div id="course-list"></div>
+        </div>
       `
 
       document.getElementById('portal-btn').addEventListener('click', openBillingPortal)
+      document.getElementById('discord-connect-btn').addEventListener('click', connectDiscord)
+      void loadCourses()
     } else {
       const portalButtonHtml = data.hasStripeCustomer
         ? '<button id="portal-btn" type="button" class="secondary">請求履歴を確認</button>'
@@ -179,6 +186,57 @@
       errorEl.style.display = 'block'
       btn.disabled = false
       btn.textContent = originalLabel
+    }
+  }
+
+  const DISCORD_CLIENT_ID = 'YOUR_DISCORD_CLIENT_ID'
+
+  function connectDiscord() {
+    const redirectUri = encodeURIComponent('https://api.waiteu.dev/api/discord/callback')
+    const url = `https://discord.com/api/oauth2/authorize?client_id=${DISCORD_CLIENT_ID}&redirect_uri=${redirectUri}&response_type=code&scope=identify%20guilds.join&state=${encodeURIComponent(token)}`
+    window.location.href = url
+  }
+
+  async function loadCourses() {
+    const courseListEl = document.getElementById('course-list')
+
+    try {
+      const res = await fetch(`${API_BASE_URL}/api/user/courses`, {
+        headers: { Authorization: `Bearer ${token}` },
+      })
+      const data = await res.json()
+
+      if (!res.ok) {
+        return
+      }
+
+      if (data.courses.length === 0) {
+        courseListEl.innerHTML = '<p class="card-label">検出されたコースがまだありません。拡張機能でLETUSのコースページを開くと表示されます。</p>'
+        return
+      }
+
+      courseListEl.innerHTML = data.courses.map((course) => `
+        <label style="display:flex;align-items:center;gap:8px;margin-top:10px;font-size:0.85rem;">
+          <input type="checkbox" data-course-id="${course.courseId}" ${course.discordRoleWanted ? 'checked' : ''}>
+          ${course.courseName}
+        </label>
+      `).join('')
+
+      courseListEl.querySelectorAll('input[type="checkbox"]').forEach((checkbox) => {
+        checkbox.addEventListener('change', async (e) => {
+          const target = e.target
+          await fetch(`${API_BASE_URL}/api/user/courses/${target.dataset.courseId}`, {
+            method: 'PATCH',
+            headers: {
+              'Content-Type': 'application/json',
+              Authorization: `Bearer ${token}`,
+            },
+            body: JSON.stringify({ discordRoleWanted: target.checked }),
+          })
+        })
+      })
+    } catch {
+      courseListEl.innerHTML = '<p class="card-label">コース一覧の取得に失敗しました。</p>'
     }
   }
 
