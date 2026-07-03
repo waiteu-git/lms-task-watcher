@@ -55,7 +55,17 @@ router.get('/callback', async (req, res) => {
 
     await discord.joinGuild(discordUser.id, discordAccessToken, roleIds)
 
+    // discord_user_idはギルド参加が成立した時点で確定。ロール付与より先に保存し、
+    // 万一ロール付与で失敗しても連携情報が失われないようにする。
     db.prepare('UPDATE subscriptions SET discord_user_id = ? WHERE user_id = ?').run(discordUser.id, userId)
+
+    // joinGuildのbody内rolesは新規参加（201）時のみ適用され、既にサーバーに
+    // いるメンバー（サーバー所有者・招待リンクで先に参加したベータテスター等）には
+    // 適用されない。参加済みか否かに関わらずロールを確実に付与するため、
+    // 冪等なassignRoleToMember（PUT .../roles/{roleId}）で明示的に付与し直す。
+    for (const roleId of roleIds) {
+      await discord.assignRoleToMember(discordUser.id, roleId)
+    }
 
     return res.redirect('https://lms.waiteu.dev/mypage.html?discord=connected')
   } catch (err) {

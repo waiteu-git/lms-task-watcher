@@ -62,6 +62,10 @@ describe('GET /api/discord/callback', () => {
       'discord-oauth-token',
       ['subscriber-role-id']
     )
+
+    // 既にサーバーにいるメンバー（joinのroles適用がスキップされる）でも確実に
+    // ロールが付くよう、joinGuild後にassignRoleToMemberでも明示付与する
+    expect(discordLib.assignRoleToMember).toHaveBeenCalledWith('discord-user-999', 'subscriber-role-id')
   })
 
   it('discord_role_wanted済みのコースがあれば同時にロール付与する', async () => {
@@ -83,6 +87,10 @@ describe('GET /api/discord/callback', () => {
       'discord-oauth-token',
       expect.arrayContaining(['subscriber-role-id', 'course-role-1'])
     )
+
+    // 参加済みメンバーへのフォールバックとして、各ロールを明示付与している
+    expect(discordLib.assignRoleToMember).toHaveBeenCalledWith('discord-user-999', 'subscriber-role-id')
+    expect(discordLib.assignRoleToMember).toHaveBeenCalledWith('discord-user-999', 'course-role-1')
   })
 
   it('stateが無効なトークンなら401', async () => {
