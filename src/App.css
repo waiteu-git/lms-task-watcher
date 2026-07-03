@@ -483,6 +483,18 @@ h2 {
   font-weight: 900;
 }
 
+.estimatedBadge {
+  display: inline-block;
+  margin-left: 4px;
+  padding: 1px 6px;
+  border-radius: 999px;
+  background: #f1f5f9;
+  color: #64748b;
+  font-size: 10px;
+  font-weight: 700;
+  vertical-align: middle;
+}
+
 .remain {
   display: inline-flex;
   align-items: center;
