@@ -133,4 +133,45 @@ describe('GET /api/discord/oauth-state', () => {
     expect(payload.purpose).toBe('discord-oauth')
     expect(payload).toHaveProperty('userId')
   })
+
+  it('通常のセッショントークンでも呼び出せる（oauth-state自体は通常トークンで認証する）', async () => {
+    const res = await request(app)
+      .get('/api/discord/oauth-state')
+      .set('Authorization', `Bearer ${token}`)
+
+    expect(res.status).toBe(200)
+  })
+})
+
+describe('purpose付きJWTのrequireAuthルートへの再利用防止', () => {
+  let token
+  let userId
+  let testEmail
+
+  beforeEach(async () => {
+    testEmail = `purpose-guard-${Date.now()}-${Math.random()}@example.com`
+    const reg = await request(app)
+      .post('/api/auth/register')
+      .send({ email: testEmail, password: 'password123' })
+    token = reg.body.token
+    userId = db.prepare('SELECT id FROM users WHERE email = ?').get(testEmail).id
+  })
+
+  it('discord-oauth purposeトークンをBearerとして他のrequireAuthルートに使うと401', async () => {
+    const oauthState = signOAuthState(userId)
+
+    const res = await request(app)
+      .get('/api/user/courses')
+      .set('Authorization', `Bearer ${oauthState}`)
+
+    expect(res.status).toBe(401)
+  })
+
+  it('通常のセッショントークンは引き続き/api/user/coursesで使える', async () => {
+    const res = await request(app)
+      .get('/api/user/courses')
+      .set('Authorization', `Bearer ${token}`)
+
+    expect(res.status).toBe(200)
+  })
 })
