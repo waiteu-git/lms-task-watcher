@@ -12,6 +12,10 @@ set -euo pipefail
 OPS_HOME="${OPS_HOME:-$HOME/ops}"
 STATE_ROOT="$OPS_HOME/state"
 
+# このスクリプト自身が属するリポジトリのルート（cwdに依存せず git 操作するため）。
+SCRIPT_PATH="$(readlink -f "$0")"
+REPO_DIR="$(cd "$(dirname "$SCRIPT_PATH")/.." && pwd)"
+
 # webhook URL等の秘密情報はリポジトリ外の ~/ops/ops.env に置く。無くても落ちない。
 # shellcheck disable=SC1091
 [ -f "$OPS_HOME/ops.env" ] && . "$OPS_HOME/ops.env"
@@ -81,6 +85,95 @@ cmd_event() {
   post_webhook "$msg"
 }
 
+# dispatch: worktree + branch + hooks + state + tmux/claude を一括セットアップして自走を開始する。
+cmd_dispatch() {
+  local name="" plan="" base="origin/develop" no_claude=0
+  while [ $# -gt 0 ]; do
+    case "$1" in
+      --base)      base="${2:-}"; [ -n "$base" ] || die "--base に値が必要です"; shift 2 ;;
+      --no-claude) no_claude=1; shift ;;
+      -*)          die "dispatch: 不明なオプション '$1'" ;;
+      *)
+        if [ -z "$name" ]; then name="$1"
+        elif [ -z "$plan" ]; then plan="$1"
+        else die "dispatch: 余分な引数 '$1'"; fi
+        shift ;;
+    esac
+  done
+  [ -n "$name" ] && [ -n "$plan" ] \
+    || die "使い方: task.sh dispatch <name> <plan-file> [--base <ref>] [--no-claude]"
+  validate_name "$name"
+  [ -f "$plan" ] || die "dispatch: プランファイルが見つかりません: $plan"
+  plan="$(readlink -f "$plan")"
+
+  local dir="$STATE_ROOT/task-$name"
+  local wt="$HOME/dev/wt-$name"
+  [ -e "$dir" ] && die "既にタスク '$name' が存在します（$dir）。clean 後に再実行してください"
+  [ -e "$wt" ] && die "worktreeパスが既に存在します: $wt"
+  git -C "$REPO_DIR" show-ref --verify --quiet "refs/heads/task/$name" \
+    && die "ブランチ 'task/$name' が既に存在します"
+
+  echo "[task.sh] git fetch origin ..."
+  git -C "$REPO_DIR" fetch origin --quiet || die "git fetch origin に失敗しました"
+  echo "[task.sh] worktree作成: $wt （task/$name ← $base）"
+  git -C "$REPO_DIR" worktree add "$wt" -b "task/$name" "$base" \
+    || die "worktree作成に失敗しました（base '$base' は有効なref？）"
+
+  cp "$plan" "$wt/TASK_PLAN.md"
+
+  # hooks: このworktree内の task.sh を絶対パスで指す（worktreeはbase起点なので存在する前提）。
+  mkdir -p "$wt/.claude"
+  cat > "$wt/.claude/settings.local.json" <<EOF
+{
+  "hooks": {
+    "Stop": [{"hooks": [{"type": "command", "command": "$wt/ops/task.sh event $name stop"}]}],
+    "Notification": [{"hooks": [{"type": "command", "command": "$wt/ops/task.sh event $name attention"}]}]
+  }
+}
+EOF
+
+  mkdir -p "$dir"
+  cat > "$dir/meta.json" <<EOF
+{
+  "name": "$name",
+  "branch": "task/$name",
+  "base": "$base",
+  "worktree": "$wt",
+  "started_at": "$(date -Iseconds)"
+}
+EOF
+
+  local prompt_file="$dir/prompt.txt"
+  cat > "$prompt_file" <<EOF
+TASK_PLAN.md を読み、そこに書かれたタスクを自走で最後まで実行せよ。
+
+ガードレール（厳守）:
+- git push 禁止。コミットはこのworktreeのブランチ task/$name 上のローカルのみ。
+- ラズパイへのSSH・外部デプロイ・pm2操作 禁止。
+- main および develop ブランチへの直接操作 禁止。
+- 完了を宣言する前に build / lint / test を実行して検証すること。
+- 節目（フェーズ完了）と最終完了時、および判断に迷って停止する時は必ず
+  ops/task.sh notify $name "<メッセージ>" を実行して進捗を通知すること。
+- TASK_PLAN.md に書かれていない破壊的操作はしない。
+EOF
+
+  if [ "$no_claude" -eq 1 ]; then
+    echo "[task.sh] --no-claude: tmux/claudeの起動はスキップ（セットアップのみ完了）"
+    echo "[task.sh]   手動起動: tmux new-session -s task-$name -c $wt"
+  else
+    local claude_cmd="${TASK_CLAUDE_CMD:-claude}"
+    tmux new-session -d -s "task-$name" -c "$wt" \
+      || die "tmuxセッション作成に失敗しました（task-$name）"
+    # 引用符事故を避けるためプロンプトは一時ファイル経由で渡す。
+    tmux send-keys -t "task-$name" \
+      "$claude_cmd --dangerously-skip-permissions \"\$(cat '$prompt_file')\"" C-m
+    echo "[task.sh] tmuxセッション task-$name で $claude_cmd を起動しました"
+  fi
+
+  post_webhook "🔧 [task/$name] dispatch完了: $wt（base $base）$([ "$no_claude" -eq 1 ] && echo ' / --no-claude' || echo '')"
+  echo "[task.sh] dispatch完了: task/$name"
+}
+
 usage() {
   cat <<'EOF'
 task.sh — 自走タスクランチャーCLI（1タスク=1worktree=1tmux）
@@ -101,6 +194,7 @@ main() {
   local cmd="${1:-}"
   [ $# -gt 0 ] && shift
   case "$cmd" in
+    dispatch)        cmd_dispatch "$@" ;;
     notify)          cmd_notify "$@" ;;
     event)           cmd_event "$@" ;;
     ""|-h|--help|help) usage ;;
