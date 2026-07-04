@@ -94,4 +94,12 @@ if (!hasDiscordUserId) {
   db.exec('ALTER TABLE subscriptions ADD COLUMN discord_user_id TEXT')
 }
 
+const settingsColumns = db.prepare("PRAGMA table_info(user_settings)").all()
+if (!settingsColumns.some((col) => col.name === 'notification_rules')) {
+  db.exec('ALTER TABLE user_settings ADD COLUMN notification_rules TEXT')
+}
+if (!settingsColumns.some((col) => col.name === 'notification_rules_updated_at')) {
+  db.exec('ALTER TABLE user_settings ADD COLUMN notification_rules_updated_at TEXT')
+}
+
 module.exports = db

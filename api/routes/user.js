@@ -41,27 +41,40 @@ router.post('/data', requireAuth, (req, res) => {
 })
 
 router.get('/settings', requireAuth, (req, res) => {
-  const settings = db.prepare(
-    'SELECT theme FROM user_settings WHERE user_id = ?'
+  const row = db.prepare(
+    'SELECT theme, notification_rules, notification_rules_updated_at FROM user_settings WHERE user_id = ?'
   ).get(req.userId)
 
-  return res.json({ theme: settings?.theme ?? 'default' })
+  return res.json({
+    theme: row?.theme ?? 'default',
+    notificationRules: row?.notification_rules ? JSON.parse(row.notification_rules) : null,
+    notificationRulesUpdatedAt: row?.notification_rules_updated_at ?? null,
+  })
 })
 
 router.post('/settings', requireAuth, (req, res) => {
-  const { theme } = req.body
+  const { theme, notificationRules, notificationRulesUpdatedAt } = req.body
 
-  if (!theme || typeof theme !== 'string') {
-    return res.status(400).json({ error: 'theme が必要です' })
+  if (theme !== undefined && typeof theme !== 'string') {
+    return res.status(400).json({ error: 'theme は文字列である必要があります' })
+  }
+  if (notificationRules !== undefined && typeof notificationRules !== 'object') {
+    return res.status(400).json({ error: 'notificationRules はオブジェクトである必要があります' })
   }
 
-  db.prepare(`
-    INSERT INTO user_settings (user_id, theme, updated_at)
-    VALUES (?, ?, datetime('now'))
-    ON CONFLICT(user_id) DO UPDATE SET
-      theme = excluded.theme,
-      updated_at = excluded.updated_at
-  `).run(req.userId, theme)
+  db.prepare('INSERT OR IGNORE INTO user_settings (user_id) VALUES (?)').run(req.userId)
+
+  if (theme !== undefined) {
+    db.prepare(
+      "UPDATE user_settings SET theme = ?, updated_at = datetime('now') WHERE user_id = ?"
+    ).run(theme, req.userId)
+  }
+
+  if (notificationRules !== undefined) {
+    db.prepare(
+      'UPDATE user_settings SET notification_rules = ?, notification_rules_updated_at = ? WHERE user_id = ?'
+    ).run(JSON.stringify(notificationRules), notificationRulesUpdatedAt ?? new Date().toISOString(), req.userId)
+  }
 
   return res.json({ ok: true })
 })

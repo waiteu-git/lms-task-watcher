@@ -68,3 +68,39 @@ describe('GET /api/user/settings', () => {
     expect(res.body.theme).toBe('dark')
   })
 })
+
+describe('POST/GET /api/user/settings 通知ルール', () => {
+  it('notificationRules と updatedAt をラウンドトリップする', async () => {
+    const rules = { version: 1, defaultThresholds: [1, 3, 24, 48], courseOverrides: {} }
+    const postRes = await request(app)
+      .post('/api/user/settings')
+      .set('Authorization', `Bearer ${token}`)
+      .send({ notificationRules: rules, notificationRulesUpdatedAt: '2026-07-04T10:00:00.000Z' })
+    expect(postRes.status).toBe(200)
+
+    const getRes = await request(app)
+      .get('/api/user/settings')
+      .set('Authorization', `Bearer ${token}`)
+    expect(getRes.status).toBe(200)
+    expect(getRes.body.notificationRules).toEqual(rules)
+    expect(getRes.body.notificationRulesUpdatedAt).toBe('2026-07-04T10:00:00.000Z')
+  })
+
+  it('theme のみの POST では notification_rules_updated_at が変わらない', async () => {
+    await request(app)
+      .post('/api/user/settings')
+      .set('Authorization', `Bearer ${token}`)
+      .send({ notificationRules: { version: 1, defaultThresholds: [1], courseOverrides: {} }, notificationRulesUpdatedAt: '2026-07-04T09:00:00.000Z' })
+
+    await request(app)
+      .post('/api/user/settings')
+      .set('Authorization', `Bearer ${token}`)
+      .send({ theme: 'dark' })
+
+    const getRes = await request(app)
+      .get('/api/user/settings')
+      .set('Authorization', `Bearer ${token}`)
+    expect(getRes.body.notificationRulesUpdatedAt).toBe('2026-07-04T09:00:00.000Z')
+    expect(getRes.body.theme).toBe('dark')
+  })
+})
