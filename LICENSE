@@ -1,0 +1,48 @@
+LETUS Task Watcher — Source-Available License
+Copyright (c) 2025-2026 waiteu. All rights reserved.
+
+【日本語】
+
+本ソフトウェアのソースコードは、ユーザーが拡張機能の動作（収集するデータの
+内容や送信先など）を自ら検証できるようにする透明性の確保を目的として公開
+されています。本ソフトウェアはオープンソースソフトウェアではありません。
+
+■ 許可される行為
+1. 本リポジトリのソースコードを閲覧・検証・監査すること
+2. 本ソフトウェアの動作確認・安全性検証を目的として、自身の環境で
+   ビルド・実行すること
+
+■ 禁止される行為（著作権者の書面による事前の許可がない限り）
+1. ソースコードの全部または一部を複製し、他のソフトウェアに組み込むこと
+2. 本ソフトウェアまたはその派生物を頒布・再配布・公開すること
+   （拡張機能ストア、アプリストア等への公開を含む）
+3. 本ソフトウェアの全部または一部を商用利用すること
+4. 上記の許可される行為の範囲を超えて本ソフトウェアを利用すること
+
+本ソフトウェアは現状有姿で提供され、著作権者はいかなる保証も行わず、
+本ソフトウェアの使用に起因する損害について一切の責任を負いません。
+
+【English】
+
+The source code of this software is made publicly viewable for transparency,
+so that users can verify for themselves how the extension behaves (e.g. what
+data it collects and where it is sent). This software is NOT open source.
+
+PERMITTED:
+1. Viewing, inspecting, and auditing the source code in this repository.
+2. Building and running the software in your own environment for the sole
+   purpose of verifying its behavior and safety.
+
+PROHIBITED (without prior written permission from the copyright holder):
+1. Copying the source code, in whole or in part, into other software.
+2. Distributing, redistributing, or publishing this software or any
+   derivative work (including publishing to any extension or app store).
+3. Any commercial use of this software, in whole or in part.
+4. Any use of this software beyond the permissions granted above.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND. IN NO EVENT
+SHALL THE COPYRIGHT HOLDER BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY ARISING FROM THE USE OF THE SOFTWARE.
+
+In case of any discrepancy between the Japanese and English texts, the
+Japanese text shall prevail.
