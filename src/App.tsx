@@ -1241,7 +1241,7 @@ export default function App() {
                     canHide
                     onHide={hideAssignment}
                   />
-                  <AssignmentMemo assignmentId={item.assignment.id} apiBaseUrl={API_BASE_URL} isSubscriber={isSubscriber} />
+                  <AssignmentMemo assignmentId={item.assignment.id} apiBaseUrl={API_BASE_URL} />
                 </div>
               ) : (
                 <div key={item.assignment.id}>
@@ -1249,9 +1249,8 @@ export default function App() {
                     assignment={item.assignment}
                     onToggleSubmitted={(id) => void handleToggleManualSubmitted(id)}
                     onDelete={(id) => void handleDeleteManualAssignment(id)}
-                    isSubscriber={isSubscriber}
                   />
-                  <AssignmentMemo assignmentId={item.assignment.id} apiBaseUrl={API_BASE_URL} isSubscriber={isSubscriber} />
+                  <AssignmentMemo assignmentId={item.assignment.id} apiBaseUrl={API_BASE_URL} />
                 </div>
               ),
             )}
@@ -1270,7 +1269,7 @@ export default function App() {
                     canHide
                     onHide={hideAssignment}
                   />
-                  <AssignmentMemo assignmentId={item.assignment.id} apiBaseUrl={API_BASE_URL} isSubscriber={isSubscriber} />
+                  <AssignmentMemo assignmentId={item.assignment.id} apiBaseUrl={API_BASE_URL} />
                 </div>
               ) : (
                 <div key={item.assignment.id}>
@@ -1278,9 +1277,8 @@ export default function App() {
                     assignment={item.assignment}
                     onToggleSubmitted={(id) => void handleToggleManualSubmitted(id)}
                     onDelete={(id) => void handleDeleteManualAssignment(id)}
-                    isSubscriber={isSubscriber}
                   />
-                  <AssignmentMemo assignmentId={item.assignment.id} apiBaseUrl={API_BASE_URL} isSubscriber={isSubscriber} />
+                  <AssignmentMemo assignmentId={item.assignment.id} apiBaseUrl={API_BASE_URL} />
                 </div>
               ),
             )}
@@ -1299,7 +1297,7 @@ export default function App() {
                     canHide
                     onHide={hideAssignment}
                   />
-                  <AssignmentMemo assignmentId={item.assignment.id} apiBaseUrl={API_BASE_URL} isSubscriber={isSubscriber} />
+                  <AssignmentMemo assignmentId={item.assignment.id} apiBaseUrl={API_BASE_URL} />
                 </div>
               ) : (
                 <div key={item.assignment.id}>
@@ -1307,9 +1305,8 @@ export default function App() {
                     assignment={item.assignment}
                     onToggleSubmitted={(id) => void handleToggleManualSubmitted(id)}
                     onDelete={(id) => void handleDeleteManualAssignment(id)}
-                    isSubscriber={isSubscriber}
                   />
-                  <AssignmentMemo assignmentId={item.assignment.id} apiBaseUrl={API_BASE_URL} isSubscriber={isSubscriber} />
+                  <AssignmentMemo assignmentId={item.assignment.id} apiBaseUrl={API_BASE_URL} />
                 </div>
               ),
             )}
@@ -1328,7 +1325,7 @@ export default function App() {
                     canHide
                     onHide={hideAssignment}
                   />
-                  <AssignmentMemo assignmentId={item.assignment.id} apiBaseUrl={API_BASE_URL} isSubscriber={isSubscriber} />
+                  <AssignmentMemo assignmentId={item.assignment.id} apiBaseUrl={API_BASE_URL} />
                 </div>
               ) : (
                 <div key={item.assignment.id}>
@@ -1336,9 +1333,8 @@ export default function App() {
                     assignment={item.assignment}
                     onToggleSubmitted={(id) => void handleToggleManualSubmitted(id)}
                     onDelete={(id) => void handleDeleteManualAssignment(id)}
-                    isSubscriber={isSubscriber}
                   />
-                  <AssignmentMemo assignmentId={item.assignment.id} apiBaseUrl={API_BASE_URL} isSubscriber={isSubscriber} />
+                  <AssignmentMemo assignmentId={item.assignment.id} apiBaseUrl={API_BASE_URL} />
                 </div>
               ),
             )}

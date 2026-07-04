@@ -6,12 +6,10 @@ export function ManualAssignmentCard({
   assignment,
   onToggleSubmitted,
   onDelete,
-  isSubscriber = false,
 }: {
   assignment: ManualAssignment
   onToggleSubmitted: (id: string) => void
   onDelete: (id: string) => void
-  isSubscriber?: boolean
 }) {
   function openAssignmentPage() {
     if (!assignment.letusUrl) {
@@ -62,7 +60,7 @@ export function ManualAssignmentCard({
 
       <div className="manualCardMeta">{assignment.courseName}</div>
 
-      {assignment.memo && !isSubscriber && <div className="manualCardMemo">{assignment.memo}</div>}
+      {assignment.memo && <div className="manualCardMemo">{assignment.memo}</div>}
 
       <div className="manualCardFooter">
         <button
