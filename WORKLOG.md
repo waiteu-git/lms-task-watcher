@@ -4,6 +4,23 @@
 
 ---
 
+## 2026-07-04 — カスタム通知ルール（Phase B②）実装完了
+
+Subagent-Driven Developmentで6タスク実装（コミット`1b19756`〜`c3911a5`）＋最終レビュー後の修正`ce061b5`。tsc0・src vitest 126/126・api jest 61/61。設計: `docs/superpowers/specs/2026-07-04-custom-notification-rules-design.md`、計画: `docs/superpowers/plans/2026-07-04-custom-notification-rules.md`。
+
+- サブスクライバーがダッシュボードで締切通知のタイミングを設定可能（全体しきい値セット＋コース別上書き/ミュート）。無料/失効は固定1h/3h/24h（面での線引き＝ダウングレードなし、free-first方針準拠）
+- `api/`: `user_settings`に`notification_rules`・`notification_rules_updated_at`カラム追加、`POST/GET /api/user/settings`拡張（クライアント供給ISOタイムスタンプをそのまま保存＝TZずれ回避、theme/rulesはカラム独立更新）
+- `src/background/notificationRules.ts`（新規・純粋関数）: `resolveThresholds`（muted→null）・`pickThresholdToNotify`（最小未通知しきい値）
+- `src/core/premium.ts`: ルールstorage・`syncToServer`拡張・`pullSettingsFromServer`（ISO文字列比較のlast-write-wins）。**同期は通知ルールのみ、テーマは各デバイス独立**
+- `src/background/index.ts`: `checkDeadlineWarningNotifications`をルール適用に改修（`isSubscriptionActive`でゲート、手動課題もcourseId経由で対象）
+- `src/App.tsx`/`ProBanner.tsx`/`App.css`: ダッシュボードUI（全体＋コース別）、ログイン/mount時のpull、非サブスクの`ProBanner`にカスタム通知ルール＋「快適装備＋開発支援」文面
+
+**最終レビュー（opus）修正:** ①アップセル文面が当初サブスクライバー向けブロックのみにあり非サブスクの`ProBanner`に無かった→追加 ②ログイン時pull未配線→`handleAfterLogin`に追加。
+
+**要デプロイ:** APIスキーマ・ルート変更のため、ラズパイで`git pull`+`pm2 restart`が必要（未実施）。
+
+---
+
 ## 2026-07-03 — Discordコミュニティ機能を実装完了（Phase B①）
 
 Subagent-Driven Developmentで8タスクを実装（コミット`a0eaaa9`〜`c653699`）、最終レビュー後のセキュリティ修正2件（`9802c81`・`4d76a9a`）。全58テスト合格。
