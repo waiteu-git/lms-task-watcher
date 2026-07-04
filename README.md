@@ -2,6 +2,10 @@
 
 LETUSをはじめとするLMS（学習管理システム）の課題を監視するChrome拡張機能です。締切が近い課題を通知し、ダッシュボードで一覧管理できます。
 
+- **公式サイト**: https://lms.waiteu.dev/
+- **Chrome Web Store**: https://chromewebstore.google.com/detail/letus-task-watcher/eofgkmpiadoeckkliialkddacidcinml
+- **Microsoft Edge Add-ons**: https://microsoftedge.microsoft.com/addons/detail/femdjgdgelnbdpgnfehacobmpbfmbdoa
+
 ## 機能
 
 - 課題の自動スキャンと締切検出
