@@ -19,7 +19,9 @@ import {
 import type { AssignmentScanStatus, DeadlineScanStatus } from '../core/scanStatus'
 import { getManualAssignments } from '../core/manualAssignment'
 import { getAuthToken, isSubscriptionActive } from '../core/auth'
+import { getNotificationRules } from '../core/premium'
 import { extractDeadlineText, parseDeadline, parseDeadlineFromTitle } from './deadlineParser'
+import { resolveThresholds, pickThresholdToNotify } from './notificationRules'
 
 console.log('[LETUS Task Watcher] background service worker loaded')
 
@@ -780,19 +782,18 @@ async function saveLastRefreshAt(value: string): Promise<void> {
   await chrome.storage.local.set({ [LAST_REFRESH_AT_KEY]: value })
 }
 
-// ─── Deadline warning notifications (1h / 3h / 24h) ─────────────────────────
-
-const ONE_HOUR_MS = 60 * 60 * 1000
-const THREE_HOURS_MS = 3 * ONE_HOUR_MS
-const TWENTY_FOUR_HOURS_MS = 24 * ONE_HOUR_MS
+// ─── Deadline warning notifications (rule-based thresholds) ─────────────────
 
 async function checkDeadlineWarningNotifications(): Promise<void> {
-  const [assignments, ignoredIds, notifiedKeys, manualAssignments] = await Promise.all([
-    getAssignments(),
-    getIgnoredAssignmentIds(),
-    getNotifiedDeadlineKeys(),
-    getManualAssignments(),
-  ])
+  const [assignments, ignoredIds, notifiedKeys, manualAssignments, rules, subscriptionActive] =
+    await Promise.all([
+      getAssignments(),
+      getIgnoredAssignmentIds(),
+      getNotifiedDeadlineKeys(),
+      getManualAssignments(),
+      getNotificationRules(),
+      isSubscriptionActive(),
+    ])
 
   const ignoredSet = new Set(ignoredIds)
   const notifiedSet = new Set(notifiedKeys)
@@ -811,14 +812,29 @@ async function checkDeadlineWarningNotifications(): Promise<void> {
 
   const manualTargets = manualAssignments.filter((a) => !a.submitted)
 
-  type NotifyTarget = { id: string; title: string; courseName: string; deadline: string; url?: string }
+  type NotifyTarget = {
+    id: string
+    courseId: string
+    title: string
+    courseName: string
+    deadline: string
+    url?: string
+  }
 
   const allTargets: NotifyTarget[] = [
     ...scanTargets
       .filter((a): a is Assignment & { deadline: string } => a.deadline !== null)
-      .map((a) => ({ id: a.id, title: a.title, courseName: a.courseName, deadline: a.deadline, url: a.url })),
+      .map((a) => ({
+        id: a.id,
+        courseId: a.courseId,
+        title: a.title,
+        courseName: a.courseName,
+        deadline: a.deadline,
+        url: a.url,
+      })),
     ...manualTargets.map((a) => ({
       id: a.id,
+      courseId: a.courseId,
       title: a.title,
       courseName: a.courseName,
       deadline: a.deadline,
@@ -830,38 +846,20 @@ async function checkDeadlineWarningNotifications(): Promise<void> {
     const diff = new Date(target.deadline).getTime() - Date.now()
     if (diff <= 0) continue
 
-    const key1h = `${target.id}:1h`
-    const key3h = `${target.id}:3h`
-    const key24h = `${target.id}:24h`
+    const thresholds = resolveThresholds(rules, target.courseId, subscriptionActive)
+    if (thresholds === null) continue // ミュート
 
-    if (diff <= ONE_HOUR_MS && !notifiedSet.has(key1h)) {
-      await createNotification({
-        id: `task-watcher-deadline-1h-${target.id}`,
-        title: '締切まで1時間以内',
-        message: `${target.title}\n${target.courseName}`,
-        url: target.url,
-      })
-      nextNotifiedKeys.add(key1h)
-      changed = true
-    } else if (diff <= THREE_HOURS_MS && !notifiedSet.has(key3h)) {
-      await createNotification({
-        id: `task-watcher-deadline-3h-${target.id}`,
-        title: '締切まで3時間以内',
-        message: `${target.title}\n${target.courseName}`,
-        url: target.url,
-      })
-      nextNotifiedKeys.add(key3h)
-      changed = true
-    } else if (diff <= TWENTY_FOUR_HOURS_MS && !notifiedSet.has(key24h)) {
-      await createNotification({
-        id: `task-watcher-deadline-24h-${target.id}`,
-        title: '締切まで24時間以内',
-        message: `${target.title}\n${target.courseName}`,
-        url: target.url,
-      })
-      nextNotifiedKeys.add(key24h)
-      changed = true
-    }
+    const pick = pickThresholdToNotify(diff, thresholds, target.id, notifiedSet)
+    if (!pick) continue
+
+    await createNotification({
+      id: `task-watcher-deadline-${pick.thresholdHours}h-${target.id}`,
+      title: `締切まで${pick.thresholdHours}時間以内`,
+      message: `${target.title}\n${target.courseName}`,
+      url: target.url,
+    })
+    nextNotifiedKeys.add(pick.notifyKey)
+    changed = true
   }
 
   if (changed) {
