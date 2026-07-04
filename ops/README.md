@@ -17,9 +17,10 @@
 1. 秘密情報はリポジトリ外の `~/ops/ops.env` に置く:
 
    ```bash
-   OPS_WEBHOOK_URL=https://discord.com/api/webhooks/...   # #ops-alerts のwebhook
+   OPS_WEBHOOK_URL='https://discord.com/api/webhooks/...'   # #ops-alerts のwebhook
    # 任意: 設定するとcanaryがiCalエクスポートも監視する
-   # MOODLE_ICAL_URL=https://letus.ed.tus.ac.jp/calendar/export.php?...&authtoken=...
+   # 値に & を含むため、必ずシングルクォートで囲む（囲まないとsource時に壊れる）
+   # MOODLE_ICAL_URL='https://letus.ed.tus.ac.jp/calendar/export_execute.php?...&authtoken=...'
    ```
 
 2. 固定ランチャーを設置（スクリプト本体は実行前にCIクローン経由でorigin/developへ自動同期される）:
