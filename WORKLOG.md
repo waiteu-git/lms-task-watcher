@@ -4,6 +4,18 @@
 
 ---
 
+## 2026-07-05 — 自走タスクランチャーCLI（ops/task.sh）設計・デスクトップ自走開始
+
+「開発の自動化を加速」の第1弾（優先度: B自走運用強化→A/C/Dは将来）。長タスクのデスクトップ自走運用（worktree/tmux/claude起動/進捗確認/掃除が全て手作業）を1本のCLIに統合する。
+
+- 設計確定: フルライフサイクルCLI `ops/task.sh`（dispatch/status/peek/notify/event/collect/clean）。進捗検知はClaude Code hooks（Stop/Notification→webhook）＋プラン規約（節目でnotify実行）の併用。通知は`TASK_WEBHOOK_URL`（未設定なら`OPS_WEBHOOK_URL`にフォールバック、#task-runner新設は手動作業のため保留）
+- スペック: `docs/superpowers/specs/2026-07-05-task-runner-cli-design.md` / プラン: `docs/superpowers/plans/2026-07-05-task-runner-cli.md`（`dda87bf`）
+- 実装はデスクトップのclaudeに自走ハンドオフ（worktree `~/dev/wt-task-runner`・ブランチ`task/task-runner`・tmux `task-task-runner`・skip-permissionsはユーザー明示承認済み・push禁止でローカルコミットのみ）
+- **障害と対処**: SSH短命セッションから起動したtmuxがWSLインスタンス停止（最後のコンソール終了後の自動シャットダウン）で巻き添え死 → Windowsスケジュールタスク`WSL-KeepAlive`（onlogon・`wsl sleep infinity`、ユーザー承認済み）を新設して解決。今後の夜間自走の前提インフラ
+- 進捗はDiscord #ops-alertsにチェックポイント通知が飛ぶ。完了後レビュー→developへの取り込みは翌日以降
+
+---
+
 ## 2026-07-04 — TASKS.mdのロードマップをv2.0.0全面改定に追従させる
 
 `TASKS.md`が2026-07-01時点のロードマップ（v1.3.0データ同期基盤・v2.0.0=拡張収集/アプリビューア構成）のまま残っており、同日中に別セッションで確定した「無料開放ファースト」全面改定（`docs/superpowers/specs/2026-07-04-free-first-strategy-design.md`）と食い違っていたため整合を取った。コード変更なし、ドキュメントのみ。
