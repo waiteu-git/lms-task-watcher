@@ -366,6 +366,12 @@ export default function App() {
       const active = await isSubscriptionActive()
       setIsSubscriber(active)
     }
+
+    if (API_BASE_URL) {
+      await pullSettingsFromServer(API_BASE_URL)
+      const pulledRules = await getNotificationRules()
+      if (pulledRules) setNotificationRules(pulledRules)
+    }
   }
 
   async function handleLogout() {

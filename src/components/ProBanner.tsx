@@ -9,6 +9,7 @@ type Props = {
 
 const FEATURES = [
   '課題へのメモ・優先度設定',
+  'カスタム通知ルール（科目別の締切通知タイミング）',
   'ダークテーマ',
   'クロスデバイス同期（PC・研究室・自宅）',
   '手動での課題追加',
@@ -75,6 +76,10 @@ export function ProBanner({ apiBaseUrl, onLogin }: Props) {
             <li key={f} className="proFeatureItem">{f}</li>
           ))}
         </ul>
+
+        <p className="proSupportNote">
+          サブスクは快適機能のアンロックと、このサービスの開発・運営を支える支援です。無料版でも困らないように作っています。
+        </p>
 
         {isLoggedIn ? (
           <>
