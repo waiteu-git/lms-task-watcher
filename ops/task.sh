@@ -174,6 +174,124 @@ EOF
   echo "[task.sh] dispatch完了: task/$name"
 }
 
+# ---- 状態参照ヘルパー ----
+
+require_task() {
+  local name="${1:-}"
+  validate_name "$name"
+  [ -d "$STATE_ROOT/task-$name" ] || die "タスク '$name' は存在しません（list で確認）"
+}
+
+# meta.json のフィールドを1つ取得（jq無し・python3使用、失敗時は空）。
+meta_field() {
+  python3 -c 'import json,sys
+try: print(json.load(open(sys.argv[1])).get(sys.argv[2],""))
+except Exception: print("")' "$1" "$2"
+}
+
+tmux_alive() { tmux has-session -t "task-$1" 2>/dev/null && echo alive || echo dead; }
+
+# started_at（ISO8601）からの経過を人間可読で返す。
+fmt_elapsed() {
+  local start="$1" now s d
+  now=$(date +%s)
+  s=$(date -d "$start" +%s 2>/dev/null) || { echo "?"; return; }
+  d=$((now - s))
+  if   [ "$d" -lt 60 ];    then echo "${d}s"
+  elif [ "$d" -lt 3600 ];  then echo "$((d/60))m"
+  elif [ "$d" -lt 86400 ]; then echo "$((d/3600))h$(((d%3600)/60))m"
+  else echo "$((d/86400))d$(((d%86400)/3600))h"; fi
+}
+
+# list: state配下の全タスクを1行ずつ（tmux生存・経過時間・ブランチ）。
+cmd_list() {
+  local found=0 d name meta branch wt start
+  printf '%-16s %-20s %-6s %-8s %s\n' NAME BRANCH TMUX ELAPSED WORKTREE
+  for d in "$STATE_ROOT"/task-*/; do
+    [ -d "$d" ] || continue
+    found=1
+    name="$(basename "$d")"; name="${name#task-}"
+    meta="${d}meta.json"
+    branch="$(meta_field "$meta" branch)"
+    wt="$(meta_field "$meta" worktree)"
+    start="$(meta_field "$meta" started_at)"
+    printf '%-16s %-20s %-6s %-8s %s\n' \
+      "$name" "${branch:-?}" "$(tmux_alive "$name")" "$(fmt_elapsed "$start")" "${wt:-?}"
+  done
+  if [ "$found" -eq 0 ]; then echo "（アクティブなタスクなし）"; fi
+}
+
+# status: 引数なしなら list。名前ありなら meta＋tmux生存＋コミット数＋git status要約＋直近イベント。
+cmd_status() {
+  local name="${1:-}"
+  [ -z "$name" ] && { cmd_list; return; }
+  require_task "$name"
+  local d="$STATE_ROOT/task-$name" meta branch base wt start
+  meta="$d/meta.json"
+  branch="$(meta_field "$meta" branch)"; base="$(meta_field "$meta" base)"
+  wt="$(meta_field "$meta" worktree)"; start="$(meta_field "$meta" started_at)"
+  echo "task: $name"
+  echo "  branch  : $branch (base $base)"
+  echo "  worktree: $wt"
+  echo "  started : $start（経過 $(fmt_elapsed "$start")）"
+  echo "  tmux    : $(tmux_alive "$name")"
+  if [ -d "$wt" ]; then
+    local commits changes
+    commits=$(git -C "$wt" log --oneline "$base"..HEAD 2>/dev/null | wc -l | tr -d ' ')
+    echo "  commits : ${commits}（$base..HEAD）"
+    changes=$(git -C "$wt" status --short 2>/dev/null || true)
+    if [ -n "$changes" ]; then
+      echo "  未コミット変更: あり"
+      echo "$changes" | sed 's/^/    /'
+    else
+      echo "  未コミット変更: なし"
+    fi
+  else
+    echo "  worktree: 見つかりません（$wt）"
+  fi
+  local t f
+  for t in stop attention; do
+    f="$d/last-$t"
+    [ -f "$f" ] && echo "  last-$t : $(date -d "@$(cat "$f")" '+%F %T' 2>/dev/null || echo '?')"
+  done
+}
+
+# peek: tmuxペインの末尾N行をダンプ（進捗をこのUIに転記するため）。
+cmd_peek() {
+  local name="" n=60
+  while [ $# -gt 0 ]; do
+    case "$1" in
+      -n) n="${2:-60}"; shift 2 ;;
+      -*) die "peek: 不明なオプション '$1'" ;;
+      *)  name="$1"; shift ;;
+    esac
+  done
+  [ -n "$name" ] || die "使い方: task.sh peek <name> [-n 行数]"
+  require_task "$name"
+  tmux has-session -t "task-$name" 2>/dev/null \
+    || die "tmuxセッション task-$name は生存していません"
+  tmux capture-pane -pt "task-$name" -S -"$n"
+}
+
+# collect: base..HEAD のコミットログ＋diffstat＋未コミット変更の有無。
+cmd_collect() {
+  local name="${1:-}"
+  require_task "$name"
+  local meta="$STATE_ROOT/task-$name/meta.json" base wt
+  base="$(meta_field "$meta" base)"; wt="$(meta_field "$meta" worktree)"
+  [ -d "$wt" ] || die "collect: worktreeが見つかりません: $wt"
+  echo "=== commits ($base..HEAD) ==="
+  git -C "$wt" log --oneline "$base"..HEAD || true
+  echo "=== diffstat ($base..HEAD) ==="
+  git -C "$wt" diff --stat "$base"..HEAD || true
+  echo "=== 未コミット変更 ==="
+  if [ -n "$(git -C "$wt" status --short 2>/dev/null || true)" ]; then
+    git -C "$wt" status --short
+  else
+    echo "（なし）"
+  fi
+}
+
 usage() {
   cat <<'EOF'
 task.sh — 自走タスクランチャーCLI（1タスク=1worktree=1tmux）
@@ -195,6 +313,10 @@ main() {
   [ $# -gt 0 ] && shift
   case "$cmd" in
     dispatch)        cmd_dispatch "$@" ;;
+    list)            cmd_list "$@" ;;
+    status)          cmd_status "$@" ;;
+    peek)            cmd_peek "$@" ;;
+    collect)         cmd_collect "$@" ;;
     notify)          cmd_notify "$@" ;;
     event)           cmd_event "$@" ;;
     ""|-h|--help|help) usage ;;
