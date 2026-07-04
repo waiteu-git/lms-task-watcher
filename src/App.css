@@ -1869,3 +1869,18 @@ button:disabled {
   line-height: 1.5;
   margin: 4px 0 12px;
 }
+.displaySettings {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  margin-bottom: 12px;
+}
+
+.displaySettingsLabel {
+  font-size: 12px;
+  font-weight: 700;
+  color: #475569;
+}

@@ -1436,35 +1436,11 @@ export default function App() {
                 </div>
 
                 <div className="premiumFeatureSection">
-                  <p className="premiumSectionLabel">利用可能な機能</p>
+                  <p className="premiumSectionLabel">サブスク特典</p>
                   <ul className="premiumFeatureList">
-                    <li>課題へのメモ・優先度設定</li>
-                    <li>ダークテーマ</li>
-                    <li>クロスデバイス同期</li>
-                    <li>手動課題の追加</li>
-                    <li>LETUS上の登録済みインジケーター</li>
+                    <li>カスタム通知ルール（科目別の締切通知タイミング）</li>
                     <li>限定 Discord コミュニティ招待</li>
                   </ul>
-                </div>
-
-                <div className="premiumSettingsRow">
-                  <span className="premiumSettingsLabel">テーマ</span>
-                  <div className="themeSelector">
-                    {(['default', 'dark'] as const).map((t) => (
-                      <button
-                        key={t}
-                        type="button"
-                        className={`themeBtn ${theme === t ? 'active' : ''}`}
-                        onClick={() => {
-                          setTheme(t)
-                          document.documentElement.setAttribute('data-theme', t)
-                          void saveTheme(t)
-                        }}
-                      >
-                        {t === 'default' ? '標準' : 'ダーク'}
-                      </button>
-                    ))}
-                  </div>
                 </div>
 
                 <div className="notificationRulesSection">
@@ -1549,6 +1525,26 @@ export default function App() {
           ) : (
             <ProBanner apiBaseUrl={API_BASE_URL} onLogin={() => void handleAfterLogin()} />
           )}
+
+          <div className="displaySettings">
+            <span className="displaySettingsLabel">テーマ</span>
+            <div className="themeSelector">
+              {(['default', 'dark'] as const).map((t) => (
+                <button
+                  key={t}
+                  type="button"
+                  className={`themeBtn ${theme === t ? 'active' : ''}`}
+                  onClick={() => {
+                    setTheme(t)
+                    document.documentElement.setAttribute('data-theme', t)
+                    void saveTheme(t)
+                  }}
+                >
+                  {t === 'default' ? '標準' : 'ダーク'}
+                </button>
+              ))}
+            </div>
+          </div>
 
           <details className="settings" open>
             <summary>対象コースの選択</summary>
