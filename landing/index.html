@@ -3,8 +3,9 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>LETUS Task Watcher - 東京理科大学の課題を自動管理</title>
-  <meta name="description" content="東京理科大学のLMS「LETUS」の課題締切を自動収集・通知するChrome拡張機能。v1.0.5公開中。">
+  <title>LETUS Task Watcher | LETUSの課題締切を自動収集・通知（東京理科大生向け・無料）</title>
+  <meta name="description" content="東京理科大学のLMS「LETUS（レタス）」から課題の締切を自動収集し、締切前にデスクトップ通知する無料のChrome / Edge拡張機能。課題一覧・提出状況をダッシュボードで管理。理科大生の課題見逃しを防ぎます。">
+  <link rel="canonical" href="https://lms.waiteu.dev/">
   <!-- OGP / Twitter Card -->
   <meta property="og:type"        content="website">
   <meta property="og:url"         content="https://lms.waiteu.dev/">
@@ -16,6 +17,54 @@
   <meta name="twitter:title"       content="LETUS Task Watcher — 課題の締切、もう見逃さない。">
   <meta name="twitter:description" content="東京理科大学のLMS「LETUS」の課題締切を自動収集・通知するChrome拡張機能。インストールするだけで課題を締切順に一覧表示・デスクトップ通知。">
   <meta name="twitter:image"       content="https://lms.waiteu.dev/og-image.png">
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "SoftwareApplication",
+    "name": "LETUS Task Watcher",
+    "url": "https://lms.waiteu.dev/",
+    "image": "https://lms.waiteu.dev/og-image.png",
+    "description": "東京理科大学のLMS「LETUS」から課題の締切を自動収集し、締切前にデスクトップ通知するブラウザ拡張機能。",
+    "applicationCategory": "BrowserApplication",
+    "operatingSystem": "Google Chrome / Microsoft Edge",
+    "offers": { "@type": "Offer", "price": "0", "priceCurrency": "JPY" },
+    "installUrl": "https://chromewebstore.google.com/detail/letus-task-watcher/eofgkmpiadoeckkliialkddacidcinml",
+    "inLanguage": "ja"
+  }
+  </script>
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "FAQPage",
+    "mainEntity": [
+      {
+        "@type": "Question",
+        "name": "無料で使えますか？",
+        "acceptedAnswer": { "@type": "Answer", "text": "はい。課題の自動収集・締切通知・ダッシュボードなどの基本機能はすべて無料で利用できます。Chrome Web Store / Microsoft Edge Add-onsからインストールするだけで、料金は一切かかりません。" }
+      },
+      {
+        "@type": "Question",
+        "name": "LETUSのパスワードやログイン情報は安全ですか？",
+        "acceptedAnswer": { "@type": "Answer", "text": "ログインID・パスワードは一切読み取りません。ブラウザ上でログイン済みのセッションを利用して課題ページを読み取るだけで、収集したデータはブラウザ内のローカルストレージにのみ保存されます。外部サーバーへの送信は行いません。" }
+      },
+      {
+        "@type": "Question",
+        "name": "東京理科大学の公式ツールですか？",
+        "acceptedAnswer": { "@type": "Answer", "text": "いいえ。理科大生の有志による個人開発の非公式ツールです。大学およびLETUS（Moodle）の運営とは関係ありません。" }
+      },
+      {
+        "@type": "Question",
+        "name": "どのブラウザで使えますか？",
+        "acceptedAnswer": { "@type": "Answer", "text": "Google ChromeとMicrosoft Edgeに対応しています。それぞれChrome Web Store / Microsoft Edge Add-onsから無料でインストールできます。" }
+      },
+      {
+        "@type": "Question",
+        "name": "スマートフォンでも使えますか？",
+        "acceptedAnswer": { "@type": "Answer", "text": "現在はPC版のChrome / Edgeのみ対応です。スマホ単体でLETUSの課題通知を受け取れるモバイルアプリ（iOS / Android）を開発中です。" }
+      }
+    ]
+  }
+  </script>
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -270,6 +319,30 @@
     .privacy-block ul li::before { content: '🔒'; flex-shrink: 0; }
     .privacy-block .link-row { margin-top: 16px; font-size: 0.87rem; font-weight: 750; }
 
+    /* ── FAQ ── */
+    .faq-list { display: flex; flex-direction: column; gap: 10px; max-width: 720px; margin: 0 auto; }
+    .faq-item {
+      background: var(--bg-card);
+      border: 1px solid var(--border-lite);
+      border-radius: 14px;
+      box-shadow: var(--shadow);
+      overflow: hidden;
+    }
+    .faq-item summary {
+      cursor: pointer;
+      list-style: none;
+      padding: 15px 18px;
+      font-size: 0.92rem;
+      font-weight: 900;
+      color: var(--text-dark);
+      display: flex;
+      gap: 10px;
+      align-items: baseline;
+    }
+    .faq-item summary::-webkit-details-marker { display: none; }
+    .faq-item summary::before { content: 'Q.'; color: var(--accent); font-weight: 950; flex-shrink: 0; }
+    .faq-item p { padding: 0 18px 15px 40px; font-size: 0.87rem; color: var(--text-mid); font-weight: 700; }
+
     /* ── SUPPORT ── */
     .support-wrap { text-align: center; }
     .support-wrap p { color: var(--text-mid); font-size: 0.92rem; font-weight: 750; margin-bottom: 24px; }
@@ -476,6 +549,42 @@
         <li>アンインストールすると保存データもすべて削除されます</li>
       </ul>
       <div class="link-row">詳細は<a href="privacy.html">プライバシーポリシー</a>をご覧ください。</div>
+    </div>
+  </div>
+</section>
+
+<!-- FAQ -->
+<section>
+  <div class="container">
+    <h2 class="section-title">よくある質問</h2>
+    <p class="section-sub">導入前の疑問にお答えします</p>
+    <div class="faq-list">
+
+      <details class="faq-item">
+        <summary>無料で使えますか？</summary>
+        <p>はい。課題の自動収集・締切通知・ダッシュボードなどの基本機能はすべて無料で利用できます。Chrome Web Store / Microsoft Edge Add-onsからインストールするだけで、料金は一切かかりません。</p>
+      </details>
+
+      <details class="faq-item">
+        <summary>LETUSのパスワードやログイン情報は安全ですか？</summary>
+        <p>ログインID・パスワードは一切読み取りません。この拡張機能はブラウザ上ですでにログイン済みのセッションを利用して課題ページを読み取るだけで、収集したデータはブラウザ内のローカルストレージにのみ保存されます。外部サーバーへの送信は行いません。</p>
+      </details>
+
+      <details class="faq-item">
+        <summary>東京理科大学の公式ツールですか？</summary>
+        <p>いいえ。理科大生の有志による個人開発の非公式ツールです。大学およびLETUS（Moodle）の運営とは関係ありません。</p>
+      </details>
+
+      <details class="faq-item">
+        <summary>どのブラウザで使えますか？</summary>
+        <p>Google ChromeとMicrosoft Edgeに対応しています。それぞれChrome Web Store / Microsoft Edge Add-onsから無料でインストールできます。</p>
+      </details>
+
+      <details class="faq-item">
+        <summary>スマートフォンでも使えますか？</summary>
+        <p>現在はPC版のChrome / Edgeのみ対応です。スマホ単体でLETUSの課題通知を受け取れるモバイルアプリ（iOS / Android）を開発中です。詳しくは「今後の展望」をご覧ください。</p>
+      </details>
+
     </div>
   </div>
 </section>
