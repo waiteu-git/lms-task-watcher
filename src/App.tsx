@@ -61,7 +61,15 @@ import {
 import { createNotification, normalizeUpdateError } from './utils/notification'
 import { AssignmentCard } from './components/AssignmentCard'
 import { CollapsibleSection, Section } from './components/Section'
-import { getTheme, saveTheme } from './core/premium'
+import {
+  getTheme,
+  saveTheme,
+  getNotificationRules,
+  saveNotificationRules,
+  syncToServer,
+  pullSettingsFromServer,
+} from './core/premium'
+import { DEFAULT_THRESHOLDS, type NotificationRules } from './background/notificationRules'
 import { saveSubscriptionCache, isSubscriptionActive, clearAuthSession, getAuthToken, getAuthEmail, getSubscriptionCurrentPeriodEnd } from './core/auth'
 import { getOnboardingCompleted, setOnboardingCompleted } from './core/onboarding'
 import { OnboardingBanner } from './components/OnboardingBanner'
@@ -109,6 +117,11 @@ export default function App() {
   const [accountEmail, setAccountEmail] = useState<string | null>(null)
   const [nextPaymentDate, setNextPaymentDate] = useState<string | null>(null)
   const [theme, setTheme] = useState('default')
+  const [notificationRules, setNotificationRules] = useState<NotificationRules>({
+    version: 1,
+    defaultThresholds: DEFAULT_THRESHOLDS,
+    courseOverrides: {},
+  })
   const [message, setMessage] = useState('')
   const [showOnboarding, setShowOnboarding] = useState(false)
   const hasAutoRefreshCheckedRef = useRef(false)
@@ -272,6 +285,14 @@ export default function App() {
         }
       } else {
         setIsSubscriber(false)
+      }
+
+      const savedRules = await getNotificationRules()
+      if (savedRules) setNotificationRules(savedRules)
+      if (API_BASE_URL) {
+        await pullSettingsFromServer(API_BASE_URL)
+        const pulledRules = await getNotificationRules()
+        if (pulledRules) setNotificationRules(pulledRules)
       }
     })()
   }, [])
@@ -761,6 +782,20 @@ export default function App() {
     setAssignmentScanStatus(initialAssignmentScanStatus)
     setDeadlineScanStatus(initialDeadlineScanStatus)
     setMessage('更新状態を停止しました。裏側の処理が残る場合は少し待ってから再実行してください。')
+  }
+
+  const persistNotificationRules = async (next: NotificationRules) => {
+    setNotificationRules(next)
+    await saveNotificationRules(next)
+    if (API_BASE_URL) void syncToServer(API_BASE_URL)
+  }
+
+  const toggleDefaultThreshold = (hours: number) => {
+    const has = notificationRules.defaultThresholds.includes(hours)
+    const nextThresholds = has
+      ? notificationRules.defaultThresholds.filter((h) => h !== hours)
+      : [...notificationRules.defaultThresholds, hours].sort((a, b) => a - b)
+    void persistNotificationRules({ ...notificationRules, defaultThresholds: nextThresholds })
   }
 
   async function toggleCourse(courseId: string) {
@@ -1391,6 +1426,25 @@ export default function App() {
                         }}
                       >
                         {t === 'default' ? '標準' : 'ダーク'}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="notificationRulesSection">
+                  <p className="premiumSectionLabel">通知タイミング（全体）</p>
+                  <p className="notificationHint">
+                    締切の何時間前に通知するかを選べます。快適機能のアンロックと、このサービスの開発・運営を支える支援です。
+                  </p>
+                  <div className="thresholdChips">
+                    {[1, 3, 6, 12, 24, 48, 72].map((hours) => (
+                      <button
+                        key={hours}
+                        type="button"
+                        className={`thresholdChip ${notificationRules.defaultThresholds.includes(hours) ? 'active' : ''}`}
+                        onClick={() => toggleDefaultThreshold(hours)}
+                      >
+                        {hours}時間前
                       </button>
                     ))}
                   </div>

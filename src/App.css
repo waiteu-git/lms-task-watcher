@@ -1799,3 +1799,36 @@ button:disabled {
   border-color: #10b981;
   color: #065f46;
 }
+
+.notificationRulesSection {
+  margin-top: 12px;
+}
+
+.notificationHint {
+  font-size: 11px;
+  color: #64748b;
+  margin: 4px 0 8px;
+}
+
+.thresholdChips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.thresholdChip {
+  padding: 4px 10px;
+  border-radius: 999px;
+  border: 1px solid #ddd6fe;
+  background: #fff;
+  color: #4f46e5;
+  font-size: 11px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.thresholdChip.active {
+  background: #4f46e5;
+  color: #fff;
+  border-color: #4f46e5;
+}
