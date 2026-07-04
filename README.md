@@ -1,6 +1,10 @@
 # LETUS Task Watcher
 
-東京理科大学のLMS（LETUS）の課題期限を自動収集・通知するChrome拡張機能です。
+東京理科大学のLMS（LETUS）の課題期限を自動収集・通知するブラウザ拡張機能です。
+
+- **公式サイト**: https://lms.waiteu.dev/
+- **Chrome Web Store**: https://chromewebstore.google.com/detail/letus-task-watcher/eofgkmpiadoeckkliialkddacidcinml
+- **Microsoft Edge Add-ons**: https://microsoftedge.microsoft.com/addons/detail/femdjgdgelnbdpgnfehacobmpbfmbdoa
 
 ## 機能
 
