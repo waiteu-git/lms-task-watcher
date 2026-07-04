@@ -4,6 +4,12 @@
 
 ---
 
+## 2026-07-04 — source-availableライセンス追加（main / develop）
+
+公開リポジトリが第三者（類似アプリ開発者）にcloneされロジックを参照されている事実を確認。ユーザーによる監査可能性のため公開は維持しつつ、閲覧・監査・動作確認目的のビルドのみ許可し、複製・転用・再配布（ストア公開含む）・商用利用を禁止する独自ライセンス（日英併記、日本語優先）を`LICENSE`として追加、READMEに「オープンソースではない」旨を明記。main（`371c869`）とdevelop（`65e0160`）の両方にコミット。qa/v1.1.x-releaseは未反映。
+
+---
+
 ## 2026-07-04 — カスタム通知ルール（Phase B②）実装完了
 
 Subagent-Driven Developmentで6タスク実装（コミット`1b19756`〜`c3911a5`）＋最終レビュー後の修正`ce061b5`。tsc0・src vitest 126/126・api jest 61/61。設計: `docs/superpowers/specs/2026-07-04-custom-notification-rules-design.md`、計画: `docs/superpowers/plans/2026-07-04-custom-notification-rules.md`。
