@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import type { ManualAssignment } from '../core/manualAssignment'
 import {
   sortManualByDeadline,
@@ -8,6 +8,17 @@ import {
   getManualLater,
   getManualSubmitted,
 } from './manualAssignment'
+
+// 「明日」「今週」の判定は実行時刻に依存するため、正午に固定して決定論化する
+// （例: 18時以降に実行すると now+30h は明日ではなく明後日になり、実時刻では結果が変わる）
+beforeEach(() => {
+  vi.useFakeTimers()
+  vi.setSystemTime(new Date('2026-06-29T12:00:00'))
+})
+
+afterEach(() => {
+  vi.useRealTimers()
+})
 
 function makeAssignment(overrides?: Partial<ManualAssignment>): ManualAssignment {
   return {

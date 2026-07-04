@@ -38,7 +38,7 @@ step() {
 step install pnpm install --frozen-lockfile
 step build pnpm build
 step lint pnpm lint
-step vitest pnpm exec vitest run
+step vitest pnpm exec vitest run src
 step api-install bash -c 'cd api && npm ci --no-audit --no-fund'
 step api-test bash -c 'cd api && npm test'
 
