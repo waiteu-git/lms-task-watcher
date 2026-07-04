@@ -136,44 +136,55 @@
 
 ---
 
-## v1.3.0: データ同期基盤
+## v1.2.0 Phase B残・Phase C（2026-07-04 無料開放ファースト改定を反映）
 
-- [ ] **バックエンド: `POST /api/assignments` エンドポイントを追加**
-  - JWT認証（既存auth基盤を流用）
-  - ユーザーIDに紐づいてSQLiteに保存
+無料/有料の線引きを「同期=有料」から「快適装備=有料」へ変更する（詳細: `docs/superpowers/specs/2026-07-04-free-first-strategy-design.md`）。Phase C（Web Store申請）はこれらの完了後に行う。
 
-- [ ] **バックエンド: `GET /api/assignments` エンドポイントを追加**
-  - モバイルアプリ向け読み取りAPI
+- [ ] **entitlement変更の実装**（設計・計画確定済み、未着手）
+  - 詳細設計: `docs/superpowers/specs/2026-07-04-free-first-entitlement-design.md`
+  - 実装計画: `docs/superpowers/plans/2026-07-04-free-first-entitlement.md`
+  - メモ・優先度・テーマのサブスクゲートを撤去（無料開放）、`PremiumGate.tsx`（未使用）を削除、`ProBanner`の機能リストをカスタム通知ルール・Discordのみに更新
+  - バックエンド変更なし（同期は既に無料アカウント対応済み）
 
-- [ ] **background/index.ts: スキャン完了後にバックエンドへPUSH**
-  - ログイン済みの場合のみ実行
-  - 未ログイン時は従来のローカル保存のみ
+- [ ] **パス型決済の追加**（半期¥720・年¥1,200の一回払い、クレカ不要のコンビニ・PayPay対応）
+  - 前提調査: StripeのPayPay・コンビニ決済の現行対応状況・制約の確認
+  - 月額¥120はカード派向けに併存
 
-- [ ] **lifecycleStatus 'new' / 'changed' の付与ロジックを実装**
-  - `firstSeenAt` が直近のスキャンと一致 → `'new'`
-  - `deadline` または `title` が前回と差異あり → `'changed'`
-  - AssignmentCard.tsx にバッジ表示を追加
+- [ ] **統計・振り返り機能／スヌーズ**（任意、後ろ倒し可）
+  - v1.2.x後半またはv2.0.xへ先送り可（Phase Cの必須条件ではない）
+
+- [ ] **Phase C: Chrome Web Storeへv1.2.0を申請**
+  - entitlement変更＋パス型決済の完了後、付加価値機能込みで一括申請
 
 ---
 
-## v2.0.0: モバイルアプリ（課題管理＋時間割連携）
+## v2.0.0: モバイルアプリ単体完結（2026-07-04 アーキテクチャ全面改定）
 
-v1.3.0のAPIを土台にReact Nativeアプリを新規リリースする。詳細設計は `docs/superpowers/specs/2026-06-28-mobile-app-design.md` を参照。時間割連携は独立フェーズではなく初期リリースに含める（[2026-07-01-version-roadmap-design.md](docs/superpowers/specs/2026-07-01-version-roadmap-design.md) 参照）。
+**旧「拡張=収集エンジン、アプリ=ビューア」構成、および旧v1.3.0（データ同期基盤の独立バージョン化）は廃止。** 新方針はアプリ単体完結（B案）: アプリ内WebViewでLETUS/CLASSにSSOログインし、アプリ側で直接収集する。拡張機能は「PC派の収集源＋PCダッシュボード」というサブ機能に再定位される。
 
-### 課題管理（既存設計を踏襲）
+詳細設計: `docs/superpowers/specs/2026-07-04-free-first-strategy-design.md`（上位方針）、`docs/superpowers/specs/2026-07-04-v2.0.0-mobile-app-initial-design.md`（初版実装設計、CLASS時間割ページの実地調査結果を含む）。
 
-- [ ] React Native（Expo）プロジェクトのセットアップ
-- [ ] ログイン・課題一覧・課題詳細・設定画面の実装
-- [ ] Expo Push Notificationsによるプッシュ通知連携
+**背景（重要）:** 競合開発者（Android版「TUSapp」を計画中）の存在が判明。相手のAPK配布前にモバイルプッシュ通知を出すことが最優先事項。
 
-### 時間割連携（新規スコープ）
+**タイムライン:** 2026年9月（後期開始）までに初版公開 → 後期で実デバッグ・安定化 → 2027年4月に新入生へ本格展開。
 
-- [ ] **CLASSシステムの調査**
-  - ドメイン確認
-  - 授業IDとLETUSコースIDの対応関係を確認
-  - データ取得方法（スクレイピング可否・API有無）の確認 → 結果を元にmobile-app-design.mdに詳細設計を追記
+### 初版スコープ（最小コア、「課題通知＋時間割閲覧＋見張り番プッシュ」に限定）
 
-- [ ] **バックエンド: `POST/GET /api/timetable` エンドポイントを追加**
+- [ ] React Native（Expo managed・TypeScript）プロジェクトのセットアップ（モノレポ`app/`ディレクトリ）
+- [ ] LETUS収集: WebViewのSSOセッションCookie→fetch＋HTMLパース（`background.js`の収集ロジックをTS移植）
+- [ ] CLASS収集: 非表示WebViewでメニュー遷移→時間割ページ（`Kmd008`）をDOMパース（付録Aのセレクタ・時限時刻表を使用）
+- [ ] ローカルDB（expo-sqlite）・期限前ローカル通知＋朝まとめ（無料はローカル予約、サブスクはサーバープッシュ）
+- [ ] 見張り番プッシュ（サブスクのみ、未提出のみ24h→6h→1hエスカレーション、提出検知で自動停止）
+- [ ] バックエンド: `POST /api/devices/token`（Expoプッシュトークン登録）・`PUT /api/v2/assignments/state`（サブスクのみ、見張り番の判定材料）
+- [ ] 画面: 課題一覧・時間割グリッド・設定（購入導線はWebのlms.waiteu.devへ誘導、Apple IAP回避）
 
-- [ ] **モバイルアプリ: 時間割グリッド画面**
-  - コマをタップで対応するLETUSコース詳細に遷移
+### v2.0.x以降へ先送り（初版に含めない、確定済み）
+
+- 手動課題追加・優先度/メモ編集・拡張↔アプリ同期・ホーム画面ウィジェット・スヌーズ・統計・カスタム通知ルールのモバイル移植
+
+### 実装前の要検証事項
+
+- LETUS/大学SSOのCookie寿命（WebView再ログイン体験）
+- モバイルUAでCLASSがスマホ版へ誘導される場合の挙動（PC版UA固定 or スマホ版パーサーの判断）
+- Expo Push実機疎通（APNs/FCM）
+- LETUS収集ロジックのTS移植時、React Native環境での動作可否（DOMParser代替の要否）
