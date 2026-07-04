@@ -1832,3 +1832,33 @@ button:disabled {
   color: #fff;
   border-color: #4f46e5;
 }
+
+.courseRuleRow {
+  border-top: 1px solid #f1f5f9;
+  padding: 8px 0;
+}
+
+.courseRuleHead {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.courseRuleBody {
+  margin: 8px 0 0 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.muteToggle {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  color: #475569;
+  cursor: pointer;
+}

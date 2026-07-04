@@ -798,6 +798,40 @@ export default function App() {
     void persistNotificationRules({ ...notificationRules, defaultThresholds: nextThresholds })
   }
 
+  const toggleCourseOverride = (courseId: string) => {
+    const overrides = { ...notificationRules.courseOverrides }
+    if (overrides[courseId]) {
+      delete overrides[courseId]
+    } else {
+      overrides[courseId] = { muted: false, thresholds: [...notificationRules.defaultThresholds] }
+    }
+    void persistNotificationRules({ ...notificationRules, courseOverrides: overrides })
+  }
+
+  const toggleCourseMuted = (courseId: string) => {
+    const current = notificationRules.courseOverrides[courseId]
+    if (!current) return
+    const overrides = {
+      ...notificationRules.courseOverrides,
+      [courseId]: { ...current, muted: !current.muted },
+    }
+    void persistNotificationRules({ ...notificationRules, courseOverrides: overrides })
+  }
+
+  const toggleCourseThreshold = (courseId: string, hours: number) => {
+    const current = notificationRules.courseOverrides[courseId]
+    if (!current) return
+    const has = current.thresholds.includes(hours)
+    const nextThresholds = has
+      ? current.thresholds.filter((h) => h !== hours)
+      : [...current.thresholds, hours].sort((a, b) => a - b)
+    const overrides = {
+      ...notificationRules.courseOverrides,
+      [courseId]: { ...current, thresholds: nextThresholds },
+    }
+    void persistNotificationRules({ ...notificationRules, courseOverrides: overrides })
+  }
+
   async function toggleCourse(courseId: string) {
     const updatedCourses = courses.map((course) => {
       if (course.id !== courseId) {
@@ -1448,6 +1482,57 @@ export default function App() {
                       </button>
                     ))}
                   </div>
+                </div>
+
+                <div className="notificationRulesSection">
+                  <p className="premiumSectionLabel">通知タイミング（コース別）</p>
+                  {courses.length === 0 ? (
+                    <p className="notificationHint">
+                      LETUSのコースを開くと、ここでコース別に設定できます。
+                    </p>
+                  ) : (
+                    courses.map((course) => {
+                      const override = notificationRules.courseOverrides[course.id]
+                      return (
+                        <div key={course.id} className="courseRuleRow">
+                          <label className="courseRuleHead">
+                            <input
+                              type="checkbox"
+                              checked={Boolean(override)}
+                              onChange={() => toggleCourseOverride(course.id)}
+                            />
+                            <span>{course.name}</span>
+                          </label>
+                          {override && (
+                            <div className="courseRuleBody">
+                              <label className="muteToggle">
+                                <input
+                                  type="checkbox"
+                                  checked={override.muted}
+                                  onChange={() => toggleCourseMuted(course.id)}
+                                />
+                                <span>このコースをミュート</span>
+                              </label>
+                              {!override.muted && (
+                                <div className="thresholdChips">
+                                  {[1, 3, 6, 12, 24, 48, 72].map((hours) => (
+                                    <button
+                                      key={hours}
+                                      type="button"
+                                      className={`thresholdChip ${override.thresholds.includes(hours) ? 'active' : ''}`}
+                                      onClick={() => toggleCourseThreshold(course.id, hours)}
+                                    >
+                                      {hours}時間前
+                                    </button>
+                                  ))}
+                                </div>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                      )
+                    })
+                  )}
                 </div>
 
                 <button
