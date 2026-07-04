@@ -22,19 +22,26 @@
    # MOODLE_ICAL_URL=https://letus.ed.tus.ac.jp/calendar/export.php?...&authtoken=...
    ```
 
-2. スケジュールはWindowsタスクスケジューラで登録（WSL停止中でも起動される）:
+2. 固定ランチャーを設置（スクリプト本体は実行前にCIクローン経由でorigin/developへ自動同期される）:
+
+   ```bash
+   cp ~/dev/lms-task-watcher/ops/run.sh ~/ops/run.sh && chmod +x ~/ops/run.sh
+   ```
+
+3. スケジュールはWindowsタスクスケジューラで登録（WSL停止中でも起動される）:
 
    ```cmd
-   schtasks /create /f /tn LMS-Nightly        /sc daily  /st 03:30 /tr "wsl.exe -d Ubuntu -u ysou5 -- bash -lc /home/ysou5/dev/lms-task-watcher/ops/nightly.sh"
-   schtasks /create /f /tn LMS-RaspiHealth    /sc daily  /st 07:00 /tr "wsl.exe -d Ubuntu -u ysou5 -- bash -lc /home/ysou5/dev/lms-task-watcher/ops/raspi-health.sh"
-   schtasks /create /f /tn LMS-Canary         /sc daily  /st 07:30 /tr "wsl.exe -d Ubuntu -u ysou5 -- bash -lc /home/ysou5/dev/lms-task-watcher/ops/canary.sh"
-   schtasks /create /f /tn LMS-CompetitorWatch /sc weekly /d MON /st 09:00 /tr "wsl.exe -d Ubuntu -u ysou5 -- bash -lc /home/ysou5/dev/lms-task-watcher/ops/competitor-watch.sh"
+   schtasks /create /f /tn LMS-Nightly         /sc daily  /st 03:30 /tr "wsl.exe -d Ubuntu -u ysou5 -- /home/ysou5/ops/run.sh nightly"
+   schtasks /create /f /tn LMS-RaspiHealth     /sc daily  /st 07:00 /tr "wsl.exe -d Ubuntu -u ysou5 -- /home/ysou5/ops/run.sh raspi-health"
+   schtasks /create /f /tn LMS-Canary          /sc daily  /st 07:30 /tr "wsl.exe -d Ubuntu -u ysou5 -- /home/ysou5/ops/run.sh canary"
+   schtasks /create /f /tn LMS-CompetitorWatch /sc weekly /d MON /st 09:00 /tr "wsl.exe -d Ubuntu -u ysou5 -- /home/ysou5/ops/run.sh competitor-watch"
    ```
 
    注意: タスクは「ユーザーがログオンしているときのみ」実行される既定設定。
    デスクトップ再起動後は一度ログオンが必要。
 
-3. デプロイ = このリポジトリを `~/dev/lms-task-watcher` で `git pull` するだけ。
+4. デプロイ = `origin/develop` にpushするだけ（実行前に自動でfetch/resetされる）。
+   `run.sh` 自体を変更した場合のみ、手順2の再コピーが必要。
 
 ## ファイル配置（デスクトップ、リポジトリ外）
 
