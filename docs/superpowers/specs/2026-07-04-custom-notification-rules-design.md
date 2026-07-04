@@ -103,11 +103,13 @@ export function pickThresholdToNotify(
 
 ### サーバー
 
-- `user_settings` に `notification_rules TEXT`（JSON文字列、nullable）と `notification_rules_updated_at TEXT`（ISO、nullable）カラムを追加
-- `POST /api/user/settings` を拡張して `notificationRules` も受理。**`notificationRules` が本文に含まれる時だけ** `notification_rules` と `notification_rules_updated_at`（= `datetime('now')`）を更新する。`GET /api/user/settings` は `theme`・`notificationRules`・`notificationRulesUpdatedAt` を返す
-- `syncToServer`（`src/core/premium.ts`）の settings POST body に `notificationRules` を追加
+- `user_settings` に `notification_rules TEXT`（JSON文字列、nullable）と `notification_rules_updated_at TEXT`（ISO文字列、nullable）カラムを追加
+- `POST /api/user/settings` を拡張し `theme`・`notificationRules`・`notificationRulesUpdatedAt` を受理（すべて任意）。行が無ければ `INSERT OR IGNORE` で作成し、`theme` が来た時だけ theme を、`notificationRules` が来た時だけ `notification_rules` と `notification_rules_updated_at`（= クライアント供給の `notificationRulesUpdatedAt` をそのまま保存）を更新する。`GET /api/user/settings` は `theme`・`notificationRules`（パース済み or null）・`notificationRulesUpdatedAt`（or null）を返す
+- `syncToServer`（`src/core/premium.ts`）の settings POST body に `notificationRules` と `notificationRulesUpdatedAt` を追加
 
-**専用タイムスタンプの理由:** `user_settings.updated_at` は単一カラムで theme 更新でも動く。テーマはデバイスローカルだが現状サーバーへ push されるため、`updated_at` を LWW に使うと「テーマ変更が rules のタイムスタンプを押し上げ、別デバイスの新しいローカル rules を古いサーバー rules で誤クロバーする」不整合が起きる。これを避けるため rules 専用の `notification_rules_updated_at` を rules 変更時のみ更新し、LWW はこれで判定する（テーマの push 挙動は不変）。
+**専用タイムスタンプの理由:** `user_settings.updated_at` は単一カラムで theme 更新でも動く。テーマはデバイスローカルだが現状サーバーへ push されるため、`updated_at` を LWW に使うと「テーマ変更が rules のタイムスタンプを押し上げ、別デバイスの新しいローカル rules を古いサーバー rules で誤クロバーする」不整合が起きる。これを避けるため rules 専用の `notification_rules_updated_at` を rules 変更時のみ更新する。
+
+**タイムスタンプはクライアント供給のISOで統一:** サーバーの `datetime('now')` は `'YYYY-MM-DD HH:MM:SS'`（TZ表記なし）で、クライアントの `toISOString()`（`...Z`）と形式が異なり、`new Date()` 比較でTZずれの誤判定を招く。これを避けるため、ローカルでルール編集時に `notificationRulesUpdatedAt = new Date().toISOString()` を生成し、push でサーバーへ渡してそのまま保存、GET でも同じISO文字列を返す。LWW比較は全てISO文字列同士で行う（単一ユーザーの数台程度では端末時計の差は無視できる）。
 
 ### 同期方向（push＋pull、last-write-wins）
 
