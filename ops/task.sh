@@ -292,6 +292,46 @@ cmd_collect() {
   fi
 }
 
+# clean: tmux kill → worktree削除 → stateディレクトリ削除。ブランチは残す。
+# 未コミット変更 or base未マージコミットがあれば --force なしでは拒否する。
+cmd_clean() {
+  local name="" force=0
+  while [ $# -gt 0 ]; do
+    case "$1" in
+      --force) force=1; shift ;;
+      -*)      die "clean: 不明なオプション '$1'" ;;
+      *)       name="$1"; shift ;;
+    esac
+  done
+  require_task "$name"
+  local d="$STATE_ROOT/task-$name" meta base wt
+  meta="$d/meta.json"
+  base="$(meta_field "$meta" base)"; wt="$(meta_field "$meta" worktree)"
+
+  if [ "$force" -eq 0 ] && [ -d "$wt" ]; then
+    local dirty unmerged
+    dirty="$(git -C "$wt" status --short 2>/dev/null || true)"
+    unmerged=$(git -C "$wt" log --oneline "${base:-HEAD}"..HEAD 2>/dev/null | wc -l | tr -d ' ')
+    if [ -n "$dirty" ]; then
+      die "clean拒否: '$name' に未コミット変更があります。取り込んでから、または 'clean $name --force' で強制削除してください"
+    fi
+    if [ "${unmerged:-0}" -gt 0 ]; then
+      die "clean拒否: '$name' に $base 未マージのコミットが ${unmerged}件あります。取り込んでから、または 'clean $name --force' で強制削除してください"
+    fi
+  fi
+
+  tmux kill-session -t "task-$name" 2>/dev/null || true
+  if [ -d "$wt" ]; then
+    local rmflag=""
+    [ "$force" -eq 1 ] && rmflag="--force"
+    git -C "$REPO_DIR" worktree remove $rmflag "$wt" 2>/dev/null \
+      || die "worktree削除に失敗しました: $wt（未コミット変更が残っている可能性。--force を検討）"
+  fi
+  git -C "$REPO_DIR" worktree prune 2>/dev/null || true
+  rm -rf "$d"
+  echo "[task.sh] clean完了: $name（tmux kill・worktree削除・state削除）。ブランチ task/$name は保持"
+}
+
 usage() {
   cat <<'EOF'
 task.sh — 自走タスクランチャーCLI（1タスク=1worktree=1tmux）
@@ -317,6 +357,7 @@ main() {
     status)          cmd_status "$@" ;;
     peek)            cmd_peek "$@" ;;
     collect)         cmd_collect "$@" ;;
+    clean)           cmd_clean "$@" ;;
     notify)          cmd_notify "$@" ;;
     event)           cmd_event "$@" ;;
     ""|-h|--help|help) usage ;;
