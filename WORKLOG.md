@@ -4,6 +4,20 @@
 
 ---
 
+## 2026-07-04 — ops自動化基盤（トークン消費ゼロの定期監視）構築
+
+デスクトップ（dev-desktop/WSL2）で定期実行する監視スクリプト群 `ops/` を追加（`d1fb736`〜`2865382`）。定常運転はLLM不使用・Discord webhook通知のみ（webhook設定は保留中、未設定時はstdoutフォールバック）。
+
+- `ops/nightly.sh`（毎日03:30）: origin/developのCIクローンで install/build/lint/vitest(src)/api-test。**初回実行でmanualAssignment.test.tsの時刻依存バグを検出**→フェイクタイマー固定で修正（`248b90b`、18時以降実行でnow+30hが「明後日」になり失敗する問題）
+- `ops/canary.sh`（毎日07:30）: LETUSログインページ生存+DOMマーカー、iCal形式（MOODLE_ICAL_URL設定時）。Stage B（実セッションでのパーサ実走）は認証方式決定後
+- `ops/raspi-health.sh`（毎日07:00）: 公開API/内部API/ディスク/バックアップ最終実行結果（バックアップHDDは実行時のみマウントされる設計と確認、systemctl showで判定）
+- `ops/competitor-watch.sh`（毎週月09:00）: LETask（App Store id 6762050344, iOS, カレンダーリンク方式, 2026-04リリース）のバージョン・評価数の変化検知
+- 実行系: Windowsタスクスケジューラ→`wsl.exe`→固定ランチャー`~/ops/run.sh`（実行前にCIクローンをorigin/developへ同期。開発ツリーの未push/divergedに非依存）。スケジューラ経由のE2Eで結果コード0確認
+- 秘密情報は `~/ops/ops.env`（リポジトリ外）。Discordの#ops-alerts+webhook作成はBotトークン流用が自動ガードで停止→ユーザー判断待ち
+- メモ: デスクトップ開発ツリーに未pushコミット`f5f315f`あり（別セッションの作業、touch せず）
+
+---
+
 ## 2026-07-04 — リポジトリ非公開化＋透明性レポートページ公開
 
 方針転換: ソース公開の信頼効果は限定的（拡張は配布物から誰でも検証可能）と判断し、リポジトリをprivate化。代わりに「わかる人向け」の技術検証文書 `landing/transparency.html`（https://lms.waiteu.dev/transparency）を公開（`47f74ed`）。内容: 通信先はletus.ed.tus.ac.jpのみ・host_permissionsによる技術的保証・自分で検証する3手順（インストール済みコード閲覧/Service WorkerのNetwork監視/storage確認）・ソース公開方針（監査目的の閲覧は問い合わせで対応）・脆弱性報告窓口。未リリース機能（v1.2.0のAPI同期）には触れず「通信先が増える場合はリリース時に更新」とだけ記載。
