@@ -4,6 +4,14 @@
 
 ---
 
+## 2026-07-04 — リポジトリ非公開化＋透明性レポートページ公開
+
+方針転換: ソース公開の信頼効果は限定的（拡張は配布物から誰でも検証可能）と判断し、リポジトリをprivate化。代わりに「わかる人向け」の技術検証文書 `landing/transparency.html`（https://lms.waiteu.dev/transparency）を公開（`47f74ed`）。内容: 通信先はletus.ed.tus.ac.jpのみ・host_permissionsによる技術的保証・自分で検証する3手順（インストール済みコード閲覧/Service WorkerのNetwork監視/storage確認）・ソース公開方針（監査目的の閲覧は問い合わせで対応）・脆弱性報告窓口。未リリース機能（v1.2.0のAPI同期）には触れず「通信先が増える場合はリリース時に更新」とだけ記載。
+
+- landing/index.html・privacy.htmlのフッターGitHubリンク→透明性レポートに差し替え（404回避）、sitemap.xmlに追加
+- private化はGitHub API（PATCH、既存credential使用）で実行、200確認
+- 事後検証: 未認証API=404（非公開確認）／ラズパイfetch=OK（SSH鍵認証のため影響なし）／Cloudflare Pagesデプロイ=OK（transparency 200）
+
 ## 2026-07-04 — source-availableライセンス追加（main / develop）
 
 公開リポジトリが第三者（類似アプリ開発者）にcloneされロジックを参照されている事実を確認。ユーザーによる監査可能性のため公開は維持しつつ、閲覧・監査・動作確認目的のビルドのみ許可し、複製・転用・再配布（ストア公開含む）・商用利用を禁止する独自ライセンス（日英併記、日本語優先）を`LICENSE`として追加、READMEに「オープンソースではない」旨を明記。main（`371c869`）とdevelop（`65e0160`）の両方にコミット。qa/v1.1.x-releaseは未反映。
