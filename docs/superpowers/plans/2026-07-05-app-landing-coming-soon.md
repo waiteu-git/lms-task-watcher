@@ -21,6 +21,9 @@
 - Xハンドルは `@yning_y2`（`twitter:site` とフォローCTAに使用）。
 - v2.0.x内で実装予定の全機能に言及する（「公開時に使える」＝v2.0.0初版 と「順次追加予定」＝v2.0.x を分けて掲載）。後送り機能は必ず「予定」と明記し過度な約束を避ける。
 - 有料予定の機能（見張り番）は機能名のみ掲載し、価格は載せない（[feedback_pricing_display]）。
+- アプリ名（ブランド）は **リタス**（カタカナが主表記）。ローマ字サブ表記は **Litas**（L始まりで旧LETUSの名残）。副題は「東京理科大 非公式・LETUS/CLASS対応」。拡張機能名「LETUS Task Watcher」は据え置き、コード/内部識別子はコード名を継続。
+- リタスのアイコンは既存マーク（`public/favicon.svg` のジグザグ形）を**翠（ティール #0f9e75）に色替え**して使う。拡張機能は現行紫のまま。レタス（LETUS≒lettuce）のオマージュとして翠を採用。
+- 英字 "Litas" は国際的に既存アプリ/暗号資産と衝突するため、新規ドメイン(litas.io等)やハンドルは取りに行かない。ランディングは `lms.waiteu.dev/app`、Xは `@yning_y2` を使う。ローマ字はロゴのサブ表記に留める。
 
 ---
 
@@ -218,8 +221,27 @@ git commit -m "feat(api): waitlist table + POST /api/waitlist for app pre-regist
 `landing/app.html` を新規作成する。次の3ブロックは `landing/index.html` から**バイト単位でそのままコピー**して使う（新規デザインを起こさない）:
 
 - `<style> ... </style>` ブロック全体（`landing/index.html:69-379`）
-- `<header> ... </header>` ブロック（`landing/index.html:384-392`）
 - `<footer> ... </footer>` ブロック（`landing/index.html:711-719`）
+
+`<header>`（`landing/index.html:384-392`）は構造・CSSクラスは流用しつつ、以下だけ差し替える（app.html用のブランドに合わせる）:
+- ロゴ画像 `img src="icon-128.png"`（紫）→ 翠のインラインSVGマーク（下記）。ブランド名テキスト `LETUS Task Watcher` → `リタス`
+- 右上の「インストール（無料）」CWSボタン → 「PC版はこちら」（`href="index.html"`）に変更（app.htmlはまだインストール先が無いため）
+
+app.html用ヘッダー:
+
+```html
+<header>
+  <div class="inner">
+    <div class="logo">
+      <span class="logo-mark" aria-hidden="true">
+        <svg width="26" height="25" viewBox="0 0 48 46" fill="none"><path fill="#0f9e75" d="M25.946 44.938c-.664.845-2.021.375-2.021-.698V33.937a2.26 2.26 0 0 0-2.262-2.262H10.287c-.92 0-1.456-1.04-.92-1.788l7.48-10.471c1.07-1.497 0-3.578-1.842-3.578H1.237c-.92 0-1.456-1.04-.92-1.788L10.013.474c.214-.297.556-.474.92-.474h28.894c.92 0 1.456 1.04.92 1.788l-7.48 10.471c-1.07 1.498 0 3.579 1.842 3.579h11.377c.943 0 1.473 1.088.89 1.83L25.947 44.94z"/></svg>
+      </span>
+      <span>リタス</span>
+    </div>
+    <a href="index.html" class="btn-cws">PC版はこちら</a>
+  </div>
+</header>
+```
 
 `<head>` のmeta類は以下に差し替える（app.html専用のcanonical/OGP/構造化データ）:
 
@@ -229,28 +251,29 @@ git commit -m "feat(api): waitlist table + POST /api/waitlist for app pre-regist
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>LETUS Task Watcher モバイルアプリ | スマホだけでLETUSの課題通知（近日公開・事前登録受付中）</title>
-  <meta name="description" content="東京理科大学LETUSの課題締切をスマホ単体で通知するモバイルアプリ（iOS / Android）。CLASS時間割の閲覧にも対応。2026年後期の公開に向けて開発中。メール事前登録で公開時にお知らせします。">
+  <title>リタス（Litas）| 東京理科大の課題通知アプリ・LETUS/CLASS対応（近日公開・事前登録受付中）</title>
+  <meta name="description" content="リタス（Litas）は、東京理科大学LETUSの課題締切をスマホ単体で通知する非公式モバイルアプリ（iOS / Android）。CLASS時間割の閲覧にも対応。2026年後期の公開に向けて開発中。メール事前登録で公開時にお知らせします。">
   <link rel="canonical" href="https://lms.waiteu.dev/app">
   <meta property="og:type"        content="website">
   <meta property="og:url"         content="https://lms.waiteu.dev/app">
-  <meta property="og:title"       content="LETUS Task Watcher モバイルアプリ — 近日公開">
-  <meta property="og:description" content="LETUSの課題通知をスマホだけで。iOS / Android 向けアプリを開発中。メール事前登録受付中。">
+  <meta property="og:title"       content="リタス（Litas）— 東京理科大の課題通知アプリ、近日公開">
+  <meta property="og:description" content="LETUSの課題通知をスマホだけで。CLASS時間割にも対応した理科大生向けアプリ「リタス」を開発中。メール事前登録受付中。">
   <meta property="og:image"       content="https://lms.waiteu.dev/app-og.png">
   <meta property="og:locale"      content="ja_JP">
   <meta name="twitter:card"        content="summary_large_image">
   <meta name="twitter:site"        content="@yning_y2">
-  <meta name="twitter:title"       content="LETUS Task Watcher モバイルアプリ — 近日公開">
-  <meta name="twitter:description" content="LETUSの課題通知をスマホだけで。iOS / Android 向けアプリを開発中。メール事前登録受付中。">
+  <meta name="twitter:title"       content="リタス（Litas）— 東京理科大の課題通知アプリ、近日公開">
+  <meta name="twitter:description" content="LETUSの課題通知をスマホだけで。CLASS時間割にも対応した理科大生向けアプリ「リタス」を開発中。メール事前登録受付中。">
   <meta name="twitter:image"       content="https://lms.waiteu.dev/app-og.png">
   <script type="application/ld+json">
   {
     "@context": "https://schema.org",
     "@type": "MobileApplication",
-    "name": "LETUS Task Watcher モバイルアプリ",
+    "name": "リタス（Litas）",
+    "alternateName": "Litas",
     "url": "https://lms.waiteu.dev/app",
-    "image": "https://lms.waiteu.dev/og-image.png",
-    "description": "東京理科大学LETUSの課題締切をスマホ単体で通知するモバイルアプリ。CLASS時間割閲覧にも対応。開発中。",
+    "image": "https://lms.waiteu.dev/app-og.png",
+    "description": "東京理科大学LETUSの課題締切をスマホ単体で通知する非公式モバイルアプリ。CLASS時間割閲覧にも対応。開発中。",
     "applicationCategory": "EducationApplication",
     "operatingSystem": "iOS, Android",
     "offers": { "@type": "Offer", "price": "0", "priceCurrency": "JPY" },
@@ -515,7 +538,7 @@ git commit -m "feat(landing): app.html coming-soon page with email waitlist form
 を次に置き換える:
 
 ```html
-        <div class="rm-desc">スマホ単体でLETUSの課題収集とCLASS時間割閲覧に対応。2026年9月の後期開始に合わせた公開を目標に開発中。<a href="app.html">事前登録はこちら</a>。</div>
+        <div class="rm-desc">スマホ単体でLETUSの課題収集とCLASS時間割閲覧に対応。2026年9月の後期開始に合わせた公開を目標に開発中。アプリ名は「リタス」。<a href="app.html">事前登録はこちら</a>。</div>
 ```
 
 - [ ] **Step 3: index.htmlのFAQ回答から/appへリンク**
@@ -562,7 +585,7 @@ git commit -m "feat(landing): cross-link /app from roadmap+FAQ, sitemap+privacy 
 **Interfaces:**
 - Produces: `https://lms.waiteu.dev/app-og.png`（Task 2の `<meta property="og:image">` と `<meta name="twitter:image">` が指すファイル）。
 
-デザイン方針: 左にキャッチ「LETUSの課題通知が、スマホだけで完結する。／近日公開・事前登録受付中」、右にヒーローと同じスマホ・ロック画面通知モックアップ。ブランド紫背景。X投稿のタイムラインで一目で内容が伝わることを最優先。
+デザイン方針: 左にブランド「リタス（Litas）」＋キャッチ「LETUSの課題通知が、スマホだけで完結する。／近日公開・事前登録受付中」、右にヒーローと同じスマホ・ロック画面通知モックアップ。背景はリタスの翠（ティール）系。X投稿のタイムラインで一目で内容が伝わることを最優先。
 
 - [ ] **Step 1: OG画像テンプレートを作る**
 
@@ -576,9 +599,10 @@ git commit -m "feat(landing): cross-link /app from roadmap+FAQ, sitemap+privacy 
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body { width: 1200px; height: 630px; overflow: hidden; }
-    .og { width: 1200px; height: 630px; background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+    .og { width: 1200px; height: 630px; background: linear-gradient(135deg, #0f9e75 0%, #0b7d63 100%);
           display: flex; align-items: center; gap: 48px; padding: 0 72px; font-family: -apple-system, "Segoe UI", "Hiragino Sans", "Noto Sans JP", sans-serif; color: #fff; }
     .og-copy { flex: 1; }
+    .og-brand-name { font-size: 40px; font-weight: 800; margin-bottom: 16px; letter-spacing: 1px; }
     .og-badge { display: inline-block; background: rgba(255,255,255,0.2); border-radius: 999px; padding: 8px 20px; font-size: 20px; font-weight: 700; margin-bottom: 28px; }
     .og-title { font-size: 54px; font-weight: 800; line-height: 1.25; }
     .og-title em { font-style: normal; color: #fde68a; }
@@ -597,10 +621,11 @@ git commit -m "feat(landing): cross-link /app from roadmap+FAQ, sitemap+privacy 
 <body>
   <div class="og">
     <div class="og-copy">
+      <div class="og-brand-name">リタス <span style="font-size:24px; font-weight:700; opacity:0.85;">Litas</span></div>
       <div class="og-badge">iOS / Android ・ 近日公開</div>
       <div class="og-title">LETUSの課題通知が、<br><em>スマホだけで完結する。</em></div>
       <div class="og-sub">課題収集・締切プッシュ・時間割まで、スマホ1つで。</div>
-      <div class="og-brand">LETUS Task Watcher ・ 事前登録受付中</div>
+      <div class="og-brand">東京理科大 非公式 ・ 事前登録受付中</div>
     </div>
     <div class="phone">
       <div class="screen">
