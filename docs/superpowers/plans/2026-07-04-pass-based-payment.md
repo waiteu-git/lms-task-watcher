@@ -17,7 +17,8 @@
 - パス期間: 半期パス=6ヶ月、年パス=12ヶ月。日付加算は `Date.setMonth(getMonth()+months)` を使う（テストは固定時刻でpin）
 - パスと月額の区別は `stripe_subscription_id` の NULL 有無。パス処理では `stripe_subscription_id` を変更しない
 - 金額のUI表示は購入導線内のみ許容（[[feedback_pricing_display]] は一般UI向け方針）
-- env: 月額は既存 `STRIPE_PRICE_ID` を流用（キー名は維持）。パスは `STRIPE_PRICE_HALFYEAR`・`STRIPE_PRICE_YEAR`
+- env: 月額は既存 `STRIPE_PRICE_ID` を流用（キー名は維持）。パスは `STRIPE_PRICE_HALFYEAR`（本番値 `price_1TphAPFFvmJkAgmIb2lyXFal`）・`STRIPE_PRICE_YEAR`（本番値 `price_1TphCPFFvmJkAgmIaWubZsUk`）。これらはデプロイ時にラズパイ `.env` へ設定（テストはモックのため不要）
+- **決済手段はカード先行**。PayPay は Stripe で有効化申請中（審査最大2週間・特商法表記ページURL要）のため即時使用不可。`payment_method_types` は env `STRIPE_PASS_METHODS`（デフォルト `card`）から取得し、PayPay 承認後に `STRIPE_PASS_METHODS=card,paypay` に更新するだけで有効化できる形にする（コード変更不要）
 - 不可逆操作（push・ラズパイデプロイ）は自走禁止・確認必須。コミットはローカルのみ
 - コミットのフッタは `Co-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>`
 
@@ -60,7 +61,8 @@ describe('POST /api/subscription/checkout plan分岐', () => {
     const arg = mockCreate.mock.calls.at(-1)[0]
     expect(arg.mode).toBe('payment')
     expect(arg.metadata.pass_months).toBe(6)
-    expect(arg.payment_method_types).toEqual(['card', 'paypay'])
+    // デフォルトはカードのみ（PayPay承認後にenvで追加）
+    expect(arg.payment_method_types).toEqual(['card'])
   })
 
   it('plan=year で pass_months=12', async () => {
@@ -102,6 +104,11 @@ const PASS_PLANS = {
   year: { price: () => process.env.STRIPE_PRICE_YEAR, months: 12 },
 }
 
+// 決済手段はカード先行。PayPay承認後に env STRIPE_PASS_METHODS=card,paypay で追加
+function passMethods() {
+  return (process.env.STRIPE_PASS_METHODS || 'card').split(',').map((s) => s.trim())
+}
+
 router.post('/checkout', requireAuth, async (req, res) => {
   const user = db.prepare('SELECT email FROM users WHERE id = ?').get(req.userId)
   if (!user) {
@@ -128,7 +135,7 @@ router.post('/checkout', requireAuth, async (req, res) => {
       const p = PASS_PLANS[plan]
       session = await stripe.checkout.sessions.create({
         mode: 'payment',
-        payment_method_types: ['card', 'paypay'],
+        payment_method_types: passMethods(),
         customer_email: user.email,
         line_items: [{ price: p.price(), quantity: 1 }],
         metadata: { pass_months: p.months },
@@ -153,6 +160,8 @@ router.post('/checkout', requireAuth, async (req, res) => {
 ```
 STRIPE_PRICE_HALFYEAR=price_...
 STRIPE_PRICE_YEAR=price_...
+# パス決済手段（カンマ区切り）。デフォルトcard。PayPay承認後に card,paypay へ
+STRIPE_PASS_METHODS=card
 ```
 
 - [ ] **Step 5: テストが通ることを確認**
@@ -477,9 +486,9 @@ git commit -m "feat(ext): expire entitlement client-side when current_period_end
 <div class="card status-inactive">
   <p class="card-label">プランを選択</p>
   <div id="plan-warning" class="error" style="display:none;"></div>
-  <button class="plan-btn" data-plan="halfyear" type="button">半期パス ¥720（PayPay・カード）</button>
-  <button class="plan-btn" data-plan="year" type="button">年パス ¥1,200（PayPay・カード）</button>
-  <button class="plan-btn secondary" data-plan="monthly" type="button">月額 ¥120（カード）</button>
+  <button class="plan-btn" data-plan="halfyear" type="button">半期パス ¥720（6ヶ月・一回払い）</button>
+  <button class="plan-btn" data-plan="year" type="button">年パス ¥1,200（12ヶ月・一回払い）</button>
+  <button class="plan-btn secondary" data-plan="monthly" type="button">月額 ¥120</button>
 </div>
 ```
 
