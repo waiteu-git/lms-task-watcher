@@ -5,22 +5,26 @@ import { readFileSync, writeFileSync } from 'fs'
 
 export default defineConfig(({ mode }) => {
   const isDev = mode === 'development'
-  const outDir = isDev ? 'dist-dev' : 'dist'
+  const isBeta = mode === 'beta'
+  const outDir = isDev ? 'dist-dev' : isBeta ? 'dist-beta' : 'dist'
 
   return {
   base: './',
   define: {
     __DEV_TOOLS__: isDev,
+    __BETA__: isBeta,
   },
   plugins: [
     react(),
     {
       name: 'dev-manifest',
       closeBundle() {
-        if (!isDev) return
+        if (!isDev && !isBeta) return
         const path = resolve(__dirname, `${outDir}/manifest.json`)
         const manifest = JSON.parse(readFileSync(path, 'utf-8')) as { name: string }
-        manifest.name = 'LETUS Task Watcher [開発版]'
+        manifest.name = isDev
+          ? 'LETUS Task Watcher [開発版]'
+          : 'LETUS Task Watcher [ベータ]'
         writeFileSync(path, JSON.stringify(manifest, null, 2))
       },
     },

@@ -1,6 +1,7 @@
 node_modules
 dist
 dist-dev
+dist-beta
 *.zip
 .env
 *.env.development
