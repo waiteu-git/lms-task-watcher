@@ -17,6 +17,10 @@
 - `api/` 変更は本番反映時に必ず `pm2 restart` までセットで行う（ラズパイ、[feedback_raspi_deploy_restart]）。
 - 収集PIIはメールのみ。用途は公開通知に限定する旨をフォーム近傍と `privacy.html` に明記。
 - 既存デザインは流用し、新規デザインは起こさない（配色変数 `--accent`/`--violet`/`--grad-btn` 等をそのまま使う）。
+- Xでの公開告知が前提。煽り強めのコピー、Xフォロー導線、専用OGP/Twitterカード画像を含める。
+- Xハンドルは `@yning_y2`（`twitter:site` とフォローCTAに使用）。
+- v2.0.x内で実装予定の全機能に言及する（「公開時に使える」＝v2.0.0初版 と「順次追加予定」＝v2.0.x を分けて掲載）。後送り機能は必ず「予定」と明記し過度な約束を避ける。
+- 有料予定の機能（見張り番）は機能名のみ掲載し、価格は載せない（[feedback_pricing_display]）。
 
 ---
 
@@ -232,12 +236,13 @@ git commit -m "feat(api): waitlist table + POST /api/waitlist for app pre-regist
   <meta property="og:url"         content="https://lms.waiteu.dev/app">
   <meta property="og:title"       content="LETUS Task Watcher モバイルアプリ — 近日公開">
   <meta property="og:description" content="LETUSの課題通知をスマホだけで。iOS / Android 向けアプリを開発中。メール事前登録受付中。">
-  <meta property="og:image"       content="https://lms.waiteu.dev/og-image.png">
+  <meta property="og:image"       content="https://lms.waiteu.dev/app-og.png">
   <meta property="og:locale"      content="ja_JP">
   <meta name="twitter:card"        content="summary_large_image">
+  <meta name="twitter:site"        content="@yning_y2">
   <meta name="twitter:title"       content="LETUS Task Watcher モバイルアプリ — 近日公開">
   <meta name="twitter:description" content="LETUSの課題通知をスマホだけで。iOS / Android 向けアプリを開発中。メール事前登録受付中。">
-  <meta name="twitter:image"       content="https://lms.waiteu.dev/og-image.png">
+  <meta name="twitter:image"       content="https://lms.waiteu.dev/app-og.png">
   <script type="application/ld+json">
   {
     "@context": "https://schema.org",
@@ -279,8 +284,28 @@ git commit -m "feat(api): waitlist table + POST /api/waitlist for app pre-regist
 <!-- HERO -->
 <div class="hero">
   <div class="hero-badge">iOS / Android &nbsp;·&nbsp; 近日公開 &nbsp;·&nbsp; 2026年後期 予定</div>
-  <h1>LETUSの課題通知を、<br><em>スマホだけで。</em></h1>
-  <p>PC拡張機能なしで、スマホ単体でLETUSの課題を収集し締切をプッシュ通知。CLASS時間割の閲覧にも対応した、iOS / Android 向けアプリを開発中です。</p>
+  <h1>LETUSの課題通知が、<br><em>スマホだけで完結する。</em></h1>
+  <p>PCも拡張機能もいらない。課題の収集も、締切のプッシュ通知も、時間割の確認も、スマホ1つで。理科大生のためのアプリを開発中です。</p>
+
+  <!-- ヒーロー・スマホモックアップ（ロック画面通知）。Tablerフォントは読み込まないためアイコンはインラインSVG -->
+  <div class="phone-mock" aria-hidden="true">
+    <div class="phone-screen">
+      <div class="lock-time">9:41</div>
+      <div class="lock-date">月曜日 4月14日</div>
+      <div class="notif notif-main">
+        <div class="notif-head">
+          <span class="notif-ico"><svg width="11" height="11" viewBox="0 0 24 24" fill="#fff"><path d="M12 2a6 6 0 0 0-6 6c0 3-1 5-2 6h16c-1-1-2-3-2-6a6 6 0 0 0-6-6zm0 20a2.5 2.5 0 0 0 2.45-2h-4.9A2.5 2.5 0 0 0 12 22z"/></svg></span>
+          LETUS Task Watcher · 今
+        </div>
+        <div class="notif-title">まもなく締切です</div>
+        <div class="notif-body">情報数学Ⅱ「レポート第3回」— 締切まで残り2時間</div>
+      </div>
+      <div class="notif notif-sub">
+        <div class="notif-head-sub">LETUS Task Watcher · 8:00</div>
+        <div class="notif-body">今日の締切が2件あります</div>
+      </div>
+    </div>
+  </div>
 
   <form id="waitlist-form" class="waitlist-form" novalidate>
     <input id="waitlist-email" type="email" inputmode="email" autocomplete="email"
@@ -296,25 +321,43 @@ git commit -m "feat(api): waitlist table + POST /api/waitlist for app pre-regist
     <p id="waitlist-status" class="waitlist-status" role="status" aria-live="polite"></p>
     <p class="waitlist-note">お預かりするのはメールアドレスのみ。公開のお知らせ以外には使用しません。</p>
   </form>
+
+  <!-- Xフォロー導線 -->
+  <div class="x-follow">
+    <span>最新情報とリリース速報はXで</span>
+    <a href="https://x.com/yning_y2" target="_blank" rel="noopener" class="btn-x">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M18.9 2H22l-7.3 8.3L23 22h-6.6l-5.2-6.8L5.3 22H2l7.8-8.9L1.6 2h6.8l4.7 6.2L18.9 2zm-1.2 18h1.8L7.4 3.9H5.5L17.7 20z"/></svg>
+      @yning_y2 をフォロー
+    </a>
+  </div>
 </div>
 
-<!-- 価値訴求 -->
+<!-- 機能一覧（v2.0.x 全機能） -->
 <section class="features">
-  <h2>アプリでできること</h2>
+  <h2>できること</h2>
+  <p class="features-sub">公開時に使える機能と、公開後のアップデートで順次追加していく予定の機能。</p>
+
+  <h3 class="feat-group">公開時に使える</h3>
   <div class="feature-grid">
-    <div class="feature-card">
-      <h3>スマホにプッシュ通知</h3>
-      <p>PCを開いていなくても、締切前にスマホへ直接通知。課題の見逃しを防ぎます。</p>
-    </div>
-    <div class="feature-card">
-      <h3>CLASS時間割の閲覧</h3>
-      <p>履修中の時間割をアプリ内で確認。課題と授業を1つのアプリでまとめて把握。</p>
-    </div>
-    <div class="feature-card">
-      <h3>アプリ単体で完結</h3>
-      <p>PCブラウザの拡張機能は不要。スマホにインストールするだけで使い始められます。</p>
-    </div>
+    <div class="feature-card"><h4>LETUS課題の自動収集</h4><p>履修コースの課題を自動で集め、締切順に一覧表示。</p></div>
+    <div class="feature-card"><h4>締切前プッシュ通知</h4><p>24時間前・3時間前・1時間前にスマホへ直接通知。</p></div>
+    <div class="feature-card"><h4>朝まとめ通知</h4><p>毎朝、その日以降の締切をまとめて1回お知らせ。</p></div>
+    <div class="feature-card"><h4>CLASS時間割の閲覧</h4><p>履修時間割をアプリ内で確認。コマから対応するLETUSへ。</p></div>
+    <div class="feature-card"><h4>提出状態の表示</h4><p>未提出・提出済みが一目でわかる。</p></div>
+    <div class="feature-card"><h4>見張り番プッシュ</h4><p>締切間近の未提出課題を24h→6h→1hで追いかけ通知。提出を検知したら自動で止まる。</p></div>
   </div>
+
+  <h3 class="feat-group">順次追加予定（アップデートで）</h3>
+  <div class="feature-grid">
+    <div class="feature-card upcoming"><h4>科目連携</h4><p>CLASSとLETUSを科目コードで自動でひも付け。</p></div>
+    <div class="feature-card upcoming"><h4>手動で課題を追加</h4><p>自動収集に載らない課題も自分で追加。優先度・メモも。</p></div>
+    <div class="feature-card upcoming"><h4>カスタム通知ルール</h4><p>通知のタイミングを自分好みに設定。</p></div>
+    <div class="feature-card upcoming"><h4>スヌーズ</h4><p>通知を後で再通知。</p></div>
+    <div class="feature-card upcoming"><h4>統計・振り返り</h4><p>提出状況をあとから振り返り。</p></div>
+    <div class="feature-card upcoming"><h4>ホーム画面ウィジェット</h4><p>直近の締切をホーム画面に表示。</p></div>
+    <div class="feature-card upcoming"><h4>PC拡張機能とデータ同期</h4><p>Chrome / Edge 拡張機能とアプリのデータを同期。</p></div>
+  </div>
+  <p class="feat-note">「順次追加予定」の機能は開発予定であり、内容・時期は変更される場合があります。</p>
 </section>
 
 <!-- 登録すると何が届く -->
@@ -340,11 +383,33 @@ git commit -m "feat(api): waitlist table + POST /api/waitlist for app pre-regist
     .consent input { margin-top: 2px; }
     .waitlist-status { font-size: 13px; color: var(--accent); min-height: 18px; margin: 0; }
     .waitlist-note { font-size: 11px; color: var(--text-light); margin: 0; }
+    /* ヒーロー・スマホモックアップ */
+    .phone-mock { width: 240px; margin: 32px auto 8px; background: #1e1b2e; border-radius: 32px; padding: 8px; }
+    .phone-screen { background: #12101c; border-radius: 26px; min-height: 300px; padding: 26px 16px; display: flex; flex-direction: column; align-items: center; }
+    .lock-time { color: #fff; font-size: 46px; font-weight: 700; line-height: 1.1; }
+    .lock-date { color: #e5e3f0; font-size: 13px; margin-bottom: 22px; }
+    .notif { width: 100%; border-radius: 14px; padding: 10px 12px; text-align: left; }
+    .notif-main { background: rgba(255,255,255,0.13); }
+    .notif-sub { background: rgba(255,255,255,0.07); margin-top: 8px; }
+    .notif-head { display: flex; align-items: center; gap: 6px; font-size: 11px; color: #c7c9f7; margin-bottom: 5px; }
+    .notif-head-sub { font-size: 11px; color: #a9a7bd; margin-bottom: 3px; }
+    .notif-ico { width: 18px; height: 18px; border-radius: 5px; background: var(--accent); display: inline-flex; align-items: center; justify-content: center; }
+    .notif-title { font-size: 12px; color: #fff; font-weight: 700; }
+    .notif-body { font-size: 11px; color: #d7d5e6; line-height: 1.4; }
+    /* Xフォロー導線 */
+    .x-follow { margin-top: 26px; display: flex; flex-direction: column; align-items: center; gap: 8px; }
+    .x-follow span { font-size: 13px; color: var(--text-mid); }
+    .btn-x { display: inline-flex; align-items: center; gap: 8px; padding: 10px 20px; border-radius: 999px; background: #0f1419; color: #fff; text-decoration: none; font-weight: 700; font-size: 14px; }
+    /* 機能一覧 */
     .features, .whatnext, .crosslink { max-width: 900px; margin: 56px auto; padding: 0 20px; text-align: center; }
-    .feature-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 20px; margin-top: 28px; }
+    .features-sub { color: var(--text-mid); font-size: 14px; }
+    .feat-group { margin-top: 40px; font-size: 18px; color: var(--text-dark); }
+    .feature-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 20px; margin-top: 20px; }
     .feature-card { background: var(--bg-card); border-radius: 16px; padding: 24px; text-align: left; }
-    .feature-card h3 { margin-bottom: 8px; color: var(--text-dark); }
+    .feature-card.upcoming { background: transparent; border: 1px dashed var(--text-light); }
+    .feature-card h4 { margin-bottom: 6px; color: var(--text-dark); font-size: 15px; }
     .feature-card p { color: var(--text-mid); font-size: 14px; line-height: 1.6; }
+    .feat-note { margin-top: 18px; font-size: 12px; color: var(--text-light); }
     .btn-secondary { display: inline-block; margin-top: 12px; padding: 12px 28px; border-radius: 999px; border: 1px solid var(--accent); color: var(--accent); text-decoration: none; font-weight: 700; font-size: 14px; }
 ```
 
@@ -405,8 +470,8 @@ git commit -m "feat(api): waitlist table + POST /api/waitlist for app pre-regist
 }
 ```
 
-preview_start で `landing` を起動 → `/app.html` を開く。preview_snapshot でヒーロー見出し「LETUSの課題通知を、スマホだけで。」とフォームの存在を確認。preview_console_logs でエラーが無いことを確認。
-（フォーム送信の実POSTは本番API相手なので、ここではUIレンダリングとバリデーション表示＝同意なし送信で「同意が必要」表示までを確認。実登録はTask 1のAPIをローカル起動して繋ぐか、本番反映後にsmokeする。）
+preview_start で `landing` を起動 → `/app.html` を開く。preview_snapshot でヒーロー見出し「LETUSの課題通知が、スマホだけで完結する。」、スマホモックアップ、フォーム、Xフォローボタン、機能一覧（公開時に使える／順次追加予定の両グループ）の存在を確認。preview_screenshot でモックアップと全体の見た目を確認。preview_console_logs でエラーが無いことを確認。
+（フォーム送信の実POSTは本番API相手なので、ここではUIレンダリングとバリデーション表示＝同意なし送信で「同意が必要」表示までを確認。実登録はTask 1のAPIをローカル起動して繋ぐか、本番反映後にsmokeする。og:imageの `app-og.png` はTask 4で生成するまで404になるが、ページ表示には影響しない。）
 
 - [ ] **Step 5: コミット**
 
@@ -488,6 +553,88 @@ git commit -m "feat(landing): cross-link /app from roadmap+FAQ, sitemap+privacy 
 
 ---
 
+### Task 4: 専用OGP/Twitterカード画像（`landing/app-og.png` 1200×630）
+
+**Files:**
+- Create: `landing/og-app.html`（OG画像用のHTMLテンプレート。画像生成専用でサイトからはリンクしない）
+- Create: `landing/app-og.png`（生成物。`app.html` の `og:image`/`twitter:image` が参照）
+
+**Interfaces:**
+- Produces: `https://lms.waiteu.dev/app-og.png`（Task 2の `<meta property="og:image">` と `<meta name="twitter:image">` が指すファイル）。
+
+デザイン方針: 左にキャッチ「LETUSの課題通知が、スマホだけで完結する。／近日公開・事前登録受付中」、右にヒーローと同じスマホ・ロック画面通知モックアップ。ブランド紫背景。X投稿のタイムラインで一目で内容が伝わることを最優先。
+
+- [ ] **Step 1: OG画像テンプレートを作る**
+
+`landing/og-app.html` を新規作成。viewportちょうど1200×630の1枚絵。`app.html` のモックアップCSS（`.phone-mock` 系）を流用してよい。
+
+```html
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { width: 1200px; height: 630px; overflow: hidden; }
+    .og { width: 1200px; height: 630px; background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+          display: flex; align-items: center; gap: 48px; padding: 0 72px; font-family: -apple-system, "Segoe UI", "Hiragino Sans", "Noto Sans JP", sans-serif; color: #fff; }
+    .og-copy { flex: 1; }
+    .og-badge { display: inline-block; background: rgba(255,255,255,0.2); border-radius: 999px; padding: 8px 20px; font-size: 20px; font-weight: 700; margin-bottom: 28px; }
+    .og-title { font-size: 54px; font-weight: 800; line-height: 1.25; }
+    .og-title em { font-style: normal; color: #fde68a; }
+    .og-sub { margin-top: 28px; font-size: 26px; opacity: 0.95; }
+    .og-brand { margin-top: 40px; font-size: 22px; font-weight: 700; opacity: 0.9; }
+    .phone { width: 300px; background: #1e1b2e; border-radius: 44px; padding: 12px; flex-shrink: 0; }
+    .screen { background: #12101c; border-radius: 34px; height: 540px; padding: 40px 22px; display: flex; flex-direction: column; align-items: center; }
+    .t { color: #fff; font-size: 64px; font-weight: 700; }
+    .d { color: #e5e3f0; font-size: 18px; margin-bottom: 30px; }
+    .n { width: 100%; background: rgba(255,255,255,0.14); border-radius: 18px; padding: 16px 18px; }
+    .nh { font-size: 15px; color: #c7c9f7; margin-bottom: 8px; }
+    .nt { font-size: 17px; color: #fff; font-weight: 700; }
+    .nb { font-size: 15px; color: #d7d5e6; line-height: 1.4; margin-top: 4px; }
+  </style>
+</head>
+<body>
+  <div class="og">
+    <div class="og-copy">
+      <div class="og-badge">iOS / Android ・ 近日公開</div>
+      <div class="og-title">LETUSの課題通知が、<br><em>スマホだけで完結する。</em></div>
+      <div class="og-sub">課題収集・締切プッシュ・時間割まで、スマホ1つで。</div>
+      <div class="og-brand">LETUS Task Watcher ・ 事前登録受付中</div>
+    </div>
+    <div class="phone">
+      <div class="screen">
+        <div class="t">9:41</div>
+        <div class="d">月曜日 4月14日</div>
+        <div class="n">
+          <div class="nh">LETUS Task Watcher ・ 今</div>
+          <div class="nt">まもなく締切です</div>
+          <div class="nb">情報数学Ⅱ「レポート第3回」— 締切まで残り2時間</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</body>
+</html>
+```
+
+- [ ] **Step 2: 1200×630でスクリーンショットしてPNG化**
+
+preview_start（Task 2の `landing` 設定）で `/og-app.html` を開く。preview_resize で `width: 1200, height: 630` に設定。preview_screenshot を撮る。
+
+- [ ] **Step 3: 撮った画像を `landing/app-og.png` として保存**
+
+preview_screenshot が返す画像をスクラッチパッドに保存後、`landing/app-og.png` に配置する（この工程はスクリーンショットのバイト列をファイル化するもの。実行者はスクショ結果を確認し、1200×630・文字切れなし・モックアップが収まっていることを目視確認する）。文字切れやレイアウト崩れがあれば `og-app.html` を調整してStep 2からやり直す。
+
+- [ ] **Step 4: コミット**
+
+```bash
+git add landing/og-app.html landing/app-og.png
+git commit -m "feat(landing): dedicated OG/Twitter card image for /app"
+```
+
+---
+
 ## フェーズ2メモ（今回スコープ外）
 
 ストア登録完了後に別タスクとして実施:
@@ -497,10 +644,12 @@ git commit -m "feat(landing): cross-link /app from roadmap+FAQ, sitemap+privacy 
 ## 本番反映時の注意
 
 - `api/` の変更（Task 1）を本番へ出す際は、ラズパイで `pm2 restart` まで実施（[feedback_raspi_deploy_restart]）。
-- `landing/` の変更（Task 2,3）はpushで Cloudflare Pages が自動デプロイ。反映後に `https://lms.waiteu.dev/app` を実ブラウザで開き、フォーム送信→200→`waitlist` テーブルに1行入ることをsmokeする。
+- `landing/` の変更（Task 2,3,4）はpushで Cloudflare Pages が自動デプロイ。反映後に `https://lms.waiteu.dev/app` を実ブラウザで開き、フォーム送信→200→`waitlist` テーブルに1行入ることをsmokeする。
+- X告知前に、Xの投稿作成画面またはOGPデバッガでカードプレビュー（`app-og.png`＋タイトル＋説明）が意図通り表示されることを確認する。カードキャッシュは初回取得で固定されるため、Task 4のOG画像デプロイ後にX告知する順序を守る。
 
 ## Self-Review
 
-- **Spec coverage:** app.html独立ページ（Task 2）／既存デザイン流用（Task 2 Step1）／Coming Soon＋メールフォーム（Task 2）／waitlistテーブル＋POST（Task 1）／honeypot＋レート制限＋冪等200（Task 1）／SEO・sitemap・構造化データ（Task 2,3）／相互リンク（Task 3）／privacy追記（Task 3）／フェーズ2は明示的にスコープ外。全項目タスクに対応。
-- **Placeholders:** コピー指示（style/header/footer）は行番号付きで明示、privacy追記は挿入文言を明記。TODO/TBD無し。
-- **Type consistency:** フォームフィールドid（`waitlist-email`/`consent`/`website`/`waitlist-form`/`waitlist-status`）はTask 2内で一貫。APIの `{email, source, website}` はTask 1のルートとTask 2のfetchで一致。
+- **Spec coverage:** app.html独立ページ（Task 2）／既存デザイン流用（Task 2 Step1）／Coming Soon＋メールフォーム（Task 2）／スマホモックアップ（Task 2 Step2＋CSS）／Xフォロー導線・`twitter:site`（Task 2）／v2.0.x全機能を公開時・予定の2グループで掲載（Task 2 Step2）／専用OGP画像（Task 4）／waitlistテーブル＋POST（Task 1）／honeypot＋レート制限＋冪等200（Task 1）／SEO・sitemap・構造化データ（Task 2,3）／相互リンク（Task 3）／privacy追記（Task 3）／フェーズ2は明示的にスコープ外。全項目タスクに対応。
+- **Placeholders:** コピー指示（style/header/footer）は行番号付きで明示、privacy追記は挿入文言を明記、モックアップ/OGテンプレは完全なコードを記載、アイコンはTablerフォント非依存のインラインSVG。Xハンドルは実値 `@yning_y2`。TODO/TBD無し。
+- **Type consistency:** フォームフィールドid（`waitlist-email`/`consent`/`website`/`waitlist-form`/`waitlist-status`）はTask 2内で一貫。APIの `{email, source, website}` はTask 1のルートとTask 2のfetchで一致。`app-og.png` はTask 2のmeta参照とTask 4の生成物でパス一致。
+- **注意点:** 「順次追加予定」機能（科目連携以外のウィジェット/スヌーズ/統計/カスタム通知/手動追加/拡張同期）は時期未確定のため各カードは実装約束ではなく「予定」として掲載し、末尾に変更ありうる旨の注記（`.feat-note`）を置く。見張り番は価格非表示（[feedback_pricing_display]）で機能名のみ。
