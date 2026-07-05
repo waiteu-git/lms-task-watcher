@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>リタス（Litas）| 東京理科大の課題通知アプリ・LETUS/CLASS対応（近日公開・事前登録受付中）</title>
-  <meta name="description" content="リタス（Litas）は、東京理科大学LETUSの課題締切をスマホ単体で通知する非公式モバイルアプリ（iOS / Android）。CLASS時間割の閲覧にも対応。2026年後期の公開に向けて開発中。メール事前登録で公開時にお知らせします。">
+  <meta name="description" content="リタス（Litas）は、東京理科大学LETUSの課題締切をスマホ単体で通知する非公式モバイルアプリ（iOS / Android）。CLASS時間割の自動取込と科目連携（課題↔時間割の自動ひも付け）にも対応。2026年後期の公開に向けて開発中。メール事前登録で公開時にお知らせします。">
   <link rel="canonical" href="https://lms.waiteu.dev/app">
   <meta property="og:type"        content="website">
   <meta property="og:url"         content="https://lms.waiteu.dev/app">
@@ -379,6 +379,25 @@
     .feat-note { margin-top: 18px; font-size: 12px; color: var(--text-light); }
     .btn-secondary { display: inline-block; margin-top: 12px; padding: 12px 28px; border-radius: 999px; border: 1px solid var(--accent); color: var(--accent); text-decoration: none; font-weight: 700; font-size: 14px; }
     .logo .logo-mark { display: inline-flex; align-items: center; }
+    /* 目玉: CLASS連携 */
+    .highlight { max-width: 940px; margin: 64px auto; padding: 0 20px; display: flex; flex-wrap: wrap; gap: 36px; align-items: center; justify-content: center; }
+    .highlight-copy { flex: 1 1 320px; text-align: left; }
+    .highlight-badge { display: inline-block; background: #e1f5ee; color: #0f6e56; font-size: 12px; font-weight: 700; padding: 5px 14px; border-radius: 999px; margin-bottom: 14px; }
+    .highlight h2 { color: var(--text-dark); }
+    .highlight p { color: var(--text-mid); font-size: 15px; line-height: 1.85; margin-top: 12px; }
+    .tt-phone { flex: 0 0 240px; }
+    .phone-screen-light { display: block; background: #fff; min-height: 0; padding: 0; }
+    .tt-head { background: #0f9e75; color: #fff; padding: 14px 16px; }
+    .tt-head-sub { font-size: 11px; color: #c9efe2; }
+    .tt-head-title { font-size: 17px; font-weight: 700; }
+    .tt-grid { display: grid; grid-template-columns: 14px repeat(5, 1fr); gap: 3px; padding: 10px; }
+    .tt-day { text-align: center; font-size: 10px; color: #64748b; }
+    .tt-period { font-size: 10px; color: #94a3b8; display: flex; align-items: center; }
+    .tt-cell { background: #f1efe8; border-radius: 5px; min-height: 26px; font-size: 9px; line-height: 1.15; padding: 3px 1px; text-align: center; color: #5f5e5a; }
+    .tt-cell.tt-p { background: #eeedfe; color: #3c3489; }
+    .tt-cell.tt-t { background: #e1f5ee; color: #085041; }
+    .tt-cell.tt-c { background: #faece7; color: #712b13; }
+    .tt-link { margin: 2px 10px 14px; font-size: 10px; color: #0f6e56; background: #e1f5ee; border-radius: 8px; padding: 7px 10px; text-align: left; font-weight: 700; }
   </style>
 </head>
 <body>
@@ -447,6 +466,36 @@
   </div>
 </div>
 
+<!-- 目玉: CLASS連携 -->
+<section class="highlight">
+  <div class="highlight-copy">
+    <div class="highlight-badge">CLASS連携</div>
+    <h2>課題も、時間割も、ひとつに。</h2>
+    <p>CLASSの時間割を自動で取り込んで表示。授業のコマから対応するLETUSコースへワンタップ。さらに科目コードで課題と時間割を自動でひも付け、「今日のこのコマの課題」まで一目で分かります。</p>
+  </div>
+  <div class="phone-mock tt-phone" aria-hidden="true">
+    <div class="phone-screen phone-screen-light">
+      <div class="tt-head">
+        <div class="tt-head-sub">前期</div>
+        <div class="tt-head-title">時間割</div>
+      </div>
+      <div class="tt-grid">
+        <div class="tt-corner"></div>
+        <div class="tt-day">月</div><div class="tt-day">火</div><div class="tt-day">水</div><div class="tt-day">木</div><div class="tt-day">金</div>
+        <div class="tt-period">1</div>
+        <div class="tt-cell tt-p">情報<br>数学</div><div class="tt-cell"></div><div class="tt-cell tt-t">英語</div><div class="tt-cell"></div><div class="tt-cell tt-p">物理</div>
+        <div class="tt-period">2</div>
+        <div class="tt-cell"></div><div class="tt-cell tt-c">プロ<br>グラ</div><div class="tt-cell"></div><div class="tt-cell tt-p">線形<br>代数</div><div class="tt-cell"></div>
+        <div class="tt-period">3</div>
+        <div class="tt-cell tt-t">実験</div><div class="tt-cell"></div><div class="tt-cell"></div><div class="tt-cell"></div><div class="tt-cell tt-c">化学</div>
+        <div class="tt-period">4</div>
+        <div class="tt-cell"></div><div class="tt-cell"></div><div class="tt-cell tt-p">統計</div><div class="tt-cell"></div><div class="tt-cell"></div>
+      </div>
+      <div class="tt-link">情報数学Ⅱ → LETUS 課題2件</div>
+    </div>
+  </div>
+</section>
+
 <!-- 機能一覧（v2.0.x 全機能） -->
 <section class="features">
   <h2>できること</h2>
@@ -457,14 +506,14 @@
     <div class="feature-card"><h4>LETUS課題の自動収集</h4><p>履修コースの課題を自動で集め、締切順に一覧表示。</p></div>
     <div class="feature-card"><h4>締切前プッシュ通知</h4><p>24時間前・3時間前・1時間前にスマホへ直接通知。</p></div>
     <div class="feature-card"><h4>朝まとめ通知</h4><p>毎朝、その日以降の締切をまとめて1回お知らせ。</p></div>
-    <div class="feature-card"><h4>CLASS時間割の閲覧</h4><p>履修時間割をアプリ内で確認。コマから対応するLETUSへ。</p></div>
+    <div class="feature-card"><h4>CLASS時間割の自動取込</h4><p>履修時間割を自動で取り込んで表示。学期切替にも対応、コマから対応LETUSへ。</p></div>
+    <div class="feature-card"><h4>科目連携</h4><p>科目コードでLETUS課題と時間割のコマを自動でひも付け。</p></div>
     <div class="feature-card"><h4>提出状態の表示</h4><p>未提出・提出済みが一目でわかる。</p></div>
     <div class="feature-card"><h4>見張り番プッシュ</h4><p>締切間近の未提出課題を24h→6h→1hで追いかけ通知。提出を検知したら自動で止まる。</p></div>
   </div>
 
   <h3 class="feat-group">順次追加予定（アップデートで）</h3>
   <div class="feature-grid">
-    <div class="feature-card upcoming"><h4>科目連携</h4><p>CLASSとLETUSを科目コードで自動でひも付け。</p></div>
     <div class="feature-card upcoming"><h4>手動で課題を追加</h4><p>自動収集に載らない課題も自分で追加。優先度・メモも。</p></div>
     <div class="feature-card upcoming"><h4>カスタム通知ルール</h4><p>通知のタイミングを自分好みに設定。</p></div>
     <div class="feature-card upcoming"><h4>スヌーズ</h4><p>通知を後で再通知。</p></div>
