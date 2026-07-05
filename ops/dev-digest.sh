@@ -95,12 +95,114 @@ PY
   rm -f "$commits_file"
 }
 
+LEDGER="$STATE/token-ledger.jsonl"
+KILL="$STATE/llm-disabled"
+LLM_MODEL="claude-haiku-4-5"
+LLM_SYSTEM="あなたは開発ダイジェストの要約役です。渡された箇条書きを読み、開発者向けに日本語1〜2文で『昨日の要点と次に注目すべき点』だけを述べてください。箇条書きの数値をそのまま繰り返さない。前置き・見出し・記号装飾は不要。"
+
+# 今月（YYYY-MM）の累計コスト(USD)を台帳から合算して出力。
+month_cost() {
+  python3 -c '
+import json,sys
+ym=sys.argv[1]; total=0.0
+try:
+  for line in open(sys.argv[2]):
+    line=line.strip()
+    if not line: continue
+    d=json.loads(line)
+    if str(d.get("date","")).startswith(ym): total+=float(d.get("cost_usd",0))
+except FileNotFoundError: pass
+print(f"{total:.4f}")
+' "$(date +%Y-%m)" "$LEDGER"
+}
+
+# 生のAPI応答JSONを stdout に返す。DIGEST_LLM_STUB があればそのファイルを返す（テスト用）。
+# stdin: ユーザーメッセージ（決定論ダイジェスト）
+llm_raw_response() {
+  if [ -n "${DIGEST_LLM_STUB:-}" ]; then
+    cat "$DIGEST_LLM_STUB"
+    return 0
+  fi
+  local body
+  body="$(python3 -c 'import json,sys; print(json.dumps({"model":sys.argv[1],"max_tokens":300,"system":sys.argv[2],"messages":[{"role":"user","content":sys.stdin.read()}]}))' "$LLM_MODEL" "$LLM_SYSTEM")"
+  curl -sS --max-time 30 https://api.anthropic.com/v1/messages \
+    -H "x-api-key: $ANTHROPIC_API_KEY" \
+    -H "anthropic-version: 2023-06-01" \
+    -H "content-type: application/json" \
+    -d "$body"
+}
+
+# LLM層。追記すべき行を stdout に出す（0〜2行）。副作用: 台帳追記・キルスイッチ作成。
+llm_layer() {
+  local det="$1"
+  [ "${DIGEST_LLM_ENABLED:-}" = "1" ] || return 0
+  [ -n "${ANTHROPIC_API_KEY:-}" ] || return 0
+  if [ -f "$KILL" ]; then
+    echo "🧠 要約: 自動停止中（再開は llm-disabled を削除）"
+    return 0
+  fi
+  local budget="${DIGEST_MONTHLY_BUDGET_USD:-0.50}"
+  local mc; mc="$(month_cost)"
+  if awk "BEGIN{exit !($mc >= $budget)}"; then
+    : > "$KILL"
+    echo "🧠 要約: 今月の予算\$$budget に到達し停止（再開は llm-disabled を削除）"
+    return 0
+  fi
+
+  local resp
+  resp="$(printf '%s' "$det" | llm_raw_response)" || return 0
+
+  # 応答から text / usage / stop_reason を取り出す。パース失敗・refusal・空なら何も追記しない。
+  local parsed
+  parsed="$(printf '%s' "$resp" | python3 -c '
+import json,sys
+try:
+  d=json.load(sys.stdin)
+except Exception:
+  sys.exit(1)
+if d.get("stop_reason")=="refusal": sys.exit(1)
+text="".join(b.get("text","") for b in d.get("content",[]) if b.get("type")=="text").strip()
+u=d.get("usage",{})
+i=int(u.get("input_tokens",0)); o=int(u.get("output_tokens",0))
+if not text: sys.exit(1)
+cost=i/1e6*1 + o/1e6*5
+print(json.dumps({"text":text,"in":i,"out":o,"cost":round(cost,6)}, ensure_ascii=False))
+')" || return 0
+
+  local text tin tout cost
+  text="$(printf '%s' "$parsed" | python3 -c 'import json,sys;print(json.load(sys.stdin)["text"])')"
+  tin="$(printf '%s' "$parsed" | python3 -c 'import json,sys;print(json.load(sys.stdin)["in"])')"
+  tout="$(printf '%s' "$parsed" | python3 -c 'import json,sys;print(json.load(sys.stdin)["out"])')"
+  cost="$(printf '%s' "$parsed" | python3 -c 'import json,sys;print(json.load(sys.stdin)["cost"])')"
+
+  # 台帳に実測usageを追記
+  printf '{"date":"%s","model":"%s","input":%s,"output":%s,"cost_usd":%s}\n' \
+    "$(date +%F)" "$LLM_MODEL" "$tin" "$tout" "$cost" >> "$LEDGER"
+
+  # 追記後の今月累計と割合
+  local mc2 pct
+  mc2="$(month_cost)"
+  pct="$(awk "BEGIN{printf \"%d\", ($mc2/$budget)*100}")"
+
+  echo "🧠 要約: $text"
+  echo "📊 AI消費: 今月 \$$mc2/\$$budget (${pct}%) ・ 今日 $(( tin + tout )) tokens"
+
+  # 追記後に予算超過していたら翌日から止める
+  if awk "BEGIN{exit !($mc2 >= $budget)}"; then : > "$KILL"; fi
+}
+
 main() {
   local dry=0
   [ "${1:-}" = "--dry-run" ] && dry=1
 
   local msg
   msg="$(build_deterministic)"
+
+  local llm_lines
+  llm_lines="$(llm_layer "$msg")"
+  if [ -n "$llm_lines" ]; then
+    msg="$msg"$'\n'"$llm_lines"
+  fi
 
   if [ "$dry" -eq 1 ]; then
     printf '%s\n' "$msg"
