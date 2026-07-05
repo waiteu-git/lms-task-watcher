@@ -4,6 +4,18 @@
 
 ---
 
+## 2026-07-05 — モバイルストア事業者アカウント登録プラン確定
+
+v2.0.0モバイルアプリを**個人事業主(組織)アカウント**でApp Store/Google Play公開する方針を決定。本名非公開・屋号のみ表示が目的（参考: https://zenn.dev/zawascript/articles/2026-04-store）。
+
+- 確定: 屋号=**waiteu** / 事業サイト=**waiteu.dev流用**（Cloudflare+GSC所有確認済みでGoogleのドメイン確認をほぼスキップ可） / 開業届=今週中着手
+- 費用: Apple 12,980円/年 + Google $25(一回) + バーチャルオフィス660円/月〜 + povo基本0円 ≒ 初期2万円。所要はGoogle約1週間・Apple約2週間で、9月公開には7月中のD-U-N-S着手が必須
+- 実行計画をドキュメント化: `docs/mobile-store-registration.md`（依存順・つまづき回避・代行可否の切り分け）
+- 特商法表記ドラフト作成: `docs/tokushoho-draft.html`。住所(バーチャルオフィス)・電話(povo)・価格が埋まるまで`docs/`保管。`landing/`へ置くと develop push で lms.waiteu.dev に自動デプロイされるため未完成公開を回避
+- 私が代行不可（本人性/決済要）: 開業届・バーチャルオフィス契約・povo契約・D-U-N-S申請・Apple/Google本人確認
+
+---
+
 ## 2026-07-05 — 自走タスクランチャーCLI（ops/task.sh）設計・デスクトップ自走開始
 
 「開発の自動化を加速」の第1弾（優先度: B自走運用強化→A/C/Dは将来）。長タスクのデスクトップ自走運用（worktree/tmux/claude起動/進捗確認/掃除が全て手作業）を1本のCLIに統合する。
