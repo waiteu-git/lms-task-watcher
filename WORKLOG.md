@@ -13,6 +13,9 @@
 - 実装はデスクトップのclaudeに自走ハンドオフ（worktree `~/dev/wt-task-runner`・ブランチ`task/task-runner`・tmux `task-task-runner`・skip-permissionsはユーザー明示承認済み・push禁止でローカルコミットのみ）
 - **障害と対処**: SSH短命セッションから起動したtmuxがWSLインスタンス停止（最後のコンソール終了後の自動シャットダウン）で巻き添え死 → Windowsスケジュールタスク`WSL-KeepAlive`（onlogon・`wsl sleep infinity`、ユーザー承認済み）を新設して解決。今後の夜間自走の前提インフラ
 - 進捗はDiscord #ops-alertsにチェックポイント通知が飛ぶ。完了後レビュー→developへの取り込みは翌日以降
+- **完了・マージ済み（`27b51c1`）**: デスクトップ自走が4コミットで実装完遂（`ops/task.sh` 368行＋README）。ノート側で受け入れ条件7項目を実機再検証（構文・名前検証拒否・スタブdispatch一巡・hooks絶対パスJSON・clean dirtyガード＋--force・残留ゼロ）。rebase→ff→pushでdevelop統合、worktree/ブランチ/tmux/state掃除済み
+- レビュー指摘（ブロッカーなし）: ①JSON生成/解析はpython3使用（スペックのheredoc方針から変更、エスケープが堅い・WSL常在で実害なし）②Stopフックは毎ターン発火し10分スロットルで約10分おきに「応答完了」pingが飛ぶ＝真の完了信号ではない、意味的完了は`notify`で担保
+- 前提インフラ`WSL-KeepAlive`（onlogon・`wsl sleep infinity`）新設で夜間tmux永続を確保。今後の長タスクは `ops/task.sh dispatch <name> <plan>` で投げられる
 
 ---
 
