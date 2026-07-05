@@ -79,41 +79,51 @@ discord_edit() {
   case "$code" in 2*) return 0 ;; *) return 1 ;; esac
 }
 
-# notify: 節目・完了・停止時の任意メッセージをwebhookへ流す（プラン規約C / ドッグフーディング用）。
+# notify: 節目の途中経過。milestoneを記録して状態メッセージを編集する（新規は出さない）。
 cmd_notify() {
-  local name="${1:-}"
-  [ -n "$name" ] || die "notify: 使い方 task.sh notify <name> <message...>"
-  shift
-  validate_name "$name"
-  local msg="$*"
-  [ -n "$msg" ] || die "notify: メッセージが空です"
-  post_webhook "🔧 [task/$name] $msg"
+  local name="${1:-}"; [ -n "$name" ] || die "notify: 使い方 task.sh notify <name> <message...>"
+  shift; validate_name "$name"
+  local msg="$*"; [ -n "$msg" ] || die "notify: メッセージが空です"
+  local dir="$STATE_ROOT/task-$name"; mkdir -p "$dir"
+  printf '%s' "$msg" > "$dir/milestone"
+  edit_status_or_post "$name"
 }
 
-# event: hooksから呼ばれる機械イベント。同種イベントは前回通知から10分以内なら送らない。
-# 状態は ~/ops/state/task-<name>/last-<type> にepoch秒で保持する。
+# event: hooks用。stop=活動記録して状態編集（スロットルなし・pingしない）。attention=新規メッセージ＋10分スロットル。
 cmd_event() {
-  local name="${1:-}" type="${2:-}"
-  validate_name "$name"
-  local msg
+  local name="${1:-}" type="${2:-}"; validate_name "$name"
+  local dir="$STATE_ROOT/task-$name"; mkdir -p "$dir"
   case "$type" in
-    stop)      msg="⏹ [task/$name] 応答完了（完了または次の指示待ちの可能性）" ;;
-    attention) msg="⚠ [task/$name] 要対応（許可待ち/アイドル）" ;;
-    *)         die "event: 不明なイベント種別 '$type'（stop|attention）" ;;
+    stop)
+      date +%s > "$dir/last-activity"
+      edit_status_or_post "$name"
+      ;;
+    attention)
+      local last_file="$dir/last-attention" now last
+      now=$(date +%s)
+      if [ -f "$last_file" ]; then
+        last=$(cat "$last_file" 2>/dev/null || echo 0)
+        if [ $((now - last)) -lt 600 ]; then
+          echo "[task.sh] event attention: スロットリング中（$((now-last))秒、10分未満）"; return 0
+        fi
+      fi
+      echo "$now" > "$last_file"
+      post_webhook "⚠ [task/$name] 要対応（許可待ち/アイドル）"
+      ;;
+    *) die "event: 不明なイベント種別 '$type'（stop|attention）" ;;
   esac
-  local dir="$STATE_ROOT/task-$name"
-  mkdir -p "$dir"
-  local last_file="$dir/last-$type" now last
-  now=$(date +%s)
-  if [ -f "$last_file" ]; then
-    last=$(cat "$last_file" 2>/dev/null || echo 0)
-    if [ $((now - last)) -lt 600 ]; then
-      echo "[task.sh] event $type: スロットリング中（前回から$((now - last))秒、10分未満のためスキップ）"
-      return 0
-    fi
-  fi
-  echo "$now" > "$last_file"
-  post_webhook "$msg"
+}
+
+# done: 全タスク完了。新規メッセージ（✅・ping）＋状態メッセージを完了表示へ最終編集。
+cmd_done() {
+  local name="${1:-}"; [ -n "$name" ] || die "done: 使い方 task.sh done <name> <message...>"
+  shift; validate_name "$name"
+  local msg="$*"; [ -n "$msg" ] || die "done: メッセージが空です"
+  local dir="$STATE_ROOT/task-$name"; mkdir -p "$dir"
+  post_webhook "✅ [task/$name] 完了: $msg"
+  printf '%s' "$msg" > "$dir/milestone"
+  local id; id="$(cat "$dir/status-msg-id" 2>/dev/null || echo '')"
+  { [ -n "$id" ] && discord_edit "$id" "$(render_status "$name" done)"; } || true
 }
 
 # dispatch: worktree + branch + hooks + state + tmux/claude を一括セットアップして自走を開始する。
@@ -183,8 +193,9 @@ TASK_PLAN.md を読み、そこに書かれたタスクを自走で最後まで�
 - ラズパイへのSSH・外部デプロイ・pm2操作 禁止。
 - main および develop ブランチへの直接操作 禁止。
 - 完了を宣言する前に build / lint / test を実行して検証すること。
-- 節目（フェーズ完了）と最終完了時、および判断に迷って停止する時は必ず
-  ops/task.sh notify $name "<メッセージ>" を実行して進捗を通知すること。
+- 節目（フェーズ完了）や判断に迷って停止する時は ops/task.sh notify $name "<メッセージ>"
+  で途中経過を通知すること（状態メッセージが編集で更新される・pingは飛ばない）。
+- 全タスク完了時は必ず一度だけ ops/task.sh done $name "<完了要約>" を実行して完了を通知すること。
 - TASK_PLAN.md に書かれていない破壊的操作はしない。
 EOF
 
@@ -201,7 +212,11 @@ EOF
     echo "[task.sh] tmuxセッション task-$name で $claude_cmd を起動しました"
   fi
 
-  post_webhook "🔧 [task/$name] dispatch完了: $wt（base $base）$([ "$no_claude" -eq 1 ] && echo ' / --no-claude' || echo '')"
+  # 状態メッセージを送信しIDを保存（以降 notify/stop がこれを編集で更新する）。
+  local sid
+  sid="$(discord_post "$(render_status "$name")")"
+  if [ -n "$sid" ]; then echo "$sid" > "$dir/status-msg-id"; echo "[task.sh] 状態メッセージID: $sid"
+  else echo "[task.sh] 状態メッセージID取得できず（以降は新規POSTにフォールバック）"; fi
   echo "[task.sh] dispatch完了: task/$name"
 }
 
@@ -422,6 +437,7 @@ main() {
     collect)         cmd_collect "$@" ;;
     clean)           cmd_clean "$@" ;;
     notify)          cmd_notify "$@" ;;
+    done)            cmd_done "$@" ;;
     event)           cmd_event "$@" ;;
     ""|-h|--help|help) usage ;;
     *)               usage >&2; die "不明なサブコマンド '$cmd'" ;;
