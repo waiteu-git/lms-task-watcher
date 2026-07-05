@@ -31,21 +31,52 @@ validate_name() {
   esac
 }
 
-# Discord webhookへ1メッセージPOST。未設定・POST失敗でも本体処理は失敗させない（ログのみ）。
-# 送信先は TASK_WEBHOOK_URL、無ければ OPS_WEBHOOK_URL（#ops-alerts）にフォールバック。
+# webhook URL解決順（TASK_WEBHOOK_URL → OPS_WEBHOOK_URL）。無ければ空。
+webhook_url() { echo "${TASK_WEBHOOK_URL:-${OPS_WEBHOOK_URL:-}}"; }
+
+# {"content": msg[:1900]} のJSON payloadを生成。
+_content_payload() {
+  python3 -c 'import json,sys; print(json.dumps({"content": sys.argv[1][:1900]}, ensure_ascii=False))' "$1"
+}
+
+# 新規POST（ID不要）。attention/done/フォールバック用。webhook未設定・失敗でも落とさない。
 post_webhook() {
-  local msg="$1"
-  local url="${TASK_WEBHOOK_URL:-${OPS_WEBHOOK_URL:-}}"
-  if [ -z "$url" ]; then
-    echo "[task.sh] webhook未設定（通知スキップ）: $msg"
-    return 0
+  local msg="$1" url; url="$(webhook_url)"
+  if [ -z "$url" ]; then echo "[task.sh] webhook未設定（通知スキップ）: $msg"; return 0; fi
+  if [ -n "${TASK_HTTP_STUB:-}" ]; then
+    mkdir -p "$TASK_HTTP_STUB"; printf 'POST\t%s\t%s\n' "$url" "$msg" >> "$TASK_HTTP_STUB/calls"; return 0
   fi
-  local payload
-  payload=$(python3 -c 'import json,sys; print(json.dumps({"content": sys.argv[1][:1900]}, ensure_ascii=False))' "$msg") \
-    || { echo "[task.sh] payload生成失敗（通知スキップ）"; return 0; }
-  curl -sS -o /dev/null --max-time 10 -X POST -H 'Content-Type: application/json' \
-    -d "$payload" "$url" || echo "[task.sh] webhook POST失敗（無視）"
+  local payload; payload="$(_content_payload "$msg")" || { echo "[task.sh] payload生成失敗（通知スキップ）"; return 0; }
+  curl -sS -o /dev/null --max-time 10 -X POST -H 'Content-Type: application/json' -d "$payload" "$url" \
+    || echo "[task.sh] webhook POST失敗（無視）"
   return 0
+}
+
+# ?wait=true でPOSTし、応答からメッセージIDを stdout に返す（失敗/未設定時は空）。状態メッセージ生成用。
+discord_post() {
+  local msg="$1" url; url="$(webhook_url)"
+  [ -n "$url" ] || return 0
+  if [ -n "${TASK_HTTP_STUB:-}" ]; then
+    mkdir -p "$TASK_HTTP_STUB"; printf 'POST_WAIT\t%s\t%s\n' "$url" "$msg" >> "$TASK_HTTP_STUB/calls"
+    echo "stub-msg-1"; return 0
+  fi
+  local payload resp; payload="$(_content_payload "$msg")" || return 0
+  resp="$(curl -sS --max-time 10 -X POST -H 'Content-Type: application/json' -d "$payload" "$url?wait=true")" || return 0
+  printf '%s' "$resp" | python3 -c 'import json,sys
+try: print(json.load(sys.stdin).get("id",""))
+except Exception: pass'
+}
+
+# メッセージ編集（PATCH .../messages/<id>）。成功で0、失敗で非0。
+discord_edit() {
+  local id="$1" msg="$2" url; url="$(webhook_url)"
+  { [ -n "$url" ] && [ -n "$id" ]; } || return 1
+  if [ -n "${TASK_HTTP_STUB:-}" ]; then
+    mkdir -p "$TASK_HTTP_STUB"; printf 'PATCH\t%s/messages/%s\t%s\n' "$url" "$id" "$msg" >> "$TASK_HTTP_STUB/calls"; return 0
+  fi
+  local payload code; payload="$(_content_payload "$msg")" || return 1
+  code="$(curl -sS -o /dev/null -w '%{http_code}' --max-time 10 -X PATCH -H 'Content-Type: application/json' -d "$payload" "$url/messages/$id")" || return 1
+  case "$code" in 2*) return 0 ;; *) return 1 ;; esac
 }
 
 # notify: 節目・完了・停止時の任意メッセージをwebhookへ流す（プラン規約C / ドッグフーディング用）。
