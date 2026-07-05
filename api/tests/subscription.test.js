@@ -108,6 +108,47 @@ describe('GET /api/subscription/status hasStripeCustomer', () => {
   })
 })
 
+describe('GET /api/subscription/status 失効正規化', () => {
+  let token
+  let userId
+
+  beforeAll(async () => {
+    const reg = await request(app)
+      .post('/api/auth/register')
+      .send({ email: 'expire-user@example.com', password: 'password123' })
+    token = reg.body.token
+    userId = db.prepare("SELECT id FROM users WHERE email = 'expire-user@example.com'").get().id
+  })
+
+  it('current_period_end が過去なら status=inactive に正規化', async () => {
+    const past = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString()
+    db.prepare('UPDATE subscriptions SET status=?, current_period_end=? WHERE user_id=?')
+      .run('active', past, userId)
+    const res = await request(app).get('/api/subscription/status')
+      .set('Authorization', `Bearer ${token}`)
+    expect(res.body.status).toBe('inactive')
+  })
+
+  it('未来なら active のまま、hasActiveRecurring は subscription_id 有無で決まる', async () => {
+    const future = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString()
+    db.prepare('UPDATE subscriptions SET status=?, current_period_end=?, stripe_subscription_id=? WHERE user_id=?')
+      .run('active', future, 'sub_x', userId)
+    const res = await request(app).get('/api/subscription/status')
+      .set('Authorization', `Bearer ${token}`)
+    expect(res.body.status).toBe('active')
+    expect(res.body.hasActiveRecurring).toBe(true)
+  })
+
+  it('パス（subscription_id NULL）は hasActiveRecurring=false', async () => {
+    const future = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString()
+    db.prepare('UPDATE subscriptions SET status=?, current_period_end=?, stripe_subscription_id=NULL WHERE user_id=?')
+      .run('active', future, userId)
+    const res = await request(app).get('/api/subscription/status')
+      .set('Authorization', `Bearer ${token}`)
+    expect(res.body.hasActiveRecurring).toBe(false)
+  })
+})
+
 describe('POST /api/subscription/checkout plan分岐', () => {
   let token
 

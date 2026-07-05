@@ -8,17 +8,24 @@ const router = express.Router()
 // GET /api/subscription/status
 router.get('/status', requireAuth, (req, res) => {
   const sub = db.prepare(
-    'SELECT status, current_period_end, stripe_customer_id FROM subscriptions WHERE user_id = ?'
+    'SELECT status, current_period_end, stripe_customer_id, stripe_subscription_id FROM subscriptions WHERE user_id = ?'
   ).get(req.userId)
 
   if (!sub) {
     return res.status(404).json({ error: 'サブスクリプション情報が見つかりません' })
   }
 
+  const notExpired = sub.current_period_end
+    ? new Date(sub.current_period_end).getTime() > Date.now()
+    : false
+  const effectiveStatus = sub.status === 'active' && notExpired ? 'active' : 'inactive'
+  const hasActiveRecurring = Boolean(sub.stripe_subscription_id) && effectiveStatus === 'active'
+
   return res.json({
-    status: sub.status,
+    status: effectiveStatus,
     currentPeriodEnd: sub.current_period_end ?? null,
     hasStripeCustomer: Boolean(sub.stripe_customer_id),
+    hasActiveRecurring,
   })
 })
 
