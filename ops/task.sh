@@ -234,6 +234,38 @@ fmt_elapsed() {
   else echo "$((d/86400))d$(((d%86400)/3600))h"; fi
 }
 
+# 状態パネル文字列を組み立てる。第2引数 "done" で完了表示。
+render_status() {
+  local name="$1" done_flag="${2:-}"
+  local dir="$STATE_ROOT/task-$name" meta wt base start elapsed mile act commits head
+  meta="$dir/meta.json"
+  wt="$(meta_field "$meta" worktree)"; base="$(meta_field "$meta" base)"; start="$(meta_field "$meta" started_at)"
+  elapsed="$(fmt_elapsed "$start")"
+  mile="$(cat "$dir/milestone" 2>/dev/null || echo '—')"
+  if [ -f "$dir/last-activity" ]; then
+    act="$(fmt_elapsed "@$(cat "$dir/last-activity")")前"
+  else
+    act="—"
+  fi
+  commits=""
+  if [ -n "$wt" ] && [ -d "$wt" ] && [ -n "$base" ]; then
+    local n; n="$(git -C "$wt" log --oneline "$base"..HEAD 2>/dev/null | wc -l | tr -d ' ')"
+    [ -n "$n" ] && commits=" · コミット$n"
+  fi
+  head="🔧 task/$name ⏳経過 $elapsed"
+  [ "$done_flag" = "done" ] && head="✅ task/$name 完了 ⏳経過 $elapsed"
+  printf '%s\n最新: %s\n最終活動: %s%s · task/%s' "$head" "$mile" "$act" "$commits" "$name"
+}
+
+# 状態メッセージがあれば編集、無ければ/失敗なら新規POST（取りこぼさない）。
+edit_status_or_post() {
+  local name="$1" dir="$STATE_ROOT/task-$name" id body
+  body="$(render_status "$name")"
+  id="$(cat "$dir/status-msg-id" 2>/dev/null || echo '')"
+  if [ -n "$id" ] && discord_edit "$id" "$body"; then return 0; fi
+  post_webhook "$body"
+}
+
 # list: state配下の全タスクを1行ずつ（tmux生存・経過時間・ブランチ）。
 cmd_list() {
   local found=0 d name meta branch wt start
