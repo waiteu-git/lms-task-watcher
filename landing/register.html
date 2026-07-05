@@ -21,6 +21,8 @@
     input:focus { outline: none; border-color: var(--accent); }
     button { width: 100%; padding: 12px; background: var(--accent); color: #fff; border: none; border-radius: 999px; font-size: 0.95rem; font-weight: 800; cursor: pointer; }
     button:disabled { opacity: 0.6; cursor: not-allowed; }
+    .plan-btn { margin-bottom: 8px; }
+    .plan-btn.secondary { background: #fff; color: var(--accent); border: 1.5px solid var(--border); }
     .error { background: #fef2f2; color: #dc2626; border-radius: 10px; padding: 10px 14px; font-size: 0.85rem; margin-bottom: 16px; }
     .hint { font-size: 0.85rem; color: var(--text-mid); margin-top: 16px; text-align: center; }
     .hint a { color: var(--accent); }
@@ -48,8 +50,15 @@
 
     <div id="error" class="error" style="display:none;"></div>
 
-    <button id="submit-btn" type="submit">登録してStripeへ進む →</button>
+    <button id="submit-btn" type="submit">登録してプラン選択へ →</button>
   </form>
+
+  <div id="plan-select" style="display:none;">
+    <p class="sub">プランを選択して決済ページ（PayPay・カード対応）へ進みます。</p>
+    <button class="plan-btn" data-plan="halfyear" type="button">半期パス ¥720（6ヶ月・一回払い）</button>
+    <button class="plan-btn" data-plan="year" type="button">年パス ¥1,200（12ヶ月・一回払い）</button>
+    <button class="plan-btn secondary" data-plan="monthly" type="button">月額 ¥120</button>
+  </div>
 
   <p class="hint">
     既にアカウントをお持ちの方は<a href="login.html">ログイン</a>してください。<br>
@@ -65,6 +74,9 @@
   const form = document.getElementById('register-form')
   const errorEl = document.getElementById('error')
   const submitBtn = document.getElementById('submit-btn')
+  const planSelectEl = document.getElementById('plan-select')
+
+  let registeredToken = null
 
   function showError(message) {
     errorEl.textContent = message
@@ -97,25 +109,40 @@
         return
       }
 
-      const checkRes = await fetch(`${API_BASE_URL}/api/subscription/checkout`, {
-        method: 'POST',
-        headers: { Authorization: `Bearer ${regData.token}` },
-      })
-      const checkData = await checkRes.json()
-
-      if (!checkRes.ok || !checkData.url) {
-        showError(checkData.error || 'チェックアウトの開始に失敗しました（登録は完了しています）')
-        return
-      }
-
-      window.location.href = checkData.url
+      // 登録完了。プラン選択を表示し、選んだプランで checkout する
+      registeredToken = regData.token
+      form.style.display = 'none'
+      planSelectEl.style.display = 'block'
     } catch {
       showError('サーバーに接続できませんでした')
     } finally {
       submitBtn.disabled = false
-      submitBtn.textContent = '登録してStripeへ進む →'
+      submitBtn.textContent = '登録してプラン選択へ →'
     }
   })
+
+  async function startCheckout(plan) {
+    errorEl.style.display = 'none'
+    try {
+      const res = await fetch(`${API_BASE_URL}/api/subscription/checkout`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${registeredToken}` },
+        body: JSON.stringify({ plan }),
+      })
+      const data = await res.json()
+      if (!res.ok || !data.url) {
+        showError(data.error || 'チェックアウトの開始に失敗しました（登録は完了しています）')
+        return
+      }
+      window.location.href = data.url
+    } catch {
+      showError('サーバーに接続できませんでした')
+    }
+  }
+
+  document.querySelectorAll('.plan-btn').forEach((b) =>
+    b.addEventListener('click', () => startCheckout(b.dataset.plan))
+  )
 </script>
 </body>
 </html>
