@@ -36,7 +36,7 @@ const PASS_PLANS = {
 
 // 決済手段はカード先行。PayPay承認後に env STRIPE_PASS_METHODS=card,paypay で追加
 function passMethods() {
-  return (process.env.STRIPE_PASS_METHODS || 'card').split(',').map((s) => s.trim())
+  return (process.env.STRIPE_PASS_METHODS || 'card').split(',').map((s) => s.trim()).filter(Boolean)
 }
 
 // POST /api/subscription/checkout

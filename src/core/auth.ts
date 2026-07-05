@@ -65,7 +65,7 @@ export async function saveSubscriptionCache(
     [SUBSCRIPTION_STATUS_KEY]: status,
     [SUBSCRIPTION_CHECKED_AT_KEY]: now.toISOString(),
     [SUBSCRIPTION_GRACE_UNTIL_KEY]: graceUntil.toISOString(),
-    ...(currentPeriodEnd ? { subscriptionCurrentPeriodEnd: currentPeriodEnd } : {}),
+    subscriptionCurrentPeriodEnd: currentPeriodEnd ?? null,
   })
 }
 
