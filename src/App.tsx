@@ -71,7 +71,12 @@ import {
 } from './core/premium'
 import { DEFAULT_THRESHOLDS, type NotificationRules } from './background/notificationRules'
 import { saveSubscriptionCache, isSubscriptionActive, clearAuthSession, getAuthToken, getAuthEmail, getSubscriptionCurrentPeriodEnd } from './core/auth'
-import { getBetaSubscriptionOverride, resolveSubscriber } from './core/betaOverride'
+import {
+  getBetaSubscriptionOverride,
+  setBetaSubscriptionOverride,
+  clearBetaSubscriptionOverride,
+  resolveSubscriber,
+} from './core/betaOverride'
 import { getOnboardingCompleted, setOnboardingCompleted } from './core/onboarding'
 import { OnboardingBanner } from './components/OnboardingBanner'
 import {
@@ -1653,29 +1658,39 @@ export default function App() {
             </div>
           </CollapsibleSection>
 
-          {__DEV_TOOLS__ && (
+          {(__DEV_TOOLS__ || __BETA__) && (
             <details className="settings devPanel">
-              <summary>🛠 開発用: サブスク状態</summary>
+              <summary>{__DEV_TOOLS__ ? '🛠 開発用: サブスク状態' : 'ベータ設定: サブスク状態'}</summary>
               <div className="devPanelBody">
                 <span>現在: <strong>{isSubscriber ? '✅ サブスクライバー' : '❌ 非サブスクライバー'}</strong></span>
                 <div className="devPanelActions">
                   <button
                     type="button"
                     onClick={async () => {
-                      await saveSubscriptionCache('active', null)
+                      await setBetaSubscriptionOverride('on')
                       setIsSubscriber(true)
                     }}
                   >
-                    サブスクON
+                    サブスクON（強制）
                   </button>
                   <button
                     type="button"
                     onClick={async () => {
-                      await chrome.storage.local.remove(['subscriptionStatus', 'subscriptionCheckedAt', 'subscriptionGraceUntil'])
+                      await setBetaSubscriptionOverride('off')
                       setIsSubscriber(false)
                     }}
                   >
-                    サブスクOFF
+                    サブスクOFF（強制）
+                  </button>
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      await clearBetaSubscriptionOverride()
+                      const active = await isSubscriptionActive()
+                      setIsSubscriber(resolveSubscriber(active, null))
+                    }}
+                  >
+                    オーバーライド解除（実状態に戻す）
                   </button>
                 </div>
               </div>
