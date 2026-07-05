@@ -11,6 +11,7 @@
 | `canary.sh` | 毎日 07:30 | LETUSログインページ生存・DOMマーカー・iCalエクスポート形式 | 異常時のみ |
 | `raspi-health.sh` | 毎日 07:00 | 公開API/内部API/ディスク/バックアップ最終結果 | 異常時のみ＋月曜ハートビート |
 | `competitor-watch.sh` | 毎週月 09:00 | LETask（App Store）のバージョン・評価数の変化 | 変化時のみ |
+| `dev-digest.sh` | 毎日 07:15 | 残タスク＋前日進捗の朝サマリー（任意でLLM要約1行） | 毎回1通（#dev-digest） |
 
 ## セットアップ（デスクトップ側）
 
@@ -105,3 +106,38 @@ TASK_CLAUDE_CMD=true ops/task.sh dispatch selftest <ダミープラン>
 ops/task.sh status selftest && ops/task.sh peek selftest && ops/task.sh collect selftest
 ops/task.sh clean selftest --force                     # 掃除（ブランチは git branch -D task/selftest で削除）
 ```
+
+## 開発ダイジェスト（`dev-digest.sh`）
+
+毎朝1通、残タスク（TASKS.md）と前日の進捗（コミット・完了タスク・自走タスク）を
+専用チャンネル #dev-digest に投稿する。土台は決定論（トークンゼロ）。その上に
+任意のLLM要約1行を、予算・計測・自動停止のガード付きで重ねられる。
+
+### ops.env に追記する設定（すべて任意）
+
+```bash
+# 投稿先（未設定なら投稿せずログのみ。#ops-alerts にはフォールバックしない）
+DEV_DIGEST_WEBHOOK_URL='https://discord.com/api/webhooks/...'   # #dev-digest のwebhook
+
+# --- 以下はLLM要約レイヤーを使う場合のみ（未設定なら決定論ダイジェストだけ届く）---
+DIGEST_LLM_ENABLED=1                     # 1 で有効化（キー追加だけでは動かない二重の明示）
+ANTHROPIC_API_KEY='sk-ant-...'           # Anthropic Console のAPIキー。Max x5とは別のAPI従量課金
+DIGEST_MONTHLY_BUDGET_USD=0.50           # 月予算。到達すると自動停止（既定 0.50）
+```
+
+### 消費の確認・自動停止からの再開
+
+```bash
+~/ops/ci/lms-task-watcher/ops/dev-digest.sh --usage      # 直近14日の消費と今月累計・予算残
+```
+
+予算到達で自動停止すると `~/ops/state/dev-digest/llm-disabled` が作られ、以降は
+決定論ダイジェストだけになる。再開は `rm ~/ops/state/dev-digest/llm-disabled`。
+
+### スケジュール登録（Windowsタスクスケジューラ）
+
+```cmd
+schtasks /create /f /tn LMS-DevDigest /sc daily /st 07:15 /tr "wsl.exe -d Ubuntu -u ysou5 -- /home/ysou5/ops/run.sh dev-digest"
+```
+
+（raspi-health 07:00 と canary 07:30 の間。デプロイは origin/develop に push するだけ。）
