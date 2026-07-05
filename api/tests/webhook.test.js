@@ -137,6 +137,39 @@ describe('POST /api/webhook/stripe', () => {
     expect(sub.stripe_customer_id).toBe('cus_new')
   })
 
+  it('mode:payment のパス決済で current_period_end が max(既存,now)+月数 にスタックされる', async () => {
+    // 既存の current_period_end を now+10日 に設定
+    const future = new Date(Date.now() + 10 * 24 * 60 * 60 * 1000).toISOString()
+    // パス購入者の想定: 継続課金でないため subscription_id は NULL。
+    // （同一スイートの先行テストが sub_test を残すためここでクリアする）
+    db.prepare('UPDATE subscriptions SET current_period_end = ?, status = ?, stripe_subscription_id = NULL WHERE user_id = ?')
+      .run(future, 'active', userId)
+
+    mockConstructEvent.mockReturnValue({
+      type: 'checkout.session.completed',
+      data: { object: {
+        mode: 'payment',
+        payment_status: 'paid',
+        customer: 'cus_pass',
+        customer_email: 'hook@example.com',
+        metadata: { pass_months: '6' },
+      } },
+    })
+
+    const res = await request(app).post('/api/webhook/stripe')
+      .set('stripe-signature', 'sig').send(Buffer.from('{}'))
+    expect(res.status).toBe(200)
+
+    const sub = db.prepare('SELECT current_period_end, status, stripe_subscription_id FROM subscriptions WHERE user_id = ?').get(userId)
+    // 既存 future(+10日) を基点に +6ヶ月されている（now基点でなく既存基点）
+    const expected = new Date(future)
+    expected.setMonth(expected.getMonth() + 6)
+    expect(sub.current_period_end).toBe(expected.toISOString())
+    expect(sub.status).toBe('active')
+    // パスは subscription_id を作らない
+    expect(sub.stripe_subscription_id ?? null).toBe(null)
+  })
+
   it('署名検証失敗で 400 を返す', async () => {
     mockConstructEvent.mockImplementation(() => {
       throw new Error('No signatures found matching the expected signature for payload')

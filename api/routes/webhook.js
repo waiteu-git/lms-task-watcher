@@ -82,6 +82,27 @@ router.post('/stripe', async (req, res) => {
         } catch (e) {
           console.error('Failed to fetch subscription period_end:', e.message)
         }
+      } else if (obj.mode === 'payment' && obj.payment_status === 'paid') {
+        // 一回払いパス: current_period_end を max(既存, now) + pass_months にスタック
+        const months = Number(obj.metadata?.pass_months)
+        if (months > 0) {
+          const email = obj.customer_email ?? obj.customer_details?.email
+          const row = db.prepare(
+            'SELECT current_period_end FROM subscriptions WHERE user_id = (SELECT id FROM users WHERE email = ?)'
+          ).get(email)
+
+          const now = new Date()
+          const existing = row?.current_period_end ? new Date(row.current_period_end) : null
+          const base = existing && existing > now ? existing : now
+          const end = new Date(base)
+          end.setMonth(end.getMonth() + months)
+
+          db.prepare(`
+            UPDATE subscriptions
+            SET stripe_customer_id = ?, status = 'active', current_period_end = ?, updated_at = datetime('now')
+            WHERE user_id = (SELECT id FROM users WHERE email = ?)
+          `).run(obj.customer, end.toISOString(), email)
+        }
       }
       break
     }
