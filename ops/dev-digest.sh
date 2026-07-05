@@ -191,7 +191,43 @@ print(json.dumps({"text":text,"in":i,"out":o,"cost":round(cost,6)}, ensure_ascii
   if awk "BEGIN{exit !($mc2 >= $budget)}"; then : > "$KILL"; fi
 }
 
+# 台帳から直近N日ぶんの消費を一覧表示する（投稿しない）。
+cmd_usage() {
+  local days="${1:-14}"
+  local budget="${DIGEST_MONTHLY_BUDGET_USD:-0.50}"
+  echo "AI消費（直近 ${days} 日 / 台帳: $LEDGER）"
+  python3 - "$LEDGER" "$days" <<'PY'
+import json,sys,os,datetime
+ledger, days = sys.argv[1], int(sys.argv[2])
+cutoff = (datetime.date.today() - datetime.timedelta(days=days-1)).isoformat()
+rows = {}
+if os.path.exists(ledger):
+    for line in open(ledger):
+        line=line.strip()
+        if not line: continue
+        try: d=json.loads(line)
+        except Exception: continue
+        dt=str(d.get("date",""))
+        if dt < cutoff: continue
+        r=rows.setdefault(dt,{"in":0,"out":0,"cost":0.0})
+        r["in"]+=int(d.get("input",0)); r["out"]+=int(d.get("output",0)); r["cost"]+=float(d.get("cost_usd",0))
+for dt in sorted(rows):
+    r=rows[dt]
+    print(f"  {dt}  in {r['in']:>7}  out {r['out']:>5}  ${r['cost']:.4f}")
+if not rows:
+    print("  （記録なし）")
+PY
+  local mc; mc="$(month_cost)"
+  local rem; rem="$(awk "BEGIN{printf \"%.4f\", $budget-$mc}")"
+  echo "今月累計: \$$mc / 予算 \$$budget（残 \$$rem）"
+}
+
 main() {
+  if [ "${1:-}" = "--usage" ]; then
+    cmd_usage "${2:-14}"
+    return 0
+  fi
+
   local dry=0
   [ "${1:-}" = "--dry-run" ] && dry=1
 
