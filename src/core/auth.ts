@@ -109,5 +109,11 @@ export async function getSubscriptionState(): Promise<SubscriptionState> {
 
 export async function isSubscriptionActive(): Promise<boolean> {
   const state = await getSubscriptionState()
-  return state === 'active' || state === 'grace'
+  if (state !== 'active' && state !== 'grace') return false
+
+  // パスの固定期限をクライアント側でも尊重する（期限切れは即時失効）
+  const periodEnd = await getSubscriptionCurrentPeriodEnd()
+  if (periodEnd && new Date(periodEnd).getTime() <= Date.now()) return false
+
+  return true
 }
