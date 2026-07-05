@@ -71,6 +71,7 @@ import {
 } from './core/premium'
 import { DEFAULT_THRESHOLDS, type NotificationRules } from './background/notificationRules'
 import { saveSubscriptionCache, isSubscriptionActive, clearAuthSession, getAuthToken, getAuthEmail, getSubscriptionCurrentPeriodEnd } from './core/auth'
+import { getBetaSubscriptionOverride, resolveSubscriber } from './core/betaOverride'
 import { getOnboardingCompleted, setOnboardingCompleted } from './core/onboarding'
 import { OnboardingBanner } from './components/OnboardingBanner'
 import {
@@ -264,6 +265,7 @@ export default function App() {
       setAccountEmail(email)
       document.documentElement.setAttribute('data-theme', savedTheme)
 
+      const override = await getBetaSubscriptionOverride()
       if (token) {
         // トークンがある場合はサーバーから最新のサブスク状態を取得
         try {
@@ -273,18 +275,18 @@ export default function App() {
           if (res.ok) {
             const data = await res.json() as { status: string; currentPeriodEnd: string | null }
             await saveSubscriptionCache(data.status, data.currentPeriodEnd)
-            setIsSubscriber(data.status === 'active')
+            setIsSubscriber(resolveSubscriber(data.status === 'active', override))
             setNextPaymentDate(data.currentPeriodEnd)
           } else {
-            setIsSubscriber(cachedSubscriber)
+            setIsSubscriber(resolveSubscriber(cachedSubscriber, override))
             setNextPaymentDate(await getSubscriptionCurrentPeriodEnd())
           }
         } catch {
-          setIsSubscriber(cachedSubscriber)
+          setIsSubscriber(resolveSubscriber(cachedSubscriber, override))
           setNextPaymentDate(await getSubscriptionCurrentPeriodEnd())
         }
       } else {
-        setIsSubscriber(false)
+        setIsSubscriber(resolveSubscriber(false, override))
       }
 
       const savedRules = await getNotificationRules()
@@ -349,22 +351,23 @@ export default function App() {
 
   async function handleAfterLogin() {
     void getAuthEmail().then(setAccountEmail)
+    const override = await getBetaSubscriptionOverride()
     try {
       const token = await getAuthToken()
-      if (!token) { setIsSubscriber(false); return }
+      if (!token) { setIsSubscriber(resolveSubscriber(false, override)); return }
       const res = await fetch(`${API_BASE_URL}/api/subscription/status`, {
         headers: { Authorization: `Bearer ${token}` },
       })
       if (res.ok) {
         const data = await res.json() as { status: string; currentPeriodEnd: string | null }
         await saveSubscriptionCache(data.status, data.currentPeriodEnd)
-        setIsSubscriber(data.status === 'active')
+        setIsSubscriber(resolveSubscriber(data.status === 'active', override))
       } else {
-        setIsSubscriber(false)
+        setIsSubscriber(resolveSubscriber(false, override))
       }
     } catch {
       const active = await isSubscriptionActive()
-      setIsSubscriber(active)
+      setIsSubscriber(resolveSubscriber(active, override))
     }
 
     if (API_BASE_URL) {
