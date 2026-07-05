@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>プライバシーポリシー — リタス（Litas）</title>
+  <meta name="description" content="モバイルアプリ「リタス（Litas）」のプライバシーポリシー。取得するデータ・保存場所・取り扱いについて。">
+  <link rel="canonical" href="https://lms.waiteu.dev/app-privacy">
+  <meta name="robots" content="index,follow">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root { --accent: #0f9e75; --text-dark: #0f172a; --text-mid: #475569; --border: #e2e8f0; --bg-pale: #e7f6f1; --border-pale: #c9ece1; }
+    body { font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; color: var(--text-dark); background: #fff; line-height: 1.8; font-size: 16px; }
+    header { background: #fff; border-bottom: 1px solid var(--border); padding: 14px 20px; }
+    header .inner { max-width: 800px; margin: 0 auto; display: flex; align-items: center; justify-content: space-between; }
+    .logo { font-size: 1rem; font-weight: 900; color: var(--text-dark); text-decoration: none; display: flex; align-items: center; gap: 8px; }
+    .logo svg { width: 20px; height: 19px; }
+    .back-link { font-size: 0.85rem; color: var(--accent); text-decoration: none; }
+    .back-link:hover { text-decoration: underline; }
+    main { max-width: 800px; margin: 0 auto; padding: 48px 20px 80px; }
+    h1 { font-size: 1.6rem; font-weight: 950; color: var(--text-dark); margin-bottom: 6px; letter-spacing: -0.02em; }
+    .updated { font-size: 0.85rem; color: var(--text-mid); margin-bottom: 40px; }
+    h2 { font-size: 1.05rem; font-weight: 950; color: var(--text-dark); margin: 36px 0 12px; padding-bottom: 6px; border-bottom: 2px solid var(--border-pale); }
+    p { margin-bottom: 12px; font-size: 0.95rem; }
+    table { width: 100%; border-collapse: collapse; margin: 14px 0; font-size: 0.88rem; }
+    th, td { border: 1px solid var(--border); padding: 10px 14px; text-align: left; vertical-align: top; }
+    th { background: var(--bg-pale); font-weight: 700; color: var(--text-dark); }
+    ul, ol { padding-left: 1.4em; margin-bottom: 12px; }
+    li { font-size: 0.95rem; margin-bottom: 4px; }
+    a { color: var(--accent); }
+    .note { background: var(--bg-pale); border: 1px solid var(--border-pale); border-radius: 10px; padding: 14px 16px; font-size: 0.9rem; margin: 14px 0; }
+    footer { background: #0f172a; color: rgba(255,255,255,0.55); text-align: center; padding: 20px; font-size: 0.82rem; }
+    footer a { color: rgba(255,255,255,0.75); }
+  </style>
+</head>
+<body>
+<header>
+  <div class="inner">
+    <a href="app.html" class="logo">
+      <svg viewBox="0 0 48 46" fill="none" aria-hidden="true"><path fill="#0f9e75" d="M25.946 44.938c-.664.845-2.021.375-2.021-.698V33.937a2.26 2.26 0 0 0-2.262-2.262H10.287c-.92 0-1.456-1.04-.92-1.788l7.48-10.471c1.07-1.497 0-3.578-1.842-3.578H1.237c-.92 0-1.456-1.04-.92-1.788L10.013.474c.214-.297.556-.474.92-.474h28.894c.92 0 1.456 1.04.92 1.788l-7.48 10.471c-1.07 1.498 0 3.579 1.842 3.579h11.377c.943 0 1.473 1.088.89 1.83L25.947 44.94z"/></svg>
+      リタス
+    </a>
+    <a href="app.html" class="back-link">← リタスのページへ</a>
+  </div>
+</header>
+<main>
+  <h1>プライバシーポリシー</h1>
+  <p class="updated">最終更新日: 2026年7月6日 ／ 対象: モバイルアプリ「リタス（Litas）」（iOS / Android）</p>
+
+  <h2>概要</h2>
+  <p>「リタス（Litas）」は、東京理科大学のLMS「LETUS」の課題締切と、履修システム「CLASS」の時間割をスマートフォンだけで管理できる非公式モバイルアプリです。本ポリシーでは、アプリが取得するデータとその取り扱いについて説明します。本アプリは大学およびLETUS / CLASSの運営とは関係のない、学生有志による個人開発ツールです。</p>
+
+  <div class="note">大原則: 認証情報（ログインID・パスワード）は一切保存しません。無料機能で取得したデータは、あなたの端末内にのみ保存し、外部サーバーへ送信しません。</div>
+
+  <h2>取得するデータ</h2>
+  <p>アプリ内のブラウザ画面で、あなたがログイン済みのセッションを使って以下を読み取り、必要な項目のみを抽出します。</p>
+  <ul>
+    <li><code>letus.ed.tus.ac.jp</code> のコースページ・課題ページ（課題タイトル・締切・提出状況・コース情報）</li>
+    <li><code>class.admin.tus.ac.jp</code> の学生時間割表（履修科目・曜日時限・科目コード）</li>
+  </ul>
+  <table>
+    <tr><th>データ</th><th>用途</th></tr>
+    <tr><td>課題タイトル・URL・締切日時</td><td>課題一覧表示・締切前のプッシュ通知</td></tr>
+    <tr><td>提出状況テキスト</td><td>提出済み・未提出の判定、見張り番通知の停止判定</td></tr>
+    <tr><td>コース名・コースURL・科目コード</td><td>科目連携（課題↔時間割のひも付け）、コース更新の可視化</td></tr>
+    <tr><td>時間割（科目・曜日時限・教室）</td><td>時間割表示、対応するLETUSコースへの遷移</td></tr>
+  </table>
+
+  <h2>データの保存と送信</h2>
+  <p><strong>無料機能</strong>で取得したデータ（課題・時間割・コース情報）は、すべて<strong>あなたの端末内のローカルストレージにのみ</strong>保存されます。外部サーバーへの送信は行いません。アカウント登録も不要です。</p>
+  <p><strong>有料機能「見張り番プッシュ」</strong>を利用する場合に限り、締切が近い未提出課題を端末外からも通知するため、課題のメタデータ（締切・提出状況などの最小限の情報）と、通知配信用のプッシュトークンをサーバーに保存します。この場合も、認証情報や課題本文は預かりません。</p>
+
+  <h2>取得しないデータ</h2>
+  <ul>
+    <li>ログインID・パスワード等の認証情報</li>
+    <li>成績・評価に関するデータ</li>
+    <li>掲示・お知らせ等、課題／時間割以外のCLASS情報</li>
+    <li>個人プロフィール情報、連絡先、位置情報</li>
+    <li>上記2ドメイン以外のページ</li>
+  </ul>
+
+  <h2>通知について</h2>
+  <p>締切前の通知・朝まとめ通知は、端末内で予約されるローカル通知です（無料）。見張り番プッシュ（有料）のみ、上記のプッシュトークンを用いてサーバーから配信します。通知の許可はいつでも端末の設定で変更できます。</p>
+
+  <h2>事前登録メールについて</h2>
+  <p>公開前のランディングページ（<a href="app.html">/app</a>）でメールアドレスをご登録いただいた場合、そのメールアドレスはアプリ公開のお知らせを送る目的にのみ使用します。第三者への提供や、その他の宣伝目的での利用は行いません。配信停止をご希望の場合はお問い合わせください。</p>
+
+  <h2>データの削除</h2>
+  <ol>
+    <li>アプリ内の「設定」から保存データを消去できます。</li>
+    <li>アプリをアンインストールすると、端末内に保存されたデータはすべて削除されます。</li>
+    <li>有料機能で保存されたサーバー側データやプッシュトークン、事前登録メールの削除をご希望の場合は、お問い合わせください。</li>
+  </ol>
+
+  <h2>第三者提供・広告</h2>
+  <p>取得したデータを第三者へ提供・販売することはありません。広告SDKや行動追跡（トラッキング）目的の解析は使用しません。</p>
+
+  <h2>プライバシーポリシーの変更</h2>
+  <p>本ポリシーを変更する場合、このページの「最終更新日」を更新したうえで公開します。アプリはまだ開発中であり、公開までに内容が更新される場合があります。</p>
+
+  <h2>お問い合わせ</h2>
+  <p><a href="https://docs.google.com/forms/d/e/1FAIpQLSe2bn8QfwsosZj3EON8uu85AkKa1_pjX0gQ7ptGE-ikqDXEYQ/viewform?usp=dialog" target="_blank" rel="noopener">お問い合わせフォーム</a>よりご連絡ください。</p>
+</main>
+<footer>
+  <a href="app.html">リタスのページ</a> &nbsp;|&nbsp; <a href="index.html">PC版（拡張機能）</a> &nbsp;|&nbsp; <a href="transparency.html">透明性レポート</a>
+  <p style="margin-top:8px;">© 2026 リタス（Litas）. 東京理科大学非公式の学生個人プロジェクトです。</p>
+</footer>
+</body>
+</html>

@@ -386,7 +386,7 @@
     .highlight h2 { color: var(--text-dark); }
     .highlight p { color: var(--text-mid); font-size: 15px; line-height: 1.85; margin-top: 12px; }
     .tt-phone { flex: 0 0 240px; }
-    .phone-screen-light { display: block; background: #fff; min-height: 0; padding: 0; }
+    .phone-screen-light { display: block; background: #fff; min-height: 0; padding: 0; overflow: hidden; }
     .tt-head { background: #0f9e75; color: #fff; padding: 14px 16px; }
     .tt-head-sub { font-size: 11px; color: #c9efe2; }
     .tt-head-title { font-size: 17px; font-weight: 700; }
@@ -449,7 +449,7 @@
            aria-hidden="true" class="hp-field">
     <label class="consent">
       <input id="consent" type="checkbox" required>
-      <span><a href="privacy.html" target="_blank" rel="noopener">プライバシーポリシー</a>に同意し、公開時のお知らせメール受信に同意します</span>
+      <span><a href="app-privacy.html" target="_blank" rel="noopener">プライバシーポリシー</a>に同意し、公開時のお知らせメール受信に同意します</span>
     </label>
     <button type="submit" class="btn-primary">事前登録して公開を待つ</button>
     <p id="waitlist-status" class="waitlist-status" role="status" aria-live="polite"></p>
@@ -508,6 +508,7 @@
     <div class="feature-card"><h4>朝まとめ通知</h4><p>毎朝、その日以降の締切をまとめて1回お知らせ。</p></div>
     <div class="feature-card"><h4>CLASS時間割の自動取込</h4><p>履修時間割を自動で取り込んで表示。学期切替にも対応、コマから対応LETUSへ。</p></div>
     <div class="feature-card"><h4>科目連携</h4><p>科目コードでLETUS課題と時間割のコマを自動でひも付け。</p></div>
+    <div class="feature-card"><h4>コース更新のお知らせ</h4><p>LETUSコースに教材や課題が追加されたら、時間割にバッジで表示。更新を見逃さない。</p></div>
     <div class="feature-card"><h4>提出状態の表示</h4><p>未提出・提出済みが一目でわかる。</p></div>
     <div class="feature-card"><h4>見張り番プッシュ</h4><p>締切間近の未提出課題を24h→6h→1hで追いかけ通知。提出を検知したら自動で止まる。</p></div>
   </div>
@@ -532,14 +533,15 @@
 
 <!-- 相互リンク -->
 <section class="crosslink">
-  <p>今すぐPCで課題通知を使うなら、Chrome / Edge 拡張機能が公開中です。</p>
+  <h2>PCなら、もう使えます</h2>
+  <p>リタスの前身、PC向けの「LETUS Task Watcher（Chrome / Edge 拡張機能）」が公開中。ブラウザで課題の締切通知を今すぐ使えます。スマホ版の公開までは拡張機能でどうぞ。</p>
   <a href="index.html" class="btn-secondary">PC版（拡張機能）を見る</a>
 </section>
 
 <!-- FOOTER -->
 <footer>
   <div class="footer-links">
-    <a href="privacy.html">プライバシーポリシー</a>
+    <a href="app-privacy.html">プライバシーポリシー</a>
     <a href="https://chromewebstore.google.com/detail/letus-task-watcher/eofgkmpiadoeckkliialkddacidcinml" target="_blank" rel="noopener">Chrome Web Store</a>
     <a href="https://microsoftedge.microsoft.com/addons/detail/femdjgdgelnbdpgnfehacobmpbfmbdoa" target="_blank" rel="noopener">Edge Add-ons</a>
     <a href="transparency.html">透明性レポート</a>
