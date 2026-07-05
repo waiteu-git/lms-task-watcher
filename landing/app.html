@@ -360,7 +360,7 @@
     .notif-sub { background: rgba(255,255,255,0.07); margin-top: 8px; }
     .notif-head { display: flex; align-items: center; gap: 6px; font-size: 11px; color: #c7c9f7; margin-bottom: 5px; }
     .notif-head-sub { font-size: 11px; color: #a9a7bd; margin-bottom: 3px; }
-    .notif-ico { width: 18px; height: 18px; border-radius: 5px; background: var(--accent); display: inline-flex; align-items: center; justify-content: center; }
+    .notif-ico { width: 18px; height: 18px; border-radius: 5px; background: #0f9e75; display: inline-flex; align-items: center; justify-content: center; }
     .notif-title { font-size: 12px; color: #fff; font-weight: 700; }
     .notif-body { font-size: 11px; color: #d7d5e6; line-height: 1.4; }
     /* Xフォロー導線 */
@@ -378,6 +378,7 @@
     .feature-card p { color: var(--text-mid); font-size: 14px; line-height: 1.6; }
     .feat-note { margin-top: 18px; font-size: 12px; color: var(--text-light); }
     .btn-secondary { display: inline-block; margin-top: 12px; padding: 12px 28px; border-radius: 999px; border: 1px solid var(--accent); color: var(--accent); text-decoration: none; font-weight: 700; font-size: 14px; }
+    .logo .logo-mark { display: inline-flex; align-items: center; }
   </style>
 </head>
 <body>
@@ -423,7 +424,7 @@
 
   <form id="waitlist-form" class="waitlist-form" novalidate>
     <input id="waitlist-email" type="email" inputmode="email" autocomplete="email"
-           placeholder="メールアドレス" required>
+           placeholder="メールアドレス" aria-label="メールアドレス" required>
     <!-- honeypot: 人間には見えない。botが埋めたら送信を無効化 -->
     <input id="website" name="website" type="text" tabindex="-1" autocomplete="off"
            aria-hidden="true" class="hp-field">
