@@ -86,6 +86,14 @@ db.exec(`
     discord_channel_id TEXT NOT NULL,
     created_at TEXT NOT NULL DEFAULT (datetime('now'))
   );
+
+  CREATE TABLE IF NOT EXISTS waitlist (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    email TEXT NOT NULL UNIQUE,
+    source TEXT NOT NULL DEFAULT 'app-landing',
+    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+    notified_at TEXT
+  );
 `)
 
 const subscriptionColumns = db.prepare("PRAGMA table_info(subscriptions)").all()

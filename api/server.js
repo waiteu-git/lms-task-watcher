@@ -9,6 +9,7 @@ const userRoutes = require('./routes/user')
 const webhookRoutes = require('./routes/webhook')
 const deviceRoutes = require('./routes/device')
 const discordRoutes = require('./routes/discord')
+const waitlistRoutes = require('./routes/waitlist')
 
 const app = express()
 
@@ -32,6 +33,7 @@ app.use('/api/subscription', subscriptionRoutes)
 app.use('/api/user', userRoutes)
 app.use('/api/device', deviceRoutes)
 app.use('/api/discord', discordRoutes)
+app.use('/api/waitlist', waitlistRoutes)
 
 app.get('/health', (_req, res) => res.json({ ok: true }))
 
