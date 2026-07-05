@@ -22,29 +22,51 @@ router.get('/status', requireAuth, (req, res) => {
   })
 })
 
+const PASS_PLANS = {
+  halfyear: { price: () => process.env.STRIPE_PRICE_HALFYEAR, months: 6 },
+  year: { price: () => process.env.STRIPE_PRICE_YEAR, months: 12 },
+}
+
+// 決済手段はカード先行。PayPay承認後に env STRIPE_PASS_METHODS=card,paypay で追加
+function passMethods() {
+  return (process.env.STRIPE_PASS_METHODS || 'card').split(',').map((s) => s.trim())
+}
+
 // POST /api/subscription/checkout
 router.post('/checkout', requireAuth, async (req, res) => {
   const user = db.prepare('SELECT email FROM users WHERE id = ?').get(req.userId)
-
   if (!user) {
     return res.status(404).json({ error: 'ユーザーが見つかりません' })
   }
 
-  try {
-    const session = await stripe.checkout.sessions.create({
-      mode: 'subscription',
-      payment_method_types: ['card'],
-      customer_email: user.email,
-      line_items: [
-        {
-          price: process.env.STRIPE_PRICE_ID,
-          quantity: 1,
-        },
-      ],
-      success_url: `${process.env.API_BASE_URL}/checkout-success`,
-      cancel_url: `${process.env.API_BASE_URL}/checkout-cancel`,
-    })
+  const plan = req.body?.plan ?? 'monthly'
+  if (plan !== 'monthly' && !PASS_PLANS[plan]) {
+    return res.status(400).json({ error: '不正なプランです' })
+  }
 
+  try {
+    let session
+    if (plan === 'monthly') {
+      session = await stripe.checkout.sessions.create({
+        mode: 'subscription',
+        payment_method_types: ['card'],
+        customer_email: user.email,
+        line_items: [{ price: process.env.STRIPE_PRICE_ID, quantity: 1 }],
+        success_url: `${process.env.API_BASE_URL}/checkout-success`,
+        cancel_url: `${process.env.API_BASE_URL}/checkout-cancel`,
+      })
+    } else {
+      const p = PASS_PLANS[plan]
+      session = await stripe.checkout.sessions.create({
+        mode: 'payment',
+        payment_method_types: passMethods(),
+        customer_email: user.email,
+        line_items: [{ price: p.price(), quantity: 1 }],
+        metadata: { pass_months: p.months },
+        success_url: `${process.env.API_BASE_URL}/checkout-success`,
+        cancel_url: `${process.env.API_BASE_URL}/checkout-cancel`,
+      })
+    }
     return res.json({ url: session.url })
   } catch (err) {
     console.error(err)
