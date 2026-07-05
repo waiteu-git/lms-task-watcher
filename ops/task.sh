@@ -6,6 +6,7 @@
 # 「1タスク=1worktree=1tmux」の並列隔離規約をツールが強制する。
 #
 # 設計の正: docs/superpowers/specs/2026-07-05-task-runner-cli-design.md
+# 通知: dispatchで状態メッセージを1つ送り、notify/stopはそれを編集で更新、attention/doneは新規メッセージ（ping）。
 # 既存の定期監視スクリプト群（nightly.sh 等）とは独立。都度呼び出し。
 set -euo pipefail
 
@@ -420,7 +421,8 @@ task.sh — 自走タスクランチャーCLI（1タスク=1worktree=1tmux）
   task.sh status [<name>]
   task.sh peek <name> [-n <行数>]
   task.sh collect <name>
-  task.sh notify <name> <message...>
+  task.sh notify <name> <message...>      # 途中経過（状態メッセージを編集）
+  task.sh done <name> <message...>        # 完了通知（新規メッセージ＋状態を完了表示に）
   task.sh event <name> <stop|attention>   # hooksから呼ばれる内部用
   task.sh clean <name> [--force]
 EOF
