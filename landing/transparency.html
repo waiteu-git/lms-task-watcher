@@ -44,7 +44,7 @@
 </header>
 <main>
   <h1>透明性レポート</h1>
-  <p class="updated">最終更新日: 2026年7月4日</p>
+  <p class="updated">最終更新日: 2026年7月7日</p>
 
   <h2>このページについて</h2>
   <p>「拡張機能が裏で何をしているのか、自分の目で確かめたい」という方向けの技術文書です。LETUS Task Watcherの通信先とデータの扱いを説明し、<strong>本文の記載を信用せずに自分で検証する方法</strong>を案内します。一般的な説明は<a href="privacy.html">プライバシーポリシー</a>をご覧ください。</p>
@@ -88,9 +88,9 @@
   <p>同じDevToolsの <strong>Console</strong> で次を実行すると、拡張機能が保存している全データを見られます。</p>
   <p><code>chrome.storage.local.get(null).then(console.log)</code></p>
 
-  <h2>ソースコードの公開方針</h2>
-  <p>本拡張機能のソースコードは2026年7月までGitHubで全文公開していましたが、コードの無断転用への対策として、現在リポジトリは非公開としています（公開していた期間のコードにも、複製・転用・再配布を禁止するsource-availableライセンスが適用されます）。</p>
-  <p>拡張機能という配布形態の性質上、上記の手順どおり<strong>実際に動作しているコードは今もすべて利用者の手元で確認できます</strong>。セキュリティ監査などの目的でリポジトリの閲覧を希望される場合は、<a href="https://docs.google.com/forms/d/e/1FAIpQLSf4ldGRNtITrcDSL1LIfQiSbYiu7-ud2qagGChttU-yCIQVkA/viewform?usp=dialog" target="_blank" rel="noopener">お問い合わせフォーム</a>からご相談ください。</p>
+  <h2>ソースコードの公開</h2>
+  <p>本拡張機能のソースコードは <a href="https://github.com/waiteu-git/lms-task-watcher" target="_blank" rel="noopener">GitHub（waiteu-git/lms-task-watcher）</a> で全文公開しています（難読化していません）。誰でも閲覧・監査でき、上記「自分で検証する方法」と合わせて、開発者を信用せずに動作を確認できます。</p>
+  <p>ただし本ソフトウェアはオープンソースではありません。複製・転用・再配布・商用利用を禁止する source-available ライセンス（<a href="https://github.com/waiteu-git/lms-task-watcher/blob/main/LICENSE" target="_blank" rel="noopener">LICENSE</a>、2026-07-04適用）の下にあり、閲覧・監査・自分の環境での動作検証のみを許可しています。セキュリティ監査等のご相談は<a href="https://docs.google.com/forms/d/e/1FAIpQLSf4ldGRNtITrcDSL1LIfQiSbYiu7-ud2qagGChttU-yCIQVkA/viewform?usp=dialog" target="_blank" rel="noopener">お問い合わせフォーム</a>へ。</p>
 
   <h2>脆弱性の報告</h2>
   <p>セキュリティ上の問題を発見された場合は、公開の場に書く前に<a href="https://docs.google.com/forms/d/e/1FAIpQLSf4ldGRNtITrcDSL1LIfQiSbYiu7-ud2qagGChttU-yCIQVkA/viewform?usp=dialog" target="_blank" rel="noopener">お問い合わせフォーム</a>でご連絡いただけると助かります。確認のうえ迅速に対応します。</p>
