@@ -4,6 +4,19 @@
 
 ---
 
+## 2026-07-06 — リタスを独立リポジトリ `C:\dev\litas` へ分離、v1.0.0系列に改版
+
+モバイルアプリ「リタス」の開発を本リポジトリ（feature/v2.0.0の`app/`）から分離した。
+
+- `git subtree split --prefix=app` で**コミット履歴を保持して移管**（53コミット）。`feature/v2.0.0` の `app/` は凍結
+- リタスは**v1.0.0からリリース**（「v2.0.0」呼称廃止）。app.json / package.json 改版済み
+- 新リポジトリに CLAUDE.md / README / TASKS.md / docs/handover.md（引継ぎ文書）＋設計ドキュメント3点を整備
+- 分離でホイストが外れた `@types/react` をdevDepに追加し、`pnpm typecheck` エラーゼロ・vitest 99件通過を確認
+- 本リポジトリに残るリタス関連: バックエンドAPI（devices/token・assignments/state）、LP（landing/）、changelogへのリタス情報掲載
+- 残作業: GitHubリモート作成・push（gh CLI未導入のため手動）、EASプロジェクトの向き先確認
+
+---
+
 ## 2026-07-06 — ロードマップのフェーズ構成を再定義（フェーズ2=CLASS連携・フェーズ3=リタス）
 
 `docs/roadmap.md` と `public/changelog.html` のロードマップを再構成。コード変更なし、ドキュメントのみ。

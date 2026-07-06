@@ -65,7 +65,9 @@
 
 アプリ単体完結アーキテクチャ（2026-07-04 全面改定・B案）。詳細: `docs/superpowers/specs/2026-07-04-v2.0.0-mobile-app-initial-design.md`。
 
-- React Native（Expo managed・TypeScript）で iOS / Android アプリ開発（モノレポ `app/`）
+**2026-07-06 リポジトリ分離**: リタスは独立リポジトリ `C:\dev\litas` で開発し、**v1.0.0 からリリース**する（「v2.0.0」呼称は廃止）。旧開発場所（本リポジトリ `feature/v2.0.0` ブランチの `app/`）は凍結。引継ぎ: `litas/docs/handover.md`。
+
+- React Native（Expo managed・TypeScript）で iOS / Android アプリ開発（独立リポジトリ `litas`）
 - アプリ内WebViewでLETUS / CLASSにSSOログインし、アプリ側で直接収集（拡張機能はPC派の収集源＋PCダッシュボードに再定位）
 - フェーズ2で確立したCLASS連携（パーサ・API・科目連携）をアプリから利用
 - 初版スコープ: 課題通知＋時間割閲覧＋見張り番プッシュ（サブスクのみ、未提出のみ24h→6h→1hエスカレーション）
