@@ -140,10 +140,10 @@
 
 スコープ変更設計: `docs/superpowers/specs/2026-07-06-v1.2.0-scope-change-design.md`。無料開放（旧フェーズ1.5）とCLASS連携（フェーズ2）を **v1.2.0として一括リリース**する。`host_permissions` 追加で再審査になるため同じ機会にまとめる。Phase C（Web Store申請）は下記完了後。各機能の詳細設計は実装フェーズで個別に brainstorming → plan する。
 
-- [ ] **entitlement変更の実装**（設計・計画確定済み、未着手）
+- [x] **entitlement変更の実装**（完了: コミット `dfea278`・`f4efd46`）
   - 詳細設計: `docs/superpowers/specs/2026-07-04-free-first-entitlement-design.md`
   - 実装計画: `docs/superpowers/plans/2026-07-04-free-first-entitlement.md`
-  - メモ・優先度・テーマのサブスクゲートを撤去（無料開放）、`PremiumGate.tsx`（未使用）を削除、`ProBanner`の機能リストをカスタム通知ルール・Discordのみに更新
+  - メモ・優先度・テーマのサブスクゲートを撤去（無料開放）、`PremiumGate.tsx`（未使用）を削除、`ProBanner`の機能リストをカスタム通知ルール・Discordのみに更新 — 全て適用済み・テーマは常時表示の `displaySettings` ブロックへ移動済み
   - バックエンド変更なし（同期は既に無料アカウント対応済み）
 
 - [ ] **CLASS時間割 収集＋グリッド表示**（詳細設計は実装フェーズ）

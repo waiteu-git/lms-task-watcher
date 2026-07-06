@@ -4,6 +4,17 @@
 
 ---
 
+## 2026-07-07 — v1.2.0進捗棚卸し: No.1 entitlement無料開放は実装済みと確認、TASKS同期
+
+v1.2.0を順に着手するため現状を精査した結果、**No.1「entitlement変更（無料開放）」はプラン（`plans/2026-07-04-free-first-entitlement.md`）のTask 1・2が全て実装・コミット済み**だった（`dfea278 feat(ext): open memo/priority/manual to free`・`f4efd46 feat(ext): make theme free...`）。TASKS.mdは`[ ]`のままで実態とズレていたため`[x]`へ同期。
+
+- 確認: `AssignmentMemo.tsx`/`ManualAssignmentCard.tsx`から`isSubscriber`ゲート撤去済み、`PremiumGate.tsx`削除済み、`ProBanner`の`FEATURES`はカスタム通知ルール＋Discordの2件のみ、テーマは常時表示`displaySettings`ブロックへ移動済み、戦略書§2表のテーマ行も無料化済み
+- 残る`isSubscriber`参照（App.tsx 3箇所）はプランが「残す」と明記したサブスク限定ブロック判定＋ベータトグル表示で、想定どおり
+- 検証: `pnpm exec tsc -b` clean、`pnpm exec vitest run src` 180/180 PASS
+- **次段（No.2 CLASS連携以降）は未着手**。litas側に純粋ロジック（`src/parsers/timetable.ts`・`src/links/syllabus.ts`・`src/updates/courseUpdates.ts`、いずれもnode-html-parser依存でRN非依存・テスト付き）が揃っており移植元は確定。ただしスコープ設計の規約どおり各機能は個別にbrainstorming→planが必要で、CLASS収集の実装・検証には実CLASS DOM（`class.admin.tus.ac.jp`ログイン）と`host_permissions`追加が要る
+
+---
+
 ## 2026-07-06 — v1.2.0スコープ変更（決済後回し・CLASS連携/シラバス/更新通知を追加）
 
 v1.2.0の中身を差し替え。決定記録スペック `docs/superpowers/specs/2026-07-06-v1.2.0-scope-change-design.md`。ドキュメントのみ、コード変更なし。
