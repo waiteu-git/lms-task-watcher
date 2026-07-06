@@ -147,7 +147,7 @@
   - バックエンド変更なし（同期は既に無料アカウント対応済み）
 
 - [~] **CLASS時間割 収集＋グリッド表示**（詳細設計は実装フェーズ）
-  - [x] パーサ移植: リタス `src/parsers/timetable.ts` → 拡張 `src/core/timetable.ts`（`node-html-parser`踏襲でlitasと同一・テスト/フィクスチャ同梱・13件通過）
+  - [x] パーサ移植: リタス `src/parsers/timetable.ts` → 拡張 `src/core/timetable.ts`（`node-html-parser`踏襲でlitusと同一・テスト/フィクスチャ同梱・13件通過）
   - [ ] `manifest.json` の `host_permissions` に `https://class.admin.tus.ac.jp/*` を追加
   - [ ] Content Scriptで時間割ページ `Kmd008` を取得 → パース → `chrome.storage.local` に保存 → ダッシュボードにグリッド表示
   - [ ] 収集範囲は履修科目・時間割のみに厳格限定（成績等は除外）
@@ -163,7 +163,7 @@
 - [ ] **コース内容の更新通知（定義A）**
   - `/mod/*/view.php` リンク集合をコースごとにスナップショット → 再スキャン時に差分検知 → バッジ・通知
   - シグネチャ/差分はリタス `src/updates/courseUpdates.ts` を移植（→ 拡張 `src/background/courseUpdates.ts` 想定）
-  - 注: `courseUpdates` は `letusLinks`（リンク抽出）依存で、拡張の既存リンク抽出（`src/background/index.ts`、litas移植の起源）との突き合わせが要る。純粋ロジック移植は本機能のbrainstorm→planで扱う（timetable/syllabusのような単純コピーにならないため案Aで先行移植せず）
+  - 注: `courseUpdates` は `letusLinks`（リンク抽出）依存で、拡張の既存リンク抽出（`src/background/index.ts`、litus移植の起源）との突き合わせが要る。純粋ロジック移植は本機能のbrainstorm→planで扱う（timetable/syllabusのような単純コピーにならないため案Aで先行移植せず）
 
 - [ ] **純粋ロジックのlitus逆流**（各機能実装後）
   - 拡張で磨いたパーサ・差分・シラバスURL生成を litus の対応ファイルへ反映し `litus` の `pnpm test` 通過を確認

@@ -4,15 +4,15 @@
 
 ---
 
-## 2026-07-07 — v1.2.0 No.2/No.3 純粋ロジックをlitasから移植（timetable/syllabus）
+## 2026-07-07 — v1.2.0 No.2/No.3 純粋ロジックをlitusから移植（timetable/syllabus）
 
 案A（純粋ロジック先行移植）を実施。DOM/UI/`host_permissions`に触れず、実CLASS DOM不要でvitest検証できる土台を拡張へ入れた。
 
-- 追加: 依存 `node-html-parser@^7.0.1`（litasと同一・逆流忠実度優先の妥当なデフォルト。まだどのエントリからもimportしないため`background.js`/`content.js`のバンドルは肥大せず）
-- 移植: `src/core/timetable.ts`（CLASS `Kmd008` 時間割パース＋時限時刻表パース、litas `src/parsers/timetable.ts` と同一）＋`timetable.test.ts`/`timetable.fixtures.ts`、`src/core/syllabus.ts`（学年暦＋シラバスURL生成、litas `src/links/syllabus.ts` と同一）＋`syllabus.test.ts`
-- テストは拡張の作法（`vitest`から明示import）に合わせ調整。それ以外はlitasと同一
+- 追加: 依存 `node-html-parser@^7.0.1`（litusと同一・逆流忠実度優先の妥当なデフォルト。まだどのエントリからもimportしないため`background.js`/`content.js`のバンドルは肥大せず）
+- 移植: `src/core/timetable.ts`（CLASS `Kmd008` 時間割パース＋時限時刻表パース、litus `src/parsers/timetable.ts` と同一）＋`timetable.test.ts`/`timetable.fixtures.ts`、`src/core/syllabus.ts`（学年暦＋シラバスURL生成、litus `src/links/syllabus.ts` と同一）＋`syllabus.test.ts`
+- テストは拡張の作法（`vitest`から明示import）に合わせ調整。それ以外はlitusと同一
 - 検証: `pnpm exec tsc -b` clean、`pnpm exec vitest run src` 193/193 PASS（+13）、`pnpm build` 成功
-- **逆流状態**: litas→拡張の初回移植は両者同一。以後拡張側で実DOM検証して差分が出たらhandover記録の上でlitasへ寄せる
+- **逆流状態**: litus→拡張の初回移植は両者同一。以後拡張側で実DOM検証して差分が出たらhandover記録の上でlitusへ寄せる
 - courseUpdates（No.4）は`letusLinks`依存で拡張の既存リンク抽出との突き合わせが要るため案Aに含めず、No.4のbrainstorm→planで扱う
 - 残り（収集経路・グリッドUI・シラバス整形表示・`host_permissions`）はNo.2のbrainstorm→planへ（次段）
 
@@ -25,7 +25,7 @@ v1.2.0を順に着手するため現状を精査した結果、**No.1「entitlem
 - 確認: `AssignmentMemo.tsx`/`ManualAssignmentCard.tsx`から`isSubscriber`ゲート撤去済み、`PremiumGate.tsx`削除済み、`ProBanner`の`FEATURES`はカスタム通知ルール＋Discordの2件のみ、テーマは常時表示`displaySettings`ブロックへ移動済み、戦略書§2表のテーマ行も無料化済み
 - 残る`isSubscriber`参照（App.tsx 3箇所）はプランが「残す」と明記したサブスク限定ブロック判定＋ベータトグル表示で、想定どおり
 - 検証: `pnpm exec tsc -b` clean、`pnpm exec vitest run src` 180/180 PASS
-- **次段（No.2 CLASS連携以降）は未着手**。litas側に純粋ロジック（`src/parsers/timetable.ts`・`src/links/syllabus.ts`・`src/updates/courseUpdates.ts`、いずれもnode-html-parser依存でRN非依存・テスト付き）が揃っており移植元は確定。ただしスコープ設計の規約どおり各機能は個別にbrainstorming→planが必要で、CLASS収集の実装・検証には実CLASS DOM（`class.admin.tus.ac.jp`ログイン）と`host_permissions`追加が要る
+- **次段（No.2 CLASS連携以降）は未着手**。litus側に純粋ロジック（`src/parsers/timetable.ts`・`src/links/syllabus.ts`・`src/updates/courseUpdates.ts`、いずれもnode-html-parser依存でRN非依存・テスト付き）が揃っており移植元は確定。ただしスコープ設計の規約どおり各機能は個別にbrainstorming→planが必要で、CLASS収集の実装・検証には実CLASS DOM（`class.admin.tus.ac.jp`ログイン）と`host_permissions`追加が要る
 
 ---
 
