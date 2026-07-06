@@ -69,7 +69,7 @@ https://lms.waiteu.dev/app
 ```
 理科大のLETUSとCLASS、アプリひとつにまとめました。
 
-「リタス（Litas）」開発中。
+「リタス（Litus）」開発中。
 LETUSの課題通知も、CLASSの時間割・出席も、スマホだけで完結。
 
 近日公開・事前登録↓

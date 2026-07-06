@@ -29,7 +29,7 @@ LETUS（東京理科大学LMS、Moodle基盤）の課題期限を自動収集・
 
 ## changelogのルール
 
-- 以降のchangelog（`public/changelog.html`）には、モバイルアプリ「リタス（Litas）」関連の情報（開発状況・事前登録導線 https://lms.waiteu.dev/app ）を掲載する
+- 以降のchangelog（`public/changelog.html`）には、モバイルアプリ「リタス（Litus）」関連の情報（開発状況・事前登録導線 https://lms.waiteu.dev/app ）を掲載する
 
 ## コード説明のルール
 
