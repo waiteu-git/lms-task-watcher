@@ -136,9 +136,9 @@
 
 ---
 
-## v1.2.0 Phase B残・Phase C（2026-07-04 無料開放ファースト改定を反映）
+## v1.2.0（2026-07-06 スコープ変更: 無料開放＋CLASS連携/シラバス/更新通知）
 
-無料/有料の線引きを「同期=有料」から「快適装備=有料」へ変更する（詳細: `docs/superpowers/specs/2026-07-04-free-first-strategy-design.md`）。Phase C（Web Store申請）はこれらの完了後に行う。
+スコープ変更設計: `docs/superpowers/specs/2026-07-06-v1.2.0-scope-change-design.md`。無料開放（旧フェーズ1.5）とCLASS連携（フェーズ2）を **v1.2.0として一括リリース**する。`host_permissions` 追加で再審査になるため同じ機会にまとめる。Phase C（Web Store申請）は下記完了後。各機能の詳細設計は実装フェーズで個別に brainstorming → plan する。
 
 - [ ] **entitlement変更の実装**（設計・計画確定済み、未着手）
   - 詳細設計: `docs/superpowers/specs/2026-07-04-free-first-entitlement-design.md`
@@ -146,15 +146,38 @@
   - メモ・優先度・テーマのサブスクゲートを撤去（無料開放）、`PremiumGate.tsx`（未使用）を削除、`ProBanner`の機能リストをカスタム通知ルール・Discordのみに更新
   - バックエンド変更なし（同期は既に無料アカウント対応済み）
 
-- [ ] **パス型決済の追加**（半期¥720・年¥1,200の一回払い、クレカ不要のコンビニ・PayPay対応）
-  - 前提調査: StripeのPayPay・コンビニ決済の現行対応状況・制約の確認
-  - 月額¥120はカード派向けに併存
+- [ ] **CLASS時間割 収集＋グリッド表示**（詳細設計は実装フェーズ）
+  - `manifest.json` の `host_permissions` に `https://class.admin.tus.ac.jp/*` を追加
+  - Content Scriptで時間割ページ `Kmd008` を取得 → パース → `chrome.storage.local` に保存 → ダッシュボードにグリッド表示
+  - 収集範囲は履修科目・時間割のみに厳格限定（成績等は除外）
+  - パーサはリタス `src/parsers/timetable.ts` を移植（→ 拡張 `src/core/timetable.ts` 想定）
 
-- [ ] **統計・振り返り機能／スヌーズ**（任意、後ろ倒し可）
-  - v1.2.x後半またはv2.0.xへ先送り可（Phase Cの必須条件ではない）
+- [ ] **科目連携（課題↔時間割の自動ひも付け）**
+  - CLASS 7桁科目コード ↔ LETUSコース名埋込コードで突合（統合コースは複数コード対応）
+
+- [ ] **シラバス埋め込み表示**
+  - CLASS静的HTMLシラバス（`SyllabusHtml.{年度}.{7桁コード}.html`）を fetch → パース → 拡張内に整形表示
+  - URL生成はリタス `src/links/syllabus.ts` を移植（→ 拡張 `src/core/syllabus.ts` 想定）
+
+- [ ] **コース内容の更新通知（定義A）**
+  - `/mod/*/view.php` リンク集合をコースごとにスナップショット → 再スキャン時に差分検知 → バッジ・通知
+  - シグネチャ/差分はリタス `src/updates/courseUpdates.ts` を移植（→ 拡張 `src/background/courseUpdates.ts` 想定）
+
+- [ ] **純粋ロジックのlitas逆流**（各機能実装後）
+  - 拡張で磨いたパーサ・差分・シラバスURL生成を litas の対応ファイルへ反映し `litas` の `pnpm test` 通過を確認
+  - 単純上書きせず両者を突き合わせて良い方に寄せる。WORKLOG（拡張）とhandover（litas）に逆流済み/未を記録
+  - 対応表はスコープ変更設計を参照
+
+- [ ] **changelog本文の書き換え**（v1.2.0リリース時）
+  - `public/changelog.html` の「今回の変更点」をv1.2.0内容（無料開放・CLASS連携・シラバス・更新通知）に、見出しを「v1.2.0にアップデート」に更新。リタス告知は既存のロードマップカードで対応済み
 
 - [ ] **Phase C: Chrome Web Storeへv1.2.0を申請**
-  - entitlement変更＋パス型決済の完了後、付加価値機能込みで一括申請
+  - 上記完了後、付加価値機能込みで一括申請
+
+### 後回し（バックログ・バージョン未割当）
+
+- **パス型決済**（半期¥720・年¥1,200、コンビニ・PayPay対応）: 2026-07-06にv1.2.0から除外。リタス初版公開（2026年9月）後に優先度を再評価。前提調査（StripeのPayPay・コンビニ決済対応）も再評価時に
+- **統計・振り返り機能／スヌーズ**（任意、後ろ倒し可）
 
 ---
 
