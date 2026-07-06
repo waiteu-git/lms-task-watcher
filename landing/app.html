@@ -347,13 +347,10 @@
       .news-card { padding: 22px; }
     }
 
-    .waitlist-form { max-width: 420px; margin: 28px auto 0; display: flex; flex-direction: column; gap: 12px; text-align: left; }
-    .waitlist-form input[type="email"] { padding: 14px 16px; border-radius: 12px; border: 1px solid var(--text-light); font-size: 15px; }
-    .hp-field { position: absolute; left: -9999px; width: 1px; height: 1px; opacity: 0; }
-    .consent { display: flex; gap: 8px; align-items: flex-start; font-size: 12px; color: var(--text-mid); line-height: 1.5; }
-    .consent input { margin-top: 2px; }
-    .waitlist-status { font-size: 13px; color: var(--accent); min-height: 18px; margin: 0; }
     .waitlist-note { font-size: 11px; color: var(--text-light); margin: 0; }
+    .waitlist-cta { max-width: 420px; margin: 28px auto 0; text-align: center; display: flex; flex-direction: column; gap: 12px; align-items: center; }
+    .waitlist-cta .btn-primary { display: inline-block; }
+    .waitlist-cta .waitlist-note a { color: var(--accent); font-weight: 700; }
     /* ヒーロー・スマホモックアップ */
     .phone-mock { width: 240px; margin: 32px auto 8px; background: #1e1b2e; border-radius: 32px; padding: 8px; }
     .phone-screen { background: #12101c; border-radius: 26px; min-height: 300px; padding: 26px 16px; display: flex; flex-direction: column; align-items: center; }
@@ -447,20 +444,10 @@
     </div>
   </div>
 
-  <form id="waitlist-form" class="waitlist-form" novalidate>
-    <input id="waitlist-email" type="email" inputmode="email" autocomplete="email"
-           placeholder="メールアドレス" aria-label="メールアドレス" required>
-    <!-- honeypot: 人間には見えない。botが埋めたら送信を無効化 -->
-    <input id="website" name="website" type="text" tabindex="-1" autocomplete="off"
-           aria-hidden="true" class="hp-field">
-    <label class="consent">
-      <input id="consent" type="checkbox" required>
-      <span><a href="app-privacy.html" target="_blank" rel="noopener">プライバシーポリシー</a>に同意し、公開時のお知らせメール受信に同意します</span>
-    </label>
-    <button type="submit" class="btn-primary">事前登録して公開を待つ</button>
-    <p id="waitlist-status" class="waitlist-status" role="status" aria-live="polite"></p>
-    <p class="waitlist-note">お預かりするのはメールアドレスのみ。公開のお知らせ以外には使用しません。</p>
-  </form>
+  <div class="waitlist-cta">
+    <a href="https://docs.google.com/forms/d/e/1FAIpQLSf4ldGRNtITrcDSL1LIfQiSbYiu7-ud2qagGChttU-yCIQVkA/viewform?usp=dialog" target="_blank" rel="noopener" class="btn-primary">事前登録して公開を待つ</a>
+    <p class="waitlist-note">事前登録はGoogleフォームで受け付けます。公開時にメールでお知らせします。<a href="app-privacy.html" target="_blank" rel="noopener">プライバシーポリシー</a></p>
+  </div>
 
   <!-- Xフォロー導線 -->
   <div class="x-follow">
@@ -557,40 +544,5 @@
   <p>© 2026 リタス（Litus）. 東京理科大学非公式の学生個人プロジェクトです。</p>
 </footer>
 
-<script>
-  const API_BASE_URL = 'https://api.waiteu.dev'
-  const form = document.getElementById('waitlist-form')
-  const statusEl = document.getElementById('waitlist-status')
-
-  form.addEventListener('submit', async (e) => {
-    e.preventDefault()
-    const email = document.getElementById('waitlist-email').value.trim()
-    const website = document.getElementById('website').value
-    const consent = document.getElementById('consent').checked
-
-    if (!consent) {
-      statusEl.textContent = 'プライバシーポリシーへの同意が必要です。'
-      return
-    }
-    statusEl.textContent = '送信中...'
-
-    try {
-      const res = await fetch(`${API_BASE_URL}/api/waitlist`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, source: 'app-landing', website }),
-      })
-      if (res.ok) {
-        form.reset()
-        statusEl.textContent = '事前登録が完了しました。公開時にメールでお知らせします。'
-      } else {
-        const data = await res.json().catch(() => ({}))
-        statusEl.textContent = data.error || '送信に失敗しました。時間をおいて再度お試しください。'
-      }
-    } catch (_) {
-      statusEl.textContent = 'ネットワークエラーです。時間をおいて再度お試しください。'
-    }
-  })
-</script>
 </body>
 </html>
