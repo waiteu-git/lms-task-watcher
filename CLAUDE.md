@@ -27,6 +27,10 @@ LETUS（東京理科大学LMS、Moodle基盤）の課題期限を自動収集・
 - Content scriptは現時点で存在しない（コース登録フローが未実装）
 - アイコンはSVGのみ存在し、manifest.jsonが参照するPNG（`icons/icon-*.png`）が欠落している
 
+## changelogのルール
+
+- 以降のchangelog（`public/changelog.html`）には、モバイルアプリ「リタス（Litas）」関連の情報（開発状況・事前登録導線 https://lms.waiteu.dev/app ）を掲載する
+
 ## コード説明のルール
 
 ### 指摘対応時
