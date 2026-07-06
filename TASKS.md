@@ -146,22 +146,24 @@
   - メモ・優先度・テーマのサブスクゲートを撤去（無料開放）、`PremiumGate.tsx`（未使用）を削除、`ProBanner`の機能リストをカスタム通知ルール・Discordのみに更新 — 全て適用済み・テーマは常時表示の `displaySettings` ブロックへ移動済み
   - バックエンド変更なし（同期は既に無料アカウント対応済み）
 
-- [ ] **CLASS時間割 収集＋グリッド表示**（詳細設計は実装フェーズ）
-  - `manifest.json` の `host_permissions` に `https://class.admin.tus.ac.jp/*` を追加
-  - Content Scriptで時間割ページ `Kmd008` を取得 → パース → `chrome.storage.local` に保存 → ダッシュボードにグリッド表示
-  - 収集範囲は履修科目・時間割のみに厳格限定（成績等は除外）
-  - パーサはリタス `src/parsers/timetable.ts` を移植（→ 拡張 `src/core/timetable.ts` 想定）
+- [~] **CLASS時間割 収集＋グリッド表示**（詳細設計は実装フェーズ）
+  - [x] パーサ移植: リタス `src/parsers/timetable.ts` → 拡張 `src/core/timetable.ts`（`node-html-parser`踏襲でlitasと同一・テスト/フィクスチャ同梱・13件通過）
+  - [ ] `manifest.json` の `host_permissions` に `https://class.admin.tus.ac.jp/*` を追加
+  - [ ] Content Scriptで時間割ページ `Kmd008` を取得 → パース → `chrome.storage.local` に保存 → ダッシュボードにグリッド表示
+  - [ ] 収集範囲は履修科目・時間割のみに厳格限定（成績等は除外）
+  - 残りの収集経路・保存・UIはbrainstorm→plan（実CLASS DOM要）
 
 - [ ] **科目連携（課題↔時間割の自動ひも付け）**
   - CLASS 7桁科目コード ↔ LETUSコース名埋込コードで突合（統合コースは複数コード対応）
 
-- [ ] **シラバス埋め込み表示**
-  - CLASS静的HTMLシラバス（`SyllabusHtml.{年度}.{7桁コード}.html`）を fetch → パース → 拡張内に整形表示
-  - URL生成はリタス `src/links/syllabus.ts` を移植（→ 拡張 `src/core/syllabus.ts` 想定）
+- [~] **シラバス埋め込み表示**
+  - [x] URL生成移植: リタス `src/links/syllabus.ts` → 拡張 `src/core/syllabus.ts`（学年暦＋URL生成・テスト同梱・通過）
+  - [ ] CLASS静的HTMLシラバス（`SyllabusHtml.{年度}.{7桁コード}.html`）を fetch → パース → 拡張内に整形表示（パーサ/UIはbrainstorm→plan）
 
 - [ ] **コース内容の更新通知（定義A）**
   - `/mod/*/view.php` リンク集合をコースごとにスナップショット → 再スキャン時に差分検知 → バッジ・通知
   - シグネチャ/差分はリタス `src/updates/courseUpdates.ts` を移植（→ 拡張 `src/background/courseUpdates.ts` 想定）
+  - 注: `courseUpdates` は `letusLinks`（リンク抽出）依存で、拡張の既存リンク抽出（`src/background/index.ts`、litas移植の起源）との突き合わせが要る。純粋ロジック移植は本機能のbrainstorm→planで扱う（timetable/syllabusのような単純コピーにならないため案Aで先行移植せず）
 
 - [ ] **純粋ロジックのlitus逆流**（各機能実装後）
   - 拡張で磨いたパーサ・差分・シラバスURL生成を litus の対応ファイルへ反映し `litus` の `pnpm test` 通過を確認

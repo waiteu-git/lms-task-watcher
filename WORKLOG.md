@@ -4,6 +4,20 @@
 
 ---
 
+## 2026-07-07 — v1.2.0 No.2/No.3 純粋ロジックをlitasから移植（timetable/syllabus）
+
+案A（純粋ロジック先行移植）を実施。DOM/UI/`host_permissions`に触れず、実CLASS DOM不要でvitest検証できる土台を拡張へ入れた。
+
+- 追加: 依存 `node-html-parser@^7.0.1`（litasと同一・逆流忠実度優先の妥当なデフォルト。まだどのエントリからもimportしないため`background.js`/`content.js`のバンドルは肥大せず）
+- 移植: `src/core/timetable.ts`（CLASS `Kmd008` 時間割パース＋時限時刻表パース、litas `src/parsers/timetable.ts` と同一）＋`timetable.test.ts`/`timetable.fixtures.ts`、`src/core/syllabus.ts`（学年暦＋シラバスURL生成、litas `src/links/syllabus.ts` と同一）＋`syllabus.test.ts`
+- テストは拡張の作法（`vitest`から明示import）に合わせ調整。それ以外はlitasと同一
+- 検証: `pnpm exec tsc -b` clean、`pnpm exec vitest run src` 193/193 PASS（+13）、`pnpm build` 成功
+- **逆流状態**: litas→拡張の初回移植は両者同一。以後拡張側で実DOM検証して差分が出たらhandover記録の上でlitasへ寄せる
+- courseUpdates（No.4）は`letusLinks`依存で拡張の既存リンク抽出との突き合わせが要るため案Aに含めず、No.4のbrainstorm→planで扱う
+- 残り（収集経路・グリッドUI・シラバス整形表示・`host_permissions`）はNo.2のbrainstorm→planへ（次段）
+
+---
+
 ## 2026-07-07 — v1.2.0進捗棚卸し: No.1 entitlement無料開放は実装済みと確認、TASKS同期
 
 v1.2.0を順に着手するため現状を精査した結果、**No.1「entitlement変更（無料開放）」はプラン（`plans/2026-07-04-free-first-entitlement.md`）のTask 1・2が全て実装・コミット済み**だった（`dfea278 feat(ext): open memo/priority/manual to free`・`f4efd46 feat(ext): make theme free...`）。TASKS.mdは`[ ]`のままで実態とズレていたため`[x]`へ同期。
