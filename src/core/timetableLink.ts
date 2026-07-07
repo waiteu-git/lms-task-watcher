@@ -1,0 +1,87 @@
+import type { TimetableSlot, DayOfWeek } from './timetable'
+import type { Course, Assignment } from './types'
+
+export type Semester = 'zenki' | 'kouki'
+export type TimetableOverride = { room?: string }
+export type SemesterCapture = { semester: Semester; capturedAt: string }
+export type AssignmentSlotInfo = {
+  day: DayOfWeek
+  period: number
+  room: string
+  isRemote: boolean
+  courseCode: string
+}
+
+/** LETUSコース名に埋め込まれた全7桁科目コードを抽出する（統合コースは複数）。 */
+export function extractCourseCodes(letusCourseName: string): string[] {
+  const matches = letusCourseName.match(/(?<!\d)\d{7}(?!\d)/g)
+  return matches ? Array.from(new Set(matches)) : []
+}
+
+/** 先頭の7桁コード。無ければ null。 */
+export function extractCourseCode(letusCourseName: string): string | null {
+  return extractCourseCodes(letusCourseName)[0] ?? null
+}
+
+/** 既定表示学期。取得済みがあれば capturedAt 最新、無ければ日付（4–9月=前期）。 */
+export function resolveSemester(now: Date, captured: SemesterCapture[]): Semester {
+  if (captured.length > 0) {
+    const latest = captured.reduce((a, b) => (a.capturedAt >= b.capturedAt ? a : b))
+    return latest.semester
+  }
+  const month = now.getMonth()
+  return month >= 3 && month <= 8 ? 'zenki' : 'kouki'
+}
+
+export function applyOverrides(
+  slots: TimetableSlot[],
+  overrides: Record<string, TimetableOverride>,
+): TimetableSlot[] {
+  return slots.map((s) => ({
+    ...s,
+    classes: s.classes.map((c) => {
+      const ov = overrides[c.courseCode]
+      if (!ov || ov.room === undefined) return c
+      return { ...c, room: ov.room, isRemote: ov.room.includes('遠隔') }
+    }),
+  }))
+}
+
+export function linkAssignmentsToSlots(
+  slots: TimetableSlot[],
+  courses: Course[],
+  assignments: Assignment[],
+): { assignmentInfo: Record<string, AssignmentSlotInfo>; courseCodeCounts: Record<string, number> } {
+  const courseIdToCodes: Record<string, string[]> = {}
+  for (const c of courses) {
+    const codes = extractCourseCodes(c.name)
+    if (codes.length > 0) courseIdToCodes[c.id] = codes
+  }
+
+  const codeToSlot: Record<string, AssignmentSlotInfo> = {}
+  for (const s of slots) {
+    for (const c of s.classes) {
+      if (!(c.courseCode in codeToSlot)) {
+        codeToSlot[c.courseCode] = {
+          day: s.day, period: s.period, room: c.room, isRemote: c.isRemote, courseCode: c.courseCode,
+        }
+      }
+    }
+  }
+
+  const assignmentInfo: Record<string, AssignmentSlotInfo> = {}
+  const courseCodeCounts: Record<string, number> = {}
+  for (const s of slots) for (const c of s.classes) courseCodeCounts[c.courseCode] ??= 0
+
+  for (const a of assignments) {
+    const codes = courseIdToCodes[a.courseId]
+    if (!codes) continue
+    // 統合コース: そのコースが持つ全コードのコマに件数を計上
+    for (const code of codes) if (code in courseCodeCounts) courseCodeCounts[code] += 1
+    // チップは時間割に存在する先頭一致コマに付ける
+    const matched = codes.find((code) => code in codeToSlot)
+    if (matched) assignmentInfo[a.id] = codeToSlot[matched]
+  }
+
+  return { assignmentInfo, courseCodeCounts }
+}
