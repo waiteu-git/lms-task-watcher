@@ -5,7 +5,10 @@ export function academicYear(now: Date): number {
   return now.getMonth() >= 3 ? now.getFullYear() : now.getFullYear() - 1
 }
 
+export function buildSyllabusUrlByYear(courseCode: string, year: number): string {
+  return `https://class.admin.tus.ac.jp/slResult/${year}/japanese/syllabusHtml/SyllabusHtml.${year}.${courseCode}.html`
+}
+
 export function buildSyllabusUrl(courseCode: string, now: Date): string {
-  const y = academicYear(now)
-  return `https://class.admin.tus.ac.jp/slResult/${y}/japanese/syllabusHtml/SyllabusHtml.${y}.${courseCode}.html`
+  return buildSyllabusUrlByYear(courseCode, academicYear(now))
 }

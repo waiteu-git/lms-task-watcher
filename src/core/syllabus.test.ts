@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { academicYear, buildSyllabusUrl } from './syllabus'
+import { academicYear, buildSyllabusUrl, buildSyllabusUrlByYear } from './syllabus'
 
 describe('academicYear', () => {
   it('4月以降は当年', () => {
@@ -17,6 +17,14 @@ describe('buildSyllabusUrl', () => {
   it('科目コードと年度でURLを組む', () => {
     expect(buildSyllabusUrl('9973365', new Date(2026, 6, 5))).toBe(
       'https://class.admin.tus.ac.jp/slResult/2026/japanese/syllabusHtml/SyllabusHtml.2026.9973365.html',
+    )
+  })
+})
+
+describe('buildSyllabusUrlByYear', () => {
+  it('年度を直接指定してURLを生成する', () => {
+    expect(buildSyllabusUrlByYear('9973344', 2026)).toBe(
+      'https://class.admin.tus.ac.jp/slResult/2026/japanese/syllabusHtml/SyllabusHtml.2026.9973344.html',
     )
   })
 })
