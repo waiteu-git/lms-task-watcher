@@ -4,6 +4,19 @@
 
 ---
 
+## 2026-07-08 — インストール時ウェルカムガイドを実装
+
+設計 `docs/superpowers/specs/2026-07-08-welcome-guide-design.md` / 実装計画 `docs/superpowers/plans/2026-07-08-welcome-guide.md` をtask-by-taskのTDDで実装（ブランチ `feature/welcome-guide`、worktree隔離）。
+
+- 目的: 新規インストール時に「ツールバーへの固定方法」と「使い始め方」をタブで案内。固定していないユーザーはポップアップを開かず既存 `OnboardingBanner` が届かないため、専用ページで周知する。既存ユーザーには次回アップデート時に一度だけ表示し、以降のアップデートでは従来どおり changelog を開く
+- Task 1 `handleInstalled`（`198f0f4`）: `src/background/index.ts` の `onInstalled` を export された `handleInstalled(details)` に抽出。`install` → `welcomeGuideShown` フラグ保存＋`welcome.html`／`update` かつフラグ未保存 → フラグ保存＋`welcome.html`／`update` かつフラグ保存済み → `changelog.html`。アラーム作成は理由によらず無条件。`WELCOME_GUIDE_SHOWN_KEY = 'welcomeGuideShown'` を `storageKeys.ts` に追加。`index.test.ts` に4分岐テスト追加
+- Task 2 `welcome.html`＋`welcome.js`（`77aaa84`）: `public/` 直下の静的ページ（ビルドで `dist/` へコピー）。①ツールバー固定手順（`welcome.js` が `navigator.userAgent.includes('Edg/')` で Chrome/Edge を出し分け、`data-browser` 属性のブロックを非表示）②使い始め3ステップ ③通知の仕組み ④リタス事前登録導線 `https://lms.waiteu.dev/app` ⑤changelog へのリンク。MV3 CSPのためJSは別ファイルに分離
+- 決定: スクリーンショット画像は同梱せず🧩/📌の簡易イラスト（CSS）で表現、日本語のみ、ポップアップ `OnboardingBanner` は変更なし
+- 検証: `pnpm vitest run src/background/index.test.ts` 24/24 PASS、`pnpm build` 成功、`dist/welcome.{html,js}` 生成確認、UAトグルの構造・挙動をnodeで決定的検証（ALL_PASS）
+- 各タスクはサブエージェント実装＋独立レビュー（spec ✅／quality承認、Minorのみ）
+
+---
+
 ## 2026-07-07 — v1.2.0 No.4 コース内容の更新通知（定義A）を実装
 
 設計 `docs/superpowers/specs/2026-07-07-v1.2.0-no4-course-update-notification-design.md` / 実装計画 `docs/superpowers/plans/2026-07-07-course-update-notification.md` をtask-by-taskのTDDで実装。
