@@ -93,10 +93,11 @@ import { ProBanner } from './components/ProBanner'
 import { ManualAssignmentCard } from './components/ManualAssignmentCard'
 import { TimetableSection } from './components/TimetableSection'
 import { AssignmentSlotContext } from './core/assignmentSlotContext'
-import { getTimetableCapture, getPreferredView, listCapturedSemesters } from './core/timetableStore'
-import { linkAssignmentsToSlots, resolveSemester, type AssignmentSlotInfo } from './core/timetableLink'
+import { getTimetableCapture } from './core/timetableStore'
+import { linkAssignmentsToSlots, applyOverrides, type AssignmentSlotInfo } from './core/timetableLink'
 import { parseTimetable } from './core/timetable'
 import { academicYear } from './core/syllabus'
+import { resolveViewSemester, loadCourseOverrides } from './core/timetableView'
 import { mergeTimeline } from './utils/timeline'
 import {
   getManualUrgent,
@@ -144,14 +145,14 @@ export default function App() {
     void (async () => {
       const now = new Date()
       const year = academicYear(now)
-      const pref = await getPreferredView()
-      const semester = pref?.semester ?? resolveSemester(now, await listCapturedSemesters(year))
+      const semester = await resolveViewSemester(year, now)
       const cap = await getTimetableCapture(year, semester)
       if (!cap) {
         setAssignmentSlotMap({})
         return
       }
-      const slots = parseTimetable(cap.rawTableHtml)
+      const overrides = await loadCourseOverrides(year, semester, courses)
+      const slots = applyOverrides(parseTimetable(cap.rawTableHtml), overrides)
       const { assignmentInfo } = linkAssignmentsToSlots(slots, courses, assignments)
       setAssignmentSlotMap(assignmentInfo)
     })()

@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { saveTimetableCapture, getTimetableCapture, listCapturedSemesters, setOverride, getOverride, setPreferredView, getPreferredView } from './timetableStore'
+import { saveTimetableCapture, getTimetableCapture, listCapturedSemesters, setOverride, getOverride, getOverrides, setPreferredView, getPreferredView } from './timetableStore'
 
 const store: Record<string, unknown> = {}
 vi.stubGlobal('chrome', {
@@ -39,5 +39,14 @@ describe('timetableStore', () => {
   it('表示選択を保存・取得できる', async () => {
     await setPreferredView(2026, 'kouki')
     expect(await getPreferredView()).toEqual({ year: 2026, semester: 'kouki' })
+  })
+  it('複数コードのオーバーライドをバッチ取得する（存在分のみ返す）', async () => {
+    await setOverride(2026, 'zenki', '9973337', { room: 'X教室' })
+    await setOverride(2026, 'zenki', '9973344', { room: 'Y教室' })
+    const got = await getOverrides(2026, 'zenki', ['9973337', '9973344', '0000000'])
+    expect(got['9973337']?.room).toBe('X教室')
+    expect(got['9973344']?.room).toBe('Y教室')
+    expect('0000000' in got).toBe(false)
+    expect(await getOverrides(2026, 'zenki', [])).toEqual({})
   })
 })

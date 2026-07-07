@@ -104,4 +104,12 @@ describe('linkAssignmentsToSlots', () => {
     expect(courseCodeCounts['9973344']).toBe(1)
     expect(assignmentInfo['a1'].courseCode).toBe('9973337')
   })
+  it('7桁コードの無いコマ(courseCode="")は突合キーにせず空文字で衝突させない', () => {
+    const slots = [slot('mon', 1, '', 'A教室'), slot('tue', 2, '', 'B教室')]
+    const courses = [course('c1', 'コード無しコース')]
+    const assignments = [assignment('a1', 'c1')]
+    const { assignmentInfo, courseCodeCounts } = linkAssignmentsToSlots(slots, courses, assignments)
+    expect('' in courseCodeCounts).toBe(false)
+    expect(assignmentInfo['a1']).toBeUndefined()
+  })
 })

@@ -2,9 +2,10 @@ import { useEffect, useMemo, useState } from 'react'
 import type { Course, Assignment } from '../core/types'
 import type { DayOfWeek, TimetableSlot } from '../core/timetable'
 import { parseTimetable } from '../core/timetable'
-import { getTimetableCapture, listCapturedSemesters, getPreferredView, setPreferredView, getOverride, setOverride } from '../core/timetableStore'
+import { getTimetableCapture, listCapturedSemesters, getPreferredView, setPreferredView, setOverride } from '../core/timetableStore'
 import type { Semester } from '../core/timetableLink'
-import { resolveSemester, applyOverrides, linkAssignmentsToSlots, extractCourseCodes } from '../core/timetableLink'
+import { resolveSemester, applyOverrides, linkAssignmentsToSlots } from '../core/timetableLink'
+import { loadCourseOverrides } from '../core/timetableView'
 import { buildSyllabusUrl, academicYear } from '../core/syllabus'
 
 const DAYS: DayOfWeek[] = ['mon', 'tue', 'wed', 'thu', 'fri']
@@ -36,13 +37,7 @@ export function TimetableSection({ courses, assignments }: { courses: Course[]; 
     void (async () => {
       const cap = await getTimetableCapture(year, semester)
       setRawHtml(cap?.rawTableHtml ?? null)
-      const codes = new Set(courses.flatMap((c) => extractCourseCodes(c.name)))
-      const ov: Record<string, { room?: string }> = {}
-      for (const code of codes) {
-        const o = await getOverride(year, semester, code)
-        if (o) ov[code] = o
-      }
-      setOverrides(ov)
+      setOverrides(await loadCourseOverrides(year, semester, courses))
     })()
   }, [semester, year, courses])
 
@@ -131,7 +126,9 @@ export function TimetableSection({ courses, assignments }: { courses: Course[]; 
                         {c.courseCode && (
                           <a className="timetableSyllabus" href={buildSyllabusUrl(c.courseCode, now)} target="_blank" rel="noreferrer" title="シラバス">📖</a>
                         )}
-                        <button type="button" className="timetableEditRoom" title="教室を編集" onClick={() => void editRoom(c.courseCode, c.room)}>✎</button>
+                        {c.courseCode && (
+                          <button type="button" className="timetableEditRoom" title="教室を編集" onClick={() => void editRoom(c.courseCode, c.room)}>✎</button>
+                        )}
                       </div>
                     </div>
                   )

@@ -61,6 +61,8 @@ export function linkAssignmentsToSlots(
   const codeToSlot: Record<string, AssignmentSlotInfo> = {}
   for (const s of slots) {
     for (const c of s.classes) {
+      // 7桁コードの無いセル(courseCode='')は突合キーにならない。空文字で全て衝突するのを防ぐ。
+      if (!c.courseCode) continue
       if (!(c.courseCode in codeToSlot)) {
         codeToSlot[c.courseCode] = {
           day: s.day, period: s.period, room: c.room, isRemote: c.isRemote, courseCode: c.courseCode,
@@ -71,7 +73,7 @@ export function linkAssignmentsToSlots(
 
   const assignmentInfo: Record<string, AssignmentSlotInfo> = {}
   const courseCodeCounts: Record<string, number> = {}
-  for (const s of slots) for (const c of s.classes) courseCodeCounts[c.courseCode] ??= 0
+  for (const s of slots) for (const c of s.classes) if (c.courseCode) courseCodeCounts[c.courseCode] ??= 0
 
   for (const a of assignments) {
     const codes = courseIdToCodes[a.courseId]

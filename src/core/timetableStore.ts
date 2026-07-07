@@ -36,6 +36,23 @@ export async function setOverride(year: number, semester: Semester, courseCode: 
   await chrome.storage.local.set({ [overrideKey(year, semester, courseCode)]: ov })
 }
 
+/** 複数科目コードの教室オーバーライドを1回の get でまとめて読む。 */
+export async function getOverrides(
+  year: number,
+  semester: Semester,
+  courseCodes: string[],
+): Promise<Record<string, TimetableOverride>> {
+  if (courseCodes.length === 0) return {}
+  const keyOf = (code: string) => overrideKey(year, semester, code)
+  const res = (await chrome.storage.local.get(courseCodes.map(keyOf))) as Record<string, TimetableOverride | undefined>
+  const out: Record<string, TimetableOverride> = {}
+  for (const code of courseCodes) {
+    const v = res[keyOf(code)]
+    if (v) out[code] = v
+  }
+  return out
+}
+
 export async function getPreferredView(): Promise<{ year: number; semester: Semester } | null> {
   const res = (await chrome.storage.local.get(VIEW_KEY)) as Record<string, { year: number; semester: Semester } | undefined>
   return res[VIEW_KEY] ?? null
