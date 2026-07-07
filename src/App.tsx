@@ -92,6 +92,7 @@ import { SubscriberBadge } from './components/SubscriberBadge'
 import { ProBanner } from './components/ProBanner'
 import { ManualAssignmentCard } from './components/ManualAssignmentCard'
 import { TimetableSection } from './components/TimetableSection'
+import { CourseUpdatesSection } from './components/CourseUpdatesSection'
 import { AssignmentSlotContext } from './core/assignmentSlotContext'
 import { getTimetableCapture } from './core/timetableStore'
 import { linkAssignmentsToSlots, applyOverrides, type AssignmentSlotInfo } from './core/timetableLink'
@@ -1268,6 +1269,8 @@ export default function App() {
           </section>
 
           <TimetableSection courses={courses} assignments={assignments} />
+
+          <CourseUpdatesSection courses={courses} />
 
           <Section
             title="24時間以内"
