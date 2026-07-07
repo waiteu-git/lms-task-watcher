@@ -120,13 +120,12 @@ git commit -m "feat(ext): add buildSyllabusUrlByYear (year-explicit syllabus URL
 
 ```ts
 import { describe, it, expect } from 'vitest'
-import { readFileSync } from 'fs'
-import { resolve } from 'path'
 import { parseSyllabus, japaneseLabel, type SyllabusDoc } from './syllabusParse'
+import html9973344 from './syllabusFixtures/9973344.html?raw'
+import html9973365 from './syllabusFixtures/9973365.html?raw'
+// 注: 拡張のtsconfigは@types/node無し（DOM向け）。fs/__dirnameはtscで落ちるため、
+// Viteの `?raw` インポート（vite/client型で string 付き）でフィクスチャHTMLを読む。
 
-function fixture(code: string): string {
-  return readFileSync(resolve(__dirname, `syllabusFixtures/${code}.html`), 'utf-8')
-}
 function sectionValue(doc: SyllabusDoc, label: string): string | null {
   return doc.sections.find((s) => s.label === label)?.value ?? null
 }
@@ -145,18 +144,18 @@ describe('japaneseLabel', () => {
 
 describe('parseSyllabus', () => {
   it('授業コードとタイトル（和文/英文）を取り出す', () => {
-    const d = parseSyllabus(fixture('9973344'))
+    const d = parseSyllabus(html9973344)
     expect(d.code).toBe('9973344')
     expect(d.titleJa).toBe('物理学実験Ａ')
     expect(d.titleEn).toBe('Experiments in PhysicsA')
   })
   it('別科目でもコード・和文タイトルを取り出す', () => {
-    const d = parseSyllabus(fixture('9973365'))
+    const d = parseSyllabus(html9973365)
     expect(d.code).toBe('9973365')
     expect(d.titleJa).toBe('基礎電気工学')
   })
   it('主要セクションが値付きで得られる', () => {
-    const d = parseSyllabus(fixture('9973344'))
+    const d = parseSyllabus(html9973344)
     expect(d.sections.length).toBeGreaterThanOrEqual(20)
     expect(sectionValue(d, '概要')).toContain('物理学実験')
     expect(sectionValue(d, '成績評価方法')).toContain('平常点')
