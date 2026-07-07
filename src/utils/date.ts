@@ -136,3 +136,23 @@ export function isLaterThanThisWeek(deadline: string | null): boolean {
 
   return diff > SEVEN_DAYS_MS
 }
+
+export type DeadlineTier = 'today' | 'week' | 'none'
+
+/** 締切の緊急度tier。当日中(カレンダー上の今日)=today / 今日を除く7日以内=week / それ以外・過去・不正=none。 */
+export function deadlineTier(deadline: string | null, now: Date): DeadlineTier {
+  if (!deadline) return 'none'
+  const d = new Date(deadline)
+  const t = d.getTime()
+  if (Number.isNaN(t)) return 'none'
+  const nowT = now.getTime()
+  if (t < nowT) return 'none'
+  if (
+    d.getFullYear() === now.getFullYear() &&
+    d.getMonth() === now.getMonth() &&
+    d.getDate() === now.getDate()
+  ) {
+    return 'today'
+  }
+  return t - nowT <= SEVEN_DAYS_MS ? 'week' : 'none'
+}
