@@ -1884,3 +1884,26 @@ button:disabled {
   font-weight: 700;
   color: #475569;
 }
+
+.timetableSection { margin-bottom: 16px; }
+.timetableHeader { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 8px; }
+.timetableToggle { display: flex; align-items: center; gap: 8px; background: none; border: none; font-size: 15px; font-weight: 700; color: #1e293b; cursor: pointer; padding: 0; }
+.timetableYear { font-size: 12px; font-weight: 500; color: #94a3b8; }
+.semesterToggle { display: flex; border: 1px solid #cbd5e1; border-radius: 8px; overflow: hidden; }
+.semesterBtn { border: none; padding: 4px 10px; font-size: 12px; background: #fff; color: #475569; cursor: pointer; }
+.semesterBtn.active { background: #e0edff; color: #1d4ed8; }
+.semesterBtn:disabled { color: #cbd5e1; cursor: default; }
+.timetableGrid { display: grid; gap: 4px; }
+.timetableDayHead { text-align: center; font-size: 12px; color: #64748b; padding-bottom: 2px; }
+.timetableDayHead.today { color: #1d4ed8; font-weight: 700; }
+.timetablePeriodHead { display: flex; align-items: center; justify-content: center; font-size: 12px; color: #94a3b8; }
+.timetableCell { background: #fff; border: 1px solid #e2e8f0; border-radius: 8px; padding: 6px; min-height: 56px; }
+.timetableCell.empty { background: #f8fafc; border-color: transparent; }
+.timetableCell.today { border-color: #bfdbfe; }
+.timetableCellName { font-size: 12px; font-weight: 500; line-height: 1.3; }
+.timetableCellRoom { font-size: 11px; color: #64748b; margin-top: 2px; }
+.timetableCellMeta { display: flex; align-items: center; gap: 6px; margin-top: 4px; }
+.timetableCount { font-size: 10px; background: #fee2e2; color: #b91c1c; border-radius: 20px; padding: 1px 6px; }
+.timetableSyllabus { font-size: 13px; text-decoration: none; }
+.timetableEditRoom { background: none; border: none; font-size: 12px; color: #94a3b8; cursor: pointer; padding: 0; }
+.timetableEmpty { font-size: 13px; color: #64748b; padding: 12px; background: #f8fafc; border-radius: 8px; }

@@ -91,6 +91,7 @@ import { AssignmentMemo } from './components/AssignmentMemo'
 import { SubscriberBadge } from './components/SubscriberBadge'
 import { ProBanner } from './components/ProBanner'
 import { ManualAssignmentCard } from './components/ManualAssignmentCard'
+import { TimetableSection } from './components/TimetableSection'
 import { mergeTimeline } from './utils/timeline'
 import {
   getManualUrgent,
@@ -1235,6 +1236,8 @@ export default function App() {
               </strong>
             </div>
           </section>
+
+          <TimetableSection courses={courses} assignments={assignments} />
 
           <Section
             title="24時間以内"
