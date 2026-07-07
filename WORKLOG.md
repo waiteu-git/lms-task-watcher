@@ -4,6 +4,23 @@
 
 ---
 
+## 2026-07-07 — v1.2.0 No.4 コース内容の更新通知（定義A）を実装
+
+設計 `docs/superpowers/specs/2026-07-07-v1.2.0-no4-course-update-notification-design.md` / 実装計画 `docs/superpowers/plans/2026-07-07-course-update-notification.md` をtask-by-taskのTDDで実装。
+
+- リファクタ（`aa4f049`）: 既存 `index.ts` の `extractLinksFromHtml`・`stripTags`・`decodeHtmlEntities`・`normalizeText` を `src/core/letusLinks.ts`＋`src/core/htmlText.ts` へ抽出し import に切替（**挙動不変**、既存 `index.test.ts` 緑のまま）。litus `src/parsers/letusLinks.ts`＋`text.ts` の対応先＝設計書の「拡張の既存リンク抽出との突き合わせ」
+- 純関数 `src/core/courseUpdates.ts`（`d14133e`）: `computeCourseSignature`（`/mod/*/view.php` 絞り・url重複排除・昇順ソート）・`diffCourseSignature`（url集合差分）・`computeCourseUpdate`（初回=ベースラインのみ added空／新signature空かつ前回非空=skipSave／それ以外=added）。litus `src/updates/courseUpdates.ts` の双子
+- ストレージ `src/background/courseUpdatesStore.ts`（`9c9b61f`）: `courseSignature:{courseId}`・`courseUpdates:{courseId}`（未読）。追記は url 重複回避、項目/コース単位の既読化
+- フック（`c6cfaff`）: `scanAssignmentCandidatesInBackground` の各コース `fetch(course.url)` 済みHTMLから `computeCourseUpdate`。追加のあったコースごとに `createNotification`（「○○ に新しい教材/課題 N件」・クリックでダッシュボード）。**追加fetchなし**
+- UI `src/components/CourseUpdatesSection.tsx`（`fca04c5`）: 未読のあるコースを項目履歴リスト（タイトル＋検知日時）で表示。クリックでLETUSを開き既読化、全既読でクリア、未読合計バッジ。`refreshKey` で再読込（`react-hooks/set-state-in-effect` 回避）
+- 決定: **追加のみ通知**（削除はスナップショット更新のみ）、初回はベースライン保存のみ・通知なし、シグネチャは全 `/mod/*/view.php`（教材含む）
+- **manifest・バックエンド変更なし**
+- 検証: `pnpm exec tsc -b` clean、`pnpm build` 成功、`pnpm exec vitest run src` **232/232 PASS**（+9）、変更ファイルのeslintクリーン
+- **実LETUS手動確認（ユーザー環境）**: 初回スキャンでベースライン（通知なし）→ コースに新教材/課題が増える → 次回スキャンで「コース更新」通知＋ダッシュボードに項目 → クリックでLETUSを開き既読化
+- **逆流状態（拡張→litus 未反映）**: `courseUpdates` は litus と双子（突き合わせて寄せる）。`letusLinks`/`htmlText` は拡張発（litusへ移植された起源）。共有化後の差分があれば litus へ
+
+---
+
 ## 2026-07-07 — v1.2.0 No.3 シラバス埋め込み表示を実装（fetch＋パース＋モーダル）
 
 設計 `docs/superpowers/specs/2026-07-07-v1.2.0-no3-syllabus-embed-design.md` / 実装計画 `docs/superpowers/plans/2026-07-07-syllabus-embed.md` をtask-by-taskのTDDで実装。

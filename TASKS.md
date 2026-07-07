@@ -160,10 +160,10 @@
   - [x] URL生成移植: リタス `src/links/syllabus.ts` → 拡張 `src/core/syllabus.ts`（学年暦＋URL生成・テスト同梱・通過）。年度直接指定の `buildSyllabusUrlByYear` を追加
   - [x] CLASS静的HTMLシラバス（`SyllabusHtml.{年度}.{7桁コード}.html`、直リンク可）を fetch → パース（`src/core/syllabusParse.ts`、`.rowStyle`のラベル→値を汎用抽出）→ ダッシュボードのモーダル（`SyllabusModal.tsx`）で整形表示。無期限キャッシュ＋手動リフレッシュ。導線=時間割コマ📖＋課題チップ、ポップアップは新規タブフォールバック
 
-- [ ] **コース内容の更新通知（定義A）**
-  - `/mod/*/view.php` リンク集合をコースごとにスナップショット → 再スキャン時に差分検知 → バッジ・通知
-  - シグネチャ/差分はリタス `src/updates/courseUpdates.ts` を移植（→ 拡張 `src/background/courseUpdates.ts` 想定）
-  - 注: `courseUpdates` は `letusLinks`（リンク抽出）依存で、拡張の既存リンク抽出（`src/background/index.ts`、litus移植の起源）との突き合わせが要る。純粋ロジック移植は本機能のbrainstorm→planで扱う（timetable/syllabusのような単純コピーにならないため案Aで先行移植せず）
+- [x] **コース内容の更新通知（定義A）**（設計: `docs/superpowers/specs/2026-07-07-v1.2.0-no4-course-update-notification-design.md`、実装計画: `docs/superpowers/plans/2026-07-07-course-update-notification.md`）
+  - [x] `/mod/*/view.php` リンク集合をコースごとにスナップショット（`courseSignature:{courseId}`）→ 既存スキャンのfetch済みHTMLから差分検知 → **追加のみ** Chrome通知＋ダッシュボードの項目履歴（`CourseUpdatesSection`）
+  - [x] シグネチャ/差分（`src/core/courseUpdates.ts`: `computeCourseSignature`/`diffCourseSignature`/`computeCourseUpdate`）はリタス `src/updates/courseUpdates.ts` の双子。初回ベースライン・skipSaveガード（ログイン切れ時のベースライン破壊防止）
+  - [x] `letusLinks`（リンク抽出）を拡張の `src/background/index.ts` から共有モジュール `src/core/letusLinks.ts`＋`src/core/htmlText.ts` へ抽出（挙動不変・既存テスト緑）＝設計書の言う「突き合わせ」を完了
 
 - [ ] **純粋ロジックのlitus逆流**（各機能実装後）
   - 拡張で磨いたパーサ・差分・シラバスURL生成を litus の対応ファイルへ反映し `litus` の `pnpm test` 通過を確認
