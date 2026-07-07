@@ -22,6 +22,8 @@ import { getAuthToken, isSubscriptionActive } from '../core/auth'
 import { getNotificationRules } from '../core/premium'
 import { extractDeadlineText, parseDeadline, parseDeadlineFromTitle } from './deadlineParser'
 import { resolveThresholds, pickThresholdToNotify } from './notificationRules'
+import { normalizeText, stripTags, decodeHtmlEntities } from '../core/htmlText'
+import { extractLinksFromHtml } from '../core/letusLinks'
 
 console.log('[LETUS Task Watcher] background service worker loaded')
 
@@ -34,10 +36,6 @@ let isDeadlineScanning = false
 
 // ─── Utilities ───────────────────────────────────────────────────────────────
 
-function normalizeText(text: unknown): string {
-  return String(text ?? '').trim().replace(/\s+/g, ' ')
-}
-
 function createId(value: string): string {
   return btoa(unescape(encodeURIComponent(value)))
     .replaceAll('=', '')
@@ -47,30 +45,6 @@ function createId(value: string): string {
 
 function createAssignmentCandidateId(courseId: string, url: string): string {
   return createId(`${courseId}:${url}`)
-}
-
-function stripTags(html: string): string {
-  return normalizeText(
-    String(html)
-      .replace(/<script[\s\S]*?<\/script>/gi, '')
-      .replace(/<style[\s\S]*?<\/style>/gi, '')
-      .replace(/<[^>]*>/g, ' '),
-  )
-}
-
-function decodeHtmlEntities(text: string): string {
-  const entities: Record<string, string> = {
-    '&amp;': '&',
-    '&lt;': '<',
-    '&gt;': '>',
-    '&quot;': '"',
-    '&#39;': "'",
-    '&nbsp;': ' ',
-  }
-  return String(text).replace(
-    /&(amp|lt|gt|quot|#39|nbsp);/g,
-    (match) => entities[match] ?? match,
-  )
 }
 
 function htmlToPlainText(html: string): string {
@@ -86,34 +60,6 @@ function htmlToPlainText(html: string): string {
         .replace(/<\/td>/gi, ' '),
     ),
   )
-}
-
-function extractLinksFromHtml(
-  html: string,
-  baseUrl: string,
-): { title: string; url: string }[] {
-  const links: { title: string; url: string }[] = []
-  const anchorRegex = /<a\s+[^>]*href=["']([^"']+)["'][^>]*>([\s\S]*?)<\/a>/gi
-  let match: RegExpExecArray | null
-
-  while ((match = anchorRegex.exec(html)) !== null) {
-    const href = match[1]
-    const innerHtml = match[2]
-
-    if (!href) continue
-
-    try {
-      const url = new URL(href, baseUrl).toString().split('#')[0]
-      const title = decodeHtmlEntities(stripTags(innerHtml))
-      if (title.length > 0) {
-        links.push({ title, url })
-      }
-    } catch {
-      // URL変換失敗は無視
-    }
-  }
-
-  return links
 }
 
 // ─── Concurrency helper ───────────────────────────────────────────────────────
