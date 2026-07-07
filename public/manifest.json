@@ -11,6 +11,7 @@
   ],
   "host_permissions": [
     "https://letus.ed.tus.ac.jp/*",
+    "https://class.admin.tus.ac.jp/*",
     "https://api.waiteu.dev/*"
   ],
   "background": {
@@ -21,6 +22,11 @@
     {
       "matches": ["https://letus.ed.tus.ac.jp/*"],
       "js": ["content.js"],
+      "run_at": "document_idle"
+    },
+    {
+      "matches": ["https://class.admin.tus.ac.jp/*"],
+      "js": ["classTimetable.js"],
       "run_at": "document_idle"
     }
   ],

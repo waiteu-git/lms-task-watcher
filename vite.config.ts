@@ -37,11 +37,13 @@ export default defineConfig(({ mode }) => {
         index: resolve(__dirname, 'index.html'),
         background: resolve(__dirname, 'src/background/index.ts'),
         content: resolve(__dirname, 'src/content/courseDetector.ts'),
+        classTimetable: resolve(__dirname, 'src/content/classTimetable.ts'),
       },
       output: {
         entryFileNames: (chunk) => {
           if (chunk.name === 'background') return 'background.js'
           if (chunk.name === 'content') return 'content.js'
+          if (chunk.name === 'classTimetable') return 'classTimetable.js'
           return 'assets/[name]-[hash].js'
         },
         chunkFileNames: 'assets/[name]-[hash].js',
