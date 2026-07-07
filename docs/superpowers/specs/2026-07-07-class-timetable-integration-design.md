@@ -10,8 +10,8 @@
 シラバス埋め込み表示（No.3）とコース更新通知（No.4）は本設計の対象外。ただし時間割コマからのシラバス導線（URL生成は移植済み `src/core/syllabus.ts`）は本設計のUIに含める。
 
 関連（実地調査の根拠）:
-- `C:\dev\litas\docs\2026-07-04-v2.0.0-mobile-app-initial-design.md` 付録A（CLASS時間割ページ `Kmd008` のメニュー導線・セレクタ・時限時刻表・学期切替の実証）
-- 移植済み純粋ロジック: `src/core/timetable.ts`（`parseTimetable`/`parsePeriodTimes`/`parseClassCell`）、`src/core/syllabus.ts`（`buildSyllabusUrl`/`academicYear`）。いずれもテスト済み（2026-07-07 litasから移植、コミット `e5c2653`）。
+- `C:\dev\litus\docs\2026-07-04-v2.0.0-mobile-app-initial-design.md` 付録A（CLASS時間割ページ `Kmd008` のメニュー導線・セレクタ・時限時刻表・学期切替の実証）
+- 移植済み純粋ロジック: `src/core/timetable.ts`（`parseTimetable`/`parsePeriodTimes`/`parseClassCell`）、`src/core/syllabus.ts`（`buildSyllabusUrl`/`academicYear`）。いずれもテスト済み（2026-07-07 litusから移植、コミット `e5c2653`）。
 
 ## 確定した方針
 
@@ -119,9 +119,9 @@
 - content script のDOM抽出（`MutationObserver`・セレクタ）は薄く保ち、実CLASS DOMでの検証はユーザー環境で行う（自動テスト対象外）。
 - `pnpm exec tsc -b`・`pnpm build`・`pnpm exec vitest run src` 全緑。
 
-## 純粋ロジックの litas 逆流
+## 純粋ロジックの litus 逆流
 
-- 本設計で新規に磨く純粋ロジック（`extractCourseCode` 等の突合、`resolveSemester`）のうち litas と共有価値があるものは、実装後に litas の対応箇所へ突き合わせて寄せる。時間割パーサ自体（`timetable.ts`）は移植時点で litas と同一。差分が出たら handover（litas）と WORKLOG（拡張）に逆流済み/未を記録する（スコープ設計の逆流規約）。
+- 本設計で新規に磨く純粋ロジック（`extractCourseCode` 等の突合、`resolveSemester`）のうち litus と共有価値があるものは、実装後に litus の対応箇所へ突き合わせて寄せる。時間割パーサ自体（`timetable.ts`）は移植時点で litus と同一。差分が出たら handover（litus）と WORKLOG（拡張）に逆流済み/未を記録する（スコープ設計の逆流規約）。
 
 ## 非目標（本設計で扱わないこと）
 

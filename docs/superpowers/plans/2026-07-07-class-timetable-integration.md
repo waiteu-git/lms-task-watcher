@@ -971,7 +971,7 @@ git commit -m "feat(ext): show room/period/syllabus chips on linked assignment c
 
 - [ ] **Step 2: WORKLOG.md に実装記録を追記**
 
-`WORKLOG.md` の先頭（`---` 直後）に、No.2実装の要点（passive-only収集・dumb grabber・専用セクション・突合チップ・実CLASS DOM手動確認手順）と検証結果（tsc/build/vitest）を追記する。逆流状態（timetableは移植時点でlitasと同一、新規`timetableLink`の突合ロジックは拡張発）も記す。
+`WORKLOG.md` の先頭（`---` 直後）に、No.2実装の要点（passive-only収集・dumb grabber・専用セクション・突合チップ・実CLASS DOM手動確認手順）と検証結果（tsc/build/vitest）を追記する。逆流状態（timetableは移植時点でlitusと同一、新規`timetableLink`の突合ロジックは拡張発）も記す。
 
 - [ ] **Step 3: コミット**
 
