@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>LETUS Task Watcher — ようこそ</title>
+  <link rel="icon" type="image/svg+xml" href="favicon.svg" />
+  <link rel="icon" type="image/png" sizes="32x32" href="icons/icon-32.png" />
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: #f5f5f5;
+      color: #1a1a1a;
+      padding: 40px 16px;
+    }
+    .container {
+      max-width: 640px;
+      margin: 0 auto;
+      background: #ffffff;
+      border-radius: 12px;
+      padding: 40px;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.1);
+    }
+    .eyebrow {
+      font-size: 12px;
+      font-weight: 600;
+      color: #7c3aed;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      margin-bottom: 8px;
+    }
+    h1 { font-size: 24px; font-weight: 700; margin-bottom: 4px; }
+    .subtitle { font-size: 14px; color: #6b7280; margin-bottom: 32px; }
+    h2 {
+      font-size: 15px;
+      font-weight: 700;
+      color: #374151;
+      margin: 32px 0 12px;
+      padding-bottom: 8px;
+      border-bottom: 1px solid #e5e7eb;
+    }
+    p { font-size: 14px; line-height: 1.7; margin-bottom: 10px; }
+
+    /* ── 固定手順のイラスト ── */
+    .toolbar-demo {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      background: #f3f4f6;
+      border: 1px solid #e5e7eb;
+      border-radius: 10px;
+      padding: 10px 14px;
+      margin: 12px 0;
+      font-size: 13px;
+      color: #6b7280;
+    }
+    .toolbar-demo .addr {
+      flex: 1;
+      background: #ffffff;
+      border-radius: 99px;
+      padding: 6px 14px;
+      border: 1px solid #e5e7eb;
+      font-size: 12px;
+    }
+    .toolbar-demo .puzzle {
+      font-size: 18px;
+      animation: pulse 1.6s ease-in-out infinite;
+    }
+    @keyframes pulse {
+      0%, 100% { transform: scale(1); }
+      50% { transform: scale(1.25); }
+    }
+    ol.steps { margin: 0 0 8px 0; padding-left: 0; list-style: none; counter-reset: step; }
+    ol.steps li {
+      font-size: 14px;
+      line-height: 1.7;
+      padding: 8px 0 8px 40px;
+      position: relative;
+      counter-increment: step;
+      border-bottom: 1px solid #f3f4f6;
+    }
+    ol.steps li::before {
+      content: counter(step);
+      position: absolute;
+      left: 0;
+      top: 8px;
+      width: 26px;
+      height: 26px;
+      border-radius: 50%;
+      background: #ede9fe;
+      color: #7c3aed;
+      font-weight: 700;
+      font-size: 13px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .note {
+      font-size: 12px;
+      color: #6b7280;
+      background: #fafafa;
+      border: 1px solid #f3f4f6;
+      border-radius: 8px;
+      padding: 10px 12px;
+      margin-top: 8px;
+    }
+    .btn {
+      display: inline-block;
+      background: #7c3aed;
+      color: #ffffff;
+      font-size: 14px;
+      font-weight: 600;
+      padding: 10px 20px;
+      border-radius: 8px;
+      text-decoration: none;
+      margin: 8px 8px 8px 0;
+    }
+    .btn.secondary {
+      background: #ffffff;
+      color: #7c3aed;
+      border: 1px solid #ddd6fe;
+    }
+    .litus {
+      background: #ecfdf5;
+      border: 1px solid #a7f3d0;
+      border-radius: 10px;
+      padding: 16px;
+      margin-top: 32px;
+    }
+    .litus h2 { border: none; margin: 0 0 8px; padding: 0; color: #065f46; }
+    .litus p { font-size: 13px; color: #065f46; margin-bottom: 0; }
+    .litus a { color: #0f9e75; font-weight: 600; }
+    .footer {
+      margin-top: 32px;
+      padding-top: 16px;
+      border-top: 1px solid #e5e7eb;
+      font-size: 13px;
+      color: #6b7280;
+    }
+    .footer a { color: #7c3aed; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <p class="eyebrow">Welcome</p>
+    <h1>LETUS Task Watcher へようこそ</h1>
+    <p class="subtitle">LETUSの課題期限を自動で集めて、締切前に通知します。まずは2分でセットアップしましょう。</p>
+
+    <h2>① ツールバーに固定しよう</h2>
+    <p>固定しておくと、ワンクリックで課題一覧を開けます。</p>
+    <div class="toolbar-demo">
+      <span class="addr">letus.ed.tus.ac.jp</span>
+      <span class="puzzle">🧩</span>
+      <span>⋯</span>
+    </div>
+    <div data-browser="chrome">
+      <ol class="steps">
+        <li>アドレスバー右の <strong>🧩 パズルピースアイコン</strong>をクリック</li>
+        <li>一覧から「LETUS Task Watcher」を探す</li>
+        <li>右側の <strong>📌 ピンアイコン</strong>をクリックして固定</li>
+      </ol>
+    </div>
+    <div data-browser="edge">
+      <ol class="steps">
+        <li>アドレスバー右の <strong>🧩 拡張機能アイコン</strong>をクリック</li>
+        <li>一覧から「LETUS Task Watcher」を探す</li>
+        <li>右側の <strong>👁 目のアイコン</strong>をクリックして「ツールバーに表示」</li>
+      </ol>
+    </div>
+    <p class="note">固定すると、ツールバーの拡張機能アイコンから残り課題数がひと目でわかります。</p>
+
+    <h2>② 使い始めの3ステップ</h2>
+    <ol class="steps">
+      <li><strong>LETUS を開く</strong> — コースページを開くと、コースが自動で登録されます</li>
+      <li><strong>コースを選ぶ</strong> — ダッシュボードで追跡したいコースにチェック</li>
+      <li><strong>今すぐ更新</strong> — ポップアップの「今すぐ更新」で課題を取得</li>
+    </ol>
+    <a class="btn" href="https://letus.ed.tus.ac.jp" target="_blank">LETUS を開く →</a>
+    <a class="btn secondary" href="index.html#dashboard" target="_blank">ダッシュボードを開く</a>
+
+    <h2>③ あとは通知を待つだけ</h2>
+    <p>1日1回自動で課題をチェックし、期限が近づくとデスクトップ通知でお知らせします。通知のタイミングはダッシュボードから変更できます。</p>
+
+    <div class="litus">
+      <h2>📱 モバイルアプリ「リタス（Litus）」開発中</h2>
+      <p>LETUSの課題も、CLASSの時間割も出席も、スマホひとつに。ブラウザを開かなくてもプッシュ通知を受け取れます。<a href="https://lms.waiteu.dev/app" target="_blank">事前登録はこちら →</a></p>
+    </div>
+
+    <div class="footer">
+      アップデートで開かれた方へ: <a href="changelog.html">今回の更新内容はこちら</a>
+    </div>
+  </div>
+  <script src="welcome.js"></script>
+</body>
+</html>
