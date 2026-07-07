@@ -24,6 +24,8 @@ import { extractDeadlineText, parseDeadline, parseDeadlineFromTitle } from './de
 import { resolveThresholds, pickThresholdToNotify } from './notificationRules'
 import { normalizeText, stripTags, decodeHtmlEntities } from '../core/htmlText'
 import { extractLinksFromHtml } from '../core/letusLinks'
+import { computeCourseUpdate } from '../core/courseUpdates'
+import { getCourseSignature, saveCourseSignature, addUnreadUpdates } from './courseUpdatesStore'
 
 console.log('[LETUS Task Watcher] background service worker loaded')
 
@@ -386,6 +388,15 @@ async function createNotification(params: {
   })
 }
 
+async function notifyCourseUpdate(course: Course, addedCount: number): Promise<void> {
+  await createNotification({
+    id: `course-update:${course.id}`,
+    title: 'コース更新',
+    message: `${course.name} に新しい教材/課題 ${addedCount}件`,
+    url: `${chrome.runtime.getURL('index.html')}#dashboard`,
+  })
+}
+
 function isWithin24Hours(deadline: string | null): boolean {
   if (!deadline) return false
   const diff = new Date(deadline).getTime() - Date.now()
@@ -483,6 +494,20 @@ export async function scanAssignmentCandidatesInBackground(
 
         const html = await response.text()
         const links = extractLinksFromHtml(html, course.url)
+
+        try {
+          const prevSig = await getCourseSignature(course.id)
+          const upd = computeCourseUpdate(prevSig, html, course.url, new Date().toISOString())
+          if (!upd.skipSave) {
+            await saveCourseSignature(course.id, upd.signature)
+            if (upd.added.length > 0) {
+              await addUnreadUpdates(course.id, upd.added)
+              await notifyCourseUpdate(course, upd.added.length)
+            }
+          }
+        } catch {
+          // 更新検知の失敗はスキャン本体を止めない
+        }
 
         for (const link of links) {
           const title = normalizeText(link.title)
