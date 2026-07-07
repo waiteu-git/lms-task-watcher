@@ -4,6 +4,22 @@
 
 ---
 
+## 2026-07-07 — v1.2.0 No.3 シラバス埋め込み表示を実装（fetch＋パース＋モーダル）
+
+設計 `docs/superpowers/specs/2026-07-07-v1.2.0-no3-syllabus-embed-design.md` / 実装計画 `docs/superpowers/plans/2026-07-07-syllabus-embed.md` をtask-by-taskのTDDで実装。
+
+- 実データ調査: CLASSシラバス（`SyllabusHtml.{年度}.{7桁}.html`）は**ログイン不要・直リンク可**（curlでHTTP 200確認）。div主体のレイアウトで `.rowStyle` 行ごとに `.colHeader`（日英ラベル）＋`.colStyle`（値）。4科目でラベル体系・順序が完全一致。取得済み4科目を `src/core/syllabusFixtures/*.html` に同梱
+- `src/core/syllabus.ts`（`fdac108`系）: `buildSyllabusUrlByYear(code, year)` 追加、`buildSyllabusUrl` は薄いラッパに（年度キャッシュキーとURLの齟齬回避）
+- パーサ `src/core/syllabusParse.ts`（`9420b24`）: `.rowStyle` を汎用走査しラベル→値のセクション配列＋`titleJa/titleEn/code` を抽出。ラベルは日英併記から日本語部分を取り出す（英字埋め込みラベルも正しく処理）。`<br>`は改行、nbsp/zwspを正規化。テストは `?raw` インポート（拡張tsconfigは@types/node無しでfs不可）
+- store `src/core/syllabusStore.ts`（`62fde39`）: `fetch`→`parseSyllabus`→`chrome.storage.local` の `syllabus:{year}:{code}` に無期限キャッシュ。非200は例外
+- UI `SyllabusModal.tsx`＋`syllabusContext.ts`（`b5c3eac`）＋配線（`bf75af4`）: ダッシュボードのモーダル（loading/error/loaded）。導線=時間割コマ📖・課題チップ、`SyllabusContext` の openSyllabus を **ダッシュボードのみ供給**（ポップアップはnull→従来の新規タブ）。科目切替でモーダル再マウント（key）してeffect内同期setStateを排除（`react-hooks/set-state-in-effect`）
+- **manifest変更なし**（`class.admin` host_permissionはNo.2で追加済み）。バックエンド変更なし
+- 検証: `pnpm exec tsc -b` clean、`pnpm build` 成功、`pnpm exec vitest run src` **221/221 PASS**（+12）、変更ファイルのeslintクリーン
+- **実fetch手動確認（ユーザー環境）**: ダッシュボードで時間割コマの📖 or 課題チップの「シラバス」→ モーダルが開き整形表示 → 再取得ボタンで更新。失敗時は再試行＋CLASS外部リンク
+- **逆流状態（拡張→litus 未反映）**: syllabusParse は**拡張発**（litusはURL生成のみ）。逆流タスクで litus へ移植候補
+
+---
+
 ## 2026-07-07 — v1.2.0 No.2 CLASS時間割連携を実装（収集＋グリッド＋科目連携）
 
 実装計画 `docs/superpowers/plans/2026-07-07-class-timetable-integration.md` をtask-by-taskのTDDで実装（base `710adbe`）。

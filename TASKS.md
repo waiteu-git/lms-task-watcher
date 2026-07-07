@@ -156,9 +156,9 @@
 - [x] **科目連携（課題↔時間割の自動ひも付け）**
   - CLASS 7桁科目コード ↔ LETUSコース名埋込コードで突合（統合コースは複数コード対応）: `src/core/timetableLink.ts` の `linkAssignmentsToSlots`・課題カードに教室/時限/シラバスのチップ表示
 
-- [~] **シラバス埋め込み表示**
-  - [x] URL生成移植: リタス `src/links/syllabus.ts` → 拡張 `src/core/syllabus.ts`（学年暦＋URL生成・テスト同梱・通過）
-  - [ ] CLASS静的HTMLシラバス（`SyllabusHtml.{年度}.{7桁コード}.html`）を fetch → パース → 拡張内に整形表示（パーサ/UIはbrainstorm→plan）
+- [x] **シラバス埋め込み表示**（設計: `docs/superpowers/specs/2026-07-07-v1.2.0-no3-syllabus-embed-design.md`、実装計画: `docs/superpowers/plans/2026-07-07-syllabus-embed.md`）
+  - [x] URL生成移植: リタス `src/links/syllabus.ts` → 拡張 `src/core/syllabus.ts`（学年暦＋URL生成・テスト同梱・通過）。年度直接指定の `buildSyllabusUrlByYear` を追加
+  - [x] CLASS静的HTMLシラバス（`SyllabusHtml.{年度}.{7桁コード}.html`、直リンク可）を fetch → パース（`src/core/syllabusParse.ts`、`.rowStyle`のラベル→値を汎用抽出）→ ダッシュボードのモーダル（`SyllabusModal.tsx`）で整形表示。無期限キャッシュ＋手動リフレッシュ。導線=時間割コマ📖＋課題チップ、ポップアップは新規タブフォールバック
 
 - [ ] **コース内容の更新通知（定義A）**
   - `/mod/*/view.php` リンク集合をコースごとにスナップショット → 再スキャン時に差分検知 → バッジ・通知
