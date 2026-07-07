@@ -18,7 +18,6 @@ export function SyllabusModal({
 
   useEffect(() => {
     let cancelled = false
-    setState('loading')
     void (async () => {
       try {
         const c = (await getCachedSyllabus(year, code)) ?? (await fetchAndCacheSyllabus(year, code))

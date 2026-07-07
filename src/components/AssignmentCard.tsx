@@ -3,7 +3,8 @@ import type { Assignment } from '../core/types'
 import { formatDeadline, getRemaining } from '../utils/date'
 import { getStatusLabel } from '../utils/assignment'
 import { AssignmentSlotContext } from '../core/assignmentSlotContext'
-import { buildSyllabusUrl } from '../core/syllabus'
+import { SyllabusContext } from '../core/syllabusContext'
+import { buildSyllabusUrl, academicYear } from '../core/syllabus'
 
 const DAY_LABEL_SHORT: Record<'mon' | 'tue' | 'wed' | 'thu' | 'fri' | 'sat', string> = {
   mon: '月', tue: '火', wed: '水', thu: '木', fri: '金', sat: '土',
@@ -22,6 +23,7 @@ export function AssignmentCard({
 }) {
   const slotMap = useContext(AssignmentSlotContext)
   const slot = slotMap[assignment.id]
+  const openSyllabus = useContext(SyllabusContext)
 
   function openAssignmentPage() {
     if (!assignment.url) {
@@ -81,15 +83,28 @@ export function AssignmentCard({
             {DAY_LABEL_SHORT[slot.day]}{slot.period}
           </span>
           <span className="slotChip">{slot.room}</span>
-          <a
-            className="slotChip slotChipLink"
-            href={buildSyllabusUrl(slot.courseCode, new Date())}
-            target="_blank"
-            rel="noreferrer"
-            onClick={(e) => e.stopPropagation()}
-          >
-            シラバス
-          </a>
+          {openSyllabus ? (
+            <button
+              type="button"
+              className="slotChip slotChipLink"
+              onClick={(e) => {
+                e.stopPropagation()
+                openSyllabus(academicYear(new Date()), slot.courseCode, assignment.courseName)
+              }}
+            >
+              シラバス
+            </button>
+          ) : (
+            <a
+              className="slotChip slotChipLink"
+              href={buildSyllabusUrl(slot.courseCode, new Date())}
+              target="_blank"
+              rel="noreferrer"
+              onClick={(e) => e.stopPropagation()}
+            >
+              シラバス
+            </a>
+          )}
         </div>
       )}
 

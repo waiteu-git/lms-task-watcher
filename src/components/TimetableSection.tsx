@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useContext, useEffect, useMemo, useState } from 'react'
 import type { Course, Assignment } from '../core/types'
 import type { DayOfWeek, TimetableSlot } from '../core/timetable'
 import { parseTimetable } from '../core/timetable'
@@ -6,6 +6,7 @@ import { getTimetableCapture, listCapturedSemesters, getPreferredView, setPrefer
 import type { Semester } from '../core/timetableLink'
 import { resolveSemester, applyOverrides, linkAssignmentsToSlots } from '../core/timetableLink'
 import { loadCourseOverrides } from '../core/timetableView'
+import { SyllabusContext } from '../core/syllabusContext'
 import { buildSyllabusUrl, academicYear } from '../core/syllabus'
 
 const DAYS: DayOfWeek[] = ['mon', 'tue', 'wed', 'thu', 'fri']
@@ -16,6 +17,7 @@ const PERIODS = [1, 2, 3, 4, 5, 6, 7]
 export function TimetableSection({ courses, assignments }: { courses: Course[]; assignments: Assignment[] }) {
   const now = new Date()
   const year = academicYear(now)
+  const openSyllabus = useContext(SyllabusContext)
   const [semester, setSemester] = useState<Semester | null>(null)
   const [captured, setCaptured] = useState<Semester[]>([])
   const [rawHtml, setRawHtml] = useState<string | null>(null)
@@ -124,7 +126,18 @@ export function TimetableSection({ courses, assignments }: { courses: Course[]; 
                       <div className="timetableCellMeta">
                         {count > 0 && <span className="timetableCount">課題{count}</span>}
                         {c.courseCode && (
-                          <a className="timetableSyllabus" href={buildSyllabusUrl(c.courseCode, now)} target="_blank" rel="noreferrer" title="シラバス">📖</a>
+                          openSyllabus ? (
+                            <button
+                              type="button"
+                              className="timetableSyllabus"
+                              title="シラバス"
+                              onClick={() => openSyllabus(year, c.courseCode, c.name)}
+                            >
+                              📖
+                            </button>
+                          ) : (
+                            <a className="timetableSyllabus" href={buildSyllabusUrl(c.courseCode, now)} target="_blank" rel="noreferrer" title="シラバス">📖</a>
+                          )
                         )}
                         {c.courseCode && (
                           <button type="button" className="timetableEditRoom" title="教室を編集" onClick={() => void editRoom(c.courseCode, c.room)}>✎</button>

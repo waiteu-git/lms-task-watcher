@@ -98,6 +98,8 @@ import { linkAssignmentsToSlots, applyOverrides, type AssignmentSlotInfo } from 
 import { parseTimetable } from './core/timetable'
 import { academicYear } from './core/syllabus'
 import { resolveViewSemester, loadCourseOverrides } from './core/timetableView'
+import { SyllabusContext, type OpenSyllabus } from './core/syllabusContext'
+import { SyllabusModal } from './components/SyllabusModal'
 import { mergeTimeline } from './utils/timeline'
 import {
   getManualUrgent,
@@ -115,6 +117,8 @@ export default function App() {
   const [assignments, setAssignments] = useState<Assignment[]>([])
   const [courses, setCourses] = useState<Course[]>([])
   const [assignmentSlotMap, setAssignmentSlotMap] = useState<Record<string, AssignmentSlotInfo>>({})
+  const [syllabusTarget, setSyllabusTarget] = useState<{ year: number; code: string; name: string } | null>(null)
+  const openSyllabus: OpenSyllabus = (year, code, name) => setSyllabusTarget({ year, code, name })
   const [ignoredAssignmentIds, setIgnoredAssignmentIds] = useState<string[]>([])
   const [lastHiddenAssignment, setLastHiddenAssignment] =
     useState<Assignment | null>(null)
@@ -1048,6 +1052,7 @@ export default function App() {
 
   return (
     <AssignmentSlotContext.Provider value={assignmentSlotMap}>
+    <SyllabusContext.Provider value={isDashboard ? openSyllabus : null}>
     <main className={`app ${isDashboard ? 'dashboard' : 'popup'}`}>
       <div className="top">
         <button
@@ -1763,6 +1768,16 @@ export default function App() {
         </>
       )}
     </main>
+    {syllabusTarget && (
+      <SyllabusModal
+        key={`${syllabusTarget.year}:${syllabusTarget.code}`}
+        year={syllabusTarget.year}
+        code={syllabusTarget.code}
+        courseName={syllabusTarget.name}
+        onClose={() => setSyllabusTarget(null)}
+      />
+    )}
+    </SyllabusContext.Provider>
     </AssignmentSlotContext.Provider>
   )
 }
