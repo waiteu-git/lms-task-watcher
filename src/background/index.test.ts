@@ -5,6 +5,7 @@ import {
   ASSIGNMENTS_KEY,
   COURSES_KEY,
   DEADLINE_SCAN_STATUS_KEY,
+  WELCOME_GUIDE_SHOWN_KEY,
 } from './storageKeys'
 
 const store: Record<string, unknown> = {}
@@ -55,6 +56,7 @@ const {
   checkIsLoggedIn,
   scanAssignmentCandidatesInBackground,
   scanDeadlinesInBackground,
+  handleInstalled,
   ALARM_PERIOD_MINUTES,
 } = await import('./index')
 
@@ -425,5 +427,40 @@ describe('scanDeadlinesInBackground', () => {
     const kept = saved.find((a) => a.id === 'cand-2')
     expect(kept?.title).toBe('既存の課題2')
     expect(saved.some((a) => a.id === 'cand-1')).toBe(true)
+  })
+})
+
+describe('handleInstalled', () => {
+  it('新規インストール時はwelcome.htmlを開きフラグを保存する', async () => {
+    await handleInstalled({ reason: 'install' } as chrome.runtime.InstalledDetails)
+
+    expect(chrome.tabs.create).toHaveBeenCalledWith({ url: 'welcome.html' })
+    expect(store[WELCOME_GUIDE_SHOWN_KEY]).toBe(true)
+  })
+
+  it('アップデート時にフラグ未保存ならwelcome.htmlを開きフラグを保存する', async () => {
+    await handleInstalled({ reason: 'update' } as chrome.runtime.InstalledDetails)
+
+    expect(chrome.tabs.create).toHaveBeenCalledWith({ url: 'welcome.html' })
+    expect(chrome.tabs.create).not.toHaveBeenCalledWith({ url: 'changelog.html' })
+    expect(store[WELCOME_GUIDE_SHOWN_KEY]).toBe(true)
+  })
+
+  it('アップデート時にフラグ保存済みならchangelog.htmlを開く', async () => {
+    store[WELCOME_GUIDE_SHOWN_KEY] = true
+
+    await handleInstalled({ reason: 'update' } as chrome.runtime.InstalledDetails)
+
+    expect(chrome.tabs.create).toHaveBeenCalledWith({ url: 'changelog.html' })
+    expect(chrome.tabs.create).not.toHaveBeenCalledWith({ url: 'welcome.html' })
+  })
+
+  it('理由によらず定期スキャンのアラームを作成する', async () => {
+    await handleInstalled({ reason: 'install' } as chrome.runtime.InstalledDetails)
+
+    expect(chrome.alarms.create).toHaveBeenCalledWith(
+      expect.any(String),
+      { delayInMinutes: ALARM_PERIOD_MINUTES, periodInMinutes: ALARM_PERIOD_MINUTES },
+    )
   })
 })

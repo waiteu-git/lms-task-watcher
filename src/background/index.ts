@@ -15,6 +15,7 @@ import {
   LAST_REFRESH_AT_KEY,
   NOTIFIED_DEADLINE_KEYS_KEY,
   NOTIFICATION_TARGETS_KEY,
+  WELCOME_GUIDE_SHOWN_KEY,
 } from './storageKeys'
 import type { AssignmentScanStatus, DeadlineScanStatus } from '../core/scanStatus'
 import { getManualAssignments } from '../core/manualAssignment'
@@ -897,15 +898,35 @@ async function runAutoScan(): Promise<void> {
   await checkDeadlineWarningNotifications()
 }
 
-chrome.runtime.onInstalled.addListener((details) => {
+export async function handleInstalled(details: chrome.runtime.InstalledDetails): Promise<void> {
   chrome.alarms.create(ALARM_NAME, {
     delayInMinutes: ALARM_PERIOD_MINUTES,
     periodInMinutes: ALARM_PERIOD_MINUTES,
   })
 
-  if (details.reason === 'update') {
-    void chrome.tabs.create({ url: chrome.runtime.getURL('changelog.html') })
+  if (details.reason === 'install') {
+    await chrome.storage.local.set({ [WELCOME_GUIDE_SHOWN_KEY]: true })
+    await chrome.tabs.create({ url: chrome.runtime.getURL('welcome.html') })
+    return
   }
+
+  if (details.reason === 'update') {
+    const result = await chrome.storage.local.get(WELCOME_GUIDE_SHOWN_KEY) as {
+      welcomeGuideShown?: boolean
+    }
+    if (result.welcomeGuideShown === true) {
+      await chrome.tabs.create({ url: chrome.runtime.getURL('changelog.html') })
+    } else {
+      await chrome.storage.local.set({ [WELCOME_GUIDE_SHOWN_KEY]: true })
+      await chrome.tabs.create({ url: chrome.runtime.getURL('welcome.html') })
+    }
+  }
+}
+
+chrome.runtime.onInstalled.addListener((details) => {
+  handleInstalled(details).catch((error) => {
+    console.error('[LETUS Task Watcher] onInstalled handling failed', error)
+  })
 })
 
 chrome.runtime.onStartup.addListener(() => {
