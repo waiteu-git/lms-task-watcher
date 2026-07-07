@@ -92,6 +92,11 @@ import { SubscriberBadge } from './components/SubscriberBadge'
 import { ProBanner } from './components/ProBanner'
 import { ManualAssignmentCard } from './components/ManualAssignmentCard'
 import { TimetableSection } from './components/TimetableSection'
+import { AssignmentSlotContext } from './core/assignmentSlotContext'
+import { getTimetableCapture, getPreferredView, listCapturedSemesters } from './core/timetableStore'
+import { linkAssignmentsToSlots, resolveSemester, type AssignmentSlotInfo } from './core/timetableLink'
+import { parseTimetable } from './core/timetable'
+import { academicYear } from './core/syllabus'
 import { mergeTimeline } from './utils/timeline'
 import {
   getManualUrgent,
@@ -108,6 +113,7 @@ export default function App() {
 
   const [assignments, setAssignments] = useState<Assignment[]>([])
   const [courses, setCourses] = useState<Course[]>([])
+  const [assignmentSlotMap, setAssignmentSlotMap] = useState<Record<string, AssignmentSlotInfo>>({})
   const [ignoredAssignmentIds, setIgnoredAssignmentIds] = useState<string[]>([])
   const [lastHiddenAssignment, setLastHiddenAssignment] =
     useState<Assignment | null>(null)
@@ -133,6 +139,23 @@ export default function App() {
   const [showOnboarding, setShowOnboarding] = useState(false)
   const hasAutoRefreshCheckedRef = useRef(false)
   const hasCheckedDeadlineNotificationRef = useRef(false)
+
+  useEffect(() => {
+    void (async () => {
+      const now = new Date()
+      const year = academicYear(now)
+      const pref = await getPreferredView()
+      const semester = pref?.semester ?? resolveSemester(now, await listCapturedSemesters(year))
+      const cap = await getTimetableCapture(year, semester)
+      if (!cap) {
+        setAssignmentSlotMap({})
+        return
+      }
+      const slots = parseTimetable(cap.rawTableHtml)
+      const { assignmentInfo } = linkAssignmentsToSlots(slots, courses, assignments)
+      setAssignmentSlotMap(assignmentInfo)
+    })()
+  }, [courses, assignments])
 
   async function refreshAll() {
     const [
@@ -1023,6 +1046,7 @@ export default function App() {
   }
 
   return (
+    <AssignmentSlotContext.Provider value={assignmentSlotMap}>
     <main className={`app ${isDashboard ? 'dashboard' : 'popup'}`}>
       <div className="top">
         <button
@@ -1738,5 +1762,6 @@ export default function App() {
         </>
       )}
     </main>
+    </AssignmentSlotContext.Provider>
   )
 }

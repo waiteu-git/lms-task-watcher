@@ -1907,3 +1907,8 @@ button:disabled {
 .timetableSyllabus { font-size: 13px; text-decoration: none; }
 .timetableEditRoom { background: none; border: none; font-size: 12px; color: #94a3b8; cursor: pointer; padding: 0; }
 .timetableEmpty { font-size: 13px; color: #64748b; padding: 12px; background: #f8fafc; border-radius: 8px; }
+
+.assignmentSlotChips { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 6px; }
+.slotChip { font-size: 11px; background: #f1f5f9; color: #475569; border: 1px solid #e2e8f0; border-radius: 20px; padding: 2px 8px; }
+.slotChipDay { background: #e0edff; color: #1d4ed8; border-color: #bfdbfe; }
+.slotChipLink { text-decoration: none; color: #1d4ed8; }

@@ -1,7 +1,13 @@
-import type { KeyboardEvent, MouseEvent } from 'react'
+import { useContext, type KeyboardEvent, type MouseEvent } from 'react'
 import type { Assignment } from '../core/types'
 import { formatDeadline, getRemaining } from '../utils/date'
 import { getStatusLabel } from '../utils/assignment'
+import { AssignmentSlotContext } from '../core/assignmentSlotContext'
+import { buildSyllabusUrl } from '../core/syllabus'
+
+const DAY_LABEL_SHORT: Record<'mon' | 'tue' | 'wed' | 'thu' | 'fri' | 'sat', string> = {
+  mon: '月', tue: '火', wed: '水', thu: '木', fri: '金', sat: '土',
+}
 
 export function AssignmentCard({
   assignment,
@@ -14,6 +20,9 @@ export function AssignmentCard({
   canHide?: boolean
   onHide?: (assignmentId: string) => void
 }) {
+  const slotMap = useContext(AssignmentSlotContext)
+  const slot = slotMap[assignment.id]
+
   function openAssignmentPage() {
     if (!assignment.url) {
       return
@@ -65,6 +74,24 @@ export function AssignmentCard({
 
       <div className="title">{assignment.title}</div>
       <div className="course">{assignment.courseName}</div>
+
+      {!compact && slot && (
+        <div className="assignmentSlotChips">
+          <span className="slotChip slotChipDay">
+            {DAY_LABEL_SHORT[slot.day]}{slot.period}
+          </span>
+          <span className="slotChip">{slot.room}</span>
+          <a
+            className="slotChip slotChipLink"
+            href={buildSyllabusUrl(slot.courseCode, new Date())}
+            target="_blank"
+            rel="noreferrer"
+            onClick={(e) => e.stopPropagation()}
+          >
+            シラバス
+          </a>
+        </div>
+      )}
 
       {!compact && (
         <div className="cardFooter">
