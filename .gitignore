@@ -15,3 +15,5 @@ dist-beta
 data/
 .claude/
 devlms-task-watcher-v104/
+ops/litus-devlog/.delta.json
+ops/litus-devlog/.draft.txt

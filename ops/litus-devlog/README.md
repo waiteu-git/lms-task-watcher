@@ -10,24 +10,27 @@ litus の進捗を「自分用ダイジェスト／X下書き／devlogエント�
 
 1. 差分を収集:
    ```bash
-   node ops/litus-devlog/collect.mjs > /tmp/litus-delta.json
-   cat /tmp/litus-delta.json   # count / commits / changelogHead を確認
+   node ops/litus-devlog/collect.mjs > ops/litus-devlog/.delta.json
+   cat ops/litus-devlog/.delta.json   # count / commits / changelogHead を確認
    ```
-   `count` が 0 なら「今回は更新なし」＝スキップ（無投稿）。
+   **`count` が 0 のときは Step 2〜4 を実行せずスキップ（無投稿）。**
 
-2. 下書き3種を作る（LLM/自分で）: `/tmp/litus-delta.json` の commits・changelogHead **のみ**を根拠に、次の3セクションを1つのテキスト `/tmp/litus-draft.txt` に書く。実データに無い機能は書かない。トーンは既存ランディング準拠。
+   （注: パスはリポジトリ相対の `ops/litus-devlog/.delta.json` を使うこと。`/tmp/...` のような絶対パスは使わない — このWindows+Git-Bash環境では bash の `/tmp` と Node の `/tmp`（`C:\tmp`）が別物になり、Node側が ENOENT で読めなくなるため。）
+
+2. 下書き3種を作る（LLM/自分で）: `ops/litus-devlog/.delta.json` の commits・changelogHead **のみ**を根拠に、次の3セクションを1つのテキスト `ops/litus-devlog/.draft.txt` に書く。実データに無い機能は書かない。トーンは既存ランディング準拠。
    - `## 自分用ダイジェスト`（出た/進行中/次）
    - `## X下書き`（ハイライト1本。必要ならスレッド）
    - `## devlogエントリ`（`updates.html` に貼れる日付つきHTML断片 or 素の文）
 
 3. Discord へ投稿:
    ```bash
-   node ops/litus-devlog/discord.mjs /tmp/litus-draft.txt
+   node ops/litus-devlog/discord.mjs ops/litus-devlog/.draft.txt
    ```
 
 4. 状態を前進（次回の差分起点）:
    ```bash
-   NEW=$(node -e "console.log(require('fs').readFileSync('/tmp/litus-delta.json','utf8'))" | node -e "let d='';process.stdin.on('data',c=>d+=c).on('end',()=>console.log(JSON.parse(d).newestSha||''))")
+   # 状態を前進（次回の差分起点）
+   NEW=$(node -e "process.stdout.write(JSON.parse(require('fs').readFileSync(process.argv[1],'utf8')).newestSha||'')" ops/litus-devlog/.delta.json)
    node -e "import('./ops/litus-devlog/state.mjs').then(m=>m.writeState('ops/litus-devlog/state.json',{lastSha:process.argv[1]||null,lastRunAt:new Date().toISOString()}))" "$NEW"
    git add ops/litus-devlog/state.json && git commit -m "chore(devlog): advance state to $NEW"
    ```
