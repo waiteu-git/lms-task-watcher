@@ -146,15 +146,15 @@
   - メモ・優先度・テーマのサブスクゲートを撤去（無料開放）、`PremiumGate.tsx`（未使用）を削除、`ProBanner`の機能リストをカスタム通知ルール・Discordのみに更新 — 全て適用済み・テーマは常時表示の `displaySettings` ブロックへ移動済み
   - バックエンド変更なし（同期は既に無料アカウント対応済み）
 
-- [~] **CLASS時間割 収集＋グリッド表示**（詳細設計は実装フェーズ）
+- [x] **CLASS時間割 収集＋グリッド表示**（実装計画: `docs/superpowers/plans/2026-07-07-class-timetable-integration.md`）
   - [x] パーサ移植: リタス `src/parsers/timetable.ts` → 拡張 `src/core/timetable.ts`（`node-html-parser`踏襲でlitusと同一・テスト/フィクスチャ同梱・13件通過）
-  - [ ] `manifest.json` の `host_permissions` に `https://class.admin.tus.ac.jp/*` を追加
-  - [ ] Content Scriptで時間割ページ `Kmd008` を取得 → パース → `chrome.storage.local` に保存 → ダッシュボードにグリッド表示
-  - [ ] 収集範囲は履修科目・時間割のみに厳格限定（成績等は除外）
-  - 残りの収集経路・保存・UIはbrainstorm→plan（実CLASS DOM要）
+  - [x] `manifest.json` の `host_permissions` に `https://class.admin.tus.ac.jp/*` を追加
+  - [x] Content Scriptで時間割ページ `Kmd008` を取得（passive dumb grabber `src/content/classTimetable.ts`）→ `chrome.storage.local` に生HTML保存 → ダッシュボードで `parseTimetable` してグリッド表示（`TimetableSection`）
+  - [x] 収集範囲は `table.classTable` と時限時刻のみに厳格限定（成績等は除外）
+  - 実CLASS DOMでの疎通はユーザー環境で手動確認（WORKLOG記載の手順）
 
-- [ ] **科目連携（課題↔時間割の自動ひも付け）**
-  - CLASS 7桁科目コード ↔ LETUSコース名埋込コードで突合（統合コースは複数コード対応）
+- [x] **科目連携（課題↔時間割の自動ひも付け）**
+  - CLASS 7桁科目コード ↔ LETUSコース名埋込コードで突合（統合コースは複数コード対応）: `src/core/timetableLink.ts` の `linkAssignmentsToSlots`・課題カードに教室/時限/シラバスのチップ表示
 
 - [~] **シラバス埋め込み表示**
   - [x] URL生成移植: リタス `src/links/syllabus.ts` → 拡張 `src/core/syllabus.ts`（学年暦＋URL生成・テスト同梱・通過）

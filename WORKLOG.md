@@ -4,6 +4,22 @@
 
 ---
 
+## 2026-07-07 — v1.2.0 No.2 CLASS時間割連携を実装（収集＋グリッド＋科目連携）
+
+実装計画 `docs/superpowers/plans/2026-07-07-class-timetable-integration.md` をtask-by-taskのTDDで実装（base `710adbe`）。
+
+- 純関数 `src/core/timetableLink.ts`（`b499323`）: `extractCourseCodes`/`extractCourseCode`（コード抽出）・`resolveSemester`（学期判定）・`applyOverrides`（教室オーバーライド）・`linkAssignmentsToSlots`（課題↔コマ突合・件数）。Task1/2は同一ファイルでnoUnusedLocals下Task1単独がtsc不可のため統合コミット
+- ストレージ `src/core/timetableStore.ts`（`1d55996`）: `chrome.storage.local` I/O。キー `timetable:{year}:{semester}`・`timetableOverrides:{...}`・`timetableView`
+- 収集 `src/content/classTimetable.ts`（`3f61817`）: **passive-only dumb grabber**。`table.classTable` の生HTML＋学期＋年度＋時限テキストのみを直書き保存（パースしない／`node-html-parser`も`timetableStore`もimportしない＝classic content scriptを壊さない）。`MutationObserver`で学期切替に追従、トースト通知。`manifest.json` に `https://class.admin.tus.ac.jp/*` の host_permission＋content_script追加、`vite.config.ts` に `classTimetable` エントリ
+- 表示 `src/components/TimetableSection.tsx`（`30b1ceb`）: ダッシュボードに時間割グリッド。未取得時は取込導線、取得後はグリッド。前後期トグル（取得済みのみ活性）・教室の鉛筆編集（オーバーライドは再取得で消えない）・課題件数バッジ・シラバス絵文字リンク
+- 課題カードのチップ（`33ff079`）: **計画からの変更** — 計画は各`AssignmentMemo`隣に同一チップJSXを8箇所重複挿入する内容だったが、`AssignmentCard` 内へ描画を集約し `AssignmentSlotContext`（React Context）で突合マップを供給する形に寄せて重複を排除。シラバスリンクは `stopPropagation` でカードのクリック遷移と分離
+- **収集は passive-only**: 学期セレクタのdriving（値変更＋検索押下）はしない。ユーザーがCLASSの該当ページを開いたときだけ取り込む
+- 検証: `pnpm exec tsc -b` clean、`pnpm build` 成功（`dist/classTimetable.js` 生成・import文0）、`pnpm exec vitest run src` **209/209 PASS**（+16）
+- **実CLASS DOM手動確認手順（ユーザー環境）**: `dist/` を拡張として再読込 → CLASSにログイン → 履修→学生時間割表(`Kmd008`)を開く → トースト「時間割を取り込みました」→ DevToolsで `chrome.storage.local.get(null)` に `timetable:{年度}:{学期}` が入る → ダッシュボードにグリッド表示・突合できた課題カードに教室/時限/シラバスのチップ
+- **逆流状態（拡張→litus 未反映）**: `timetableLink` の突合・オーバーライド・学期判定は拡張発（litusのTimetableScreenは更新ドットのみ・収集は「すべて」で学期解決なし）。ただし**コード抽出はlitus `src/parsers/letusCourses.ts` の `extractCourseCodesFromName`（`/\d{7}/g`）に対し、拡張版は境界ガード `(?<!\d)\d{7}(?!\d)`＋dedupを追加した上位互換**（litusの全テストケースを同結果で通過し8桁連番を弾く）。逆流タスクで litus 側へ境界ガード＋dedupを反映する（handoverにも記載）
+
+---
+
 ## 2026-07-07 — v1.2.0 No.2/No.3 純粋ロジックをlitusから移植（timetable/syllabus）
 
 案A（純粋ロジック先行移植）を実施。DOM/UI/`host_permissions`に触れず、実CLASS DOM不要でvitest検証できる土台を拡張へ入れた。
