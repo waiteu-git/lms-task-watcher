@@ -91,6 +91,9 @@
       transition: transform 0.14s, box-shadow 0.14s;
     }
     .btn-cws:hover { transform: translateY(-1px); box-shadow: 0 16px 34px rgba(15,158,117,0.34); text-decoration: none; }
+    .header-nav { display: flex; align-items: center; gap: 16px; }
+    .nav-link { font-size: 0.88rem; font-weight: 800; color: var(--accent); white-space: nowrap; }
+    .nav-link:hover { text-decoration: underline; }
 
     /* ── HERO ── */
     .hero {
@@ -417,7 +420,10 @@
       </span>
       <span>リタス</span>
     </div>
-    <a href="index.html" class="btn-cws">PC版はこちら</a>
+    <nav class="header-nav">
+      <a href="updates.html" class="nav-link">開発の歩み</a>
+      <a href="index.html" class="btn-cws">PC版はこちら</a>
+    </nav>
   </div>
 </header>
 
