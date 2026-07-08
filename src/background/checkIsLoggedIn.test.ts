@@ -2,7 +2,7 @@ import { describe, it, expect, vi, afterEach } from 'vitest'
 import type { Course } from '../core/types'
 
 vi.stubGlobal('chrome', {
-  storage: { local: { get: vi.fn(async () => ({})), set: vi.fn(async () => {}) } },
+  storage: { local: { get: vi.fn(async () => ({})), set: vi.fn(async () => {}) }, onChanged: { addListener: vi.fn() } },
   notifications: { create: vi.fn(), onClicked: { addListener: vi.fn() }, onClosed: { addListener: vi.fn() } },
   alarms: { create: vi.fn(), get: vi.fn(), onAlarm: { addListener: vi.fn() } },
   runtime: { onInstalled: { addListener: vi.fn() }, onStartup: { addListener: vi.fn() }, onMessage: { addListener: vi.fn() }, getURL: vi.fn((p: string) => p) },
