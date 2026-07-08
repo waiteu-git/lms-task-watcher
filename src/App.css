@@ -913,7 +913,7 @@ button:disabled {
 }
 
 .app.popup {
-  width: 390px;
+  width: 440px;
   min-height: 520px;
 }
 
@@ -1941,3 +1941,60 @@ button.slotChip { font-family: inherit; cursor: pointer; line-height: 1.3; }
 .courseUpdatesItem { display: flex; justify-content: space-between; gap: 8px; width: 100%; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px; padding: 6px 8px; margin-top: 4px; cursor: pointer; text-align: left; font-family: inherit; }
 .courseUpdatesItemTitle { font-size: 12px; color: #1d4ed8; }
 .courseUpdatesItemDate { font-size: 11px; color: #94a3b8; white-space: nowrap; }
+
+/* ---- 時間割: 緊急度ドット・NEWバッジ ---- */
+
+.timetableUrgency {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  margin-left: 2px;
+  flex: 0 0 auto;
+}
+.timetableUrgency.today { background: #e53935; }
+.timetableUrgency.week { background: #fb8c00; }
+
+.timetableNew {
+  display: inline-block;
+  font-size: 9px;
+  font-weight: 700;
+  line-height: 1;
+  color: #ffffff;
+  background: #1d9e75;
+  border-radius: 4px;
+  padding: 2px 4px;
+  margin-left: 2px;
+}
+
+/* ---- 今日の時間割 ---- */
+
+.todayTimetable {
+  margin: 8px 0;
+  padding: 8px 10px;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+}
+.todayTimetableHead { font-size: 12px; font-weight: 700; color: var(--color-text); margin-bottom: 6px; }
+.todayTimetableEmpty { font-size: 12px; color: #6b7280; }
+.todayTimetableList { list-style: none; margin: 0; padding: 0; }
+.todayTimetableRow {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 0;
+  font-size: 12px;
+  color: var(--color-text);
+  border-bottom: 1px solid var(--color-border);
+}
+.todayTimetableRow:last-child { border-bottom: none; }
+.todayPeriod {
+  flex: 0 0 auto;
+  width: 18px;
+  text-align: center;
+  font-weight: 700;
+  color: #7c3aed;
+}
+.todayName { flex: 1 1 auto; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.todayRoom { flex: 0 0 auto; color: #6b7280; }
