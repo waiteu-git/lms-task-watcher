@@ -36,5 +36,14 @@ litus の進捗を「自分用ダイジェスト／X下書き／devlogエント�
    ```
 
 ## 公開（レビュー後）
-- X: Discordの `## X下書き` をコピペして @yning_y2 で投稿。
-- devlog: `## devlogエントリ` を `landing/updates.html` の指定コメント直後に貼る → `git commit` → push（Cloudflare自動デプロイ）。
+- X: Discordの `## X下書き` をコピペして @yning_y2 で投稿（手動）。
+- devlog（webへ公開）: ワンコマンド。
+
+  ```bash
+  # 保留中エントリ（ルーティンが .pending-entry.html / .pending-sha に残す）をそのまま公開:
+  node ops/litus-devlog/publish.mjs
+  # または明示指定:
+  node ops/litus-devlog/publish.mjs <確定entry.html> <newestSha>
+  ```
+
+  `publish.mjs` は develop 上で「`landing/updates.html` のマーカー直後にエントリ挿入 → `state.json` を newestSha まで前進 → 対象2ファイルのみ commit → `git push origin develop`（Cloudflare 自動デプロイ）→ webhook設定時は管理chへ公開通知 → 保留中ファイル掃除」を一括で行う。develop 以外では誤爆防止で中断する。手動で `state.json` を前進させる旧手順（上記 Step 4）は不要。
