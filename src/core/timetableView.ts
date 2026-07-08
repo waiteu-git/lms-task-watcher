@@ -1,5 +1,6 @@
 import type { Course } from './types'
 import type { Semester, TimetableOverride } from './timetableLink'
+import type { DayOfWeek } from './timetable'
 import { extractCourseCodes, resolveSemester } from './timetableLink'
 import { getPreferredView, listCapturedSemesters, getOverrides, getTimetableCapture } from './timetableStore'
 import { parseTimetable } from './timetable'
@@ -34,4 +35,12 @@ export async function getCapturedCourseCodes(year: number, semester: Semester): 
     for (const c of s.classes) if (c.courseCode) codes.add(c.courseCode)
   }
   return Array.from(codes)
+}
+
+const WEEKDAY: Record<number, DayOfWeek | undefined> = { 1: 'mon', 2: 'tue', 3: 'wed', 4: 'thu', 5: 'fri' }
+
+/** ポップアップに表示する曜日を決める。平日は当日、土日は翌月曜。 */
+export function resolveDisplayDay(now: Date): { day: DayOfWeek; label: string } {
+  const day = WEEKDAY[now.getDay()]
+  return day ? { day, label: '今日' } : { day: 'mon', label: '月曜' }
 }

@@ -15,7 +15,7 @@ vi.stubGlobal('chrome', {
   },
 })
 
-const { getCapturedCourseCodes } = await import('./timetableView')
+const { getCapturedCourseCodes, resolveDisplayDay } = await import('./timetableView')
 
 beforeEach(() => { for (const k of Object.keys(store)) delete store[k] })
 
@@ -27,5 +27,17 @@ describe('getCapturedCourseCodes', () => {
     store['timetable:2026:zenki'] = { rawTableHtml: TABLE_MINIMAL, jigenText: '', capturedAt: '2026-07-08T00:00:00.000Z' }
     const codes = await getCapturedCourseCodes(2026, 'zenki')
     expect(codes).toContain('9973337')
+  })
+})
+
+describe('resolveDisplayDay', () => {
+  it('平日は当日', () => {
+    expect(resolveDisplayDay(new Date('2026-07-08T10:00:00+09:00')).day).toBe('wed') // 水曜
+    expect(resolveDisplayDay(new Date('2026-07-08T10:00:00+09:00')).label).toBe('今日')
+  })
+  it('土日は翌月曜', () => {
+    expect(resolveDisplayDay(new Date('2026-07-11T10:00:00+09:00')).day).toBe('mon') // 土曜
+    expect(resolveDisplayDay(new Date('2026-07-12T10:00:00+09:00')).day).toBe('mon') // 日曜
+    expect(resolveDisplayDay(new Date('2026-07-12T10:00:00+09:00')).label).toBe('月曜')
   })
 })
