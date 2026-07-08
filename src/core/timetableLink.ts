@@ -60,7 +60,6 @@ export function linkAssignmentsToSlots(
   now: Date = new Date(),
 ): {
   assignmentInfo: Record<string, AssignmentSlotInfo>
-  courseCodeCounts: Record<string, number>
   courseCodeUrgency: Record<string, DeadlineTier>
 } {
   const courseIdToCodes: Record<string, string[]> = {}
@@ -83,12 +82,8 @@ export function linkAssignmentsToSlots(
   }
 
   const assignmentInfo: Record<string, AssignmentSlotInfo> = {}
-  const courseCodeCounts: Record<string, number> = {}
   const courseCodeUrgency: Record<string, DeadlineTier> = {}
-  for (const s of slots) for (const c of s.classes) if (c.courseCode) {
-    courseCodeCounts[c.courseCode] ??= 0
-    courseCodeUrgency[c.courseCode] ??= 'none'
-  }
+  for (const s of slots) for (const c of s.classes) if (c.courseCode) courseCodeUrgency[c.courseCode] ??= 'none'
 
   const bump = (code: string, tier: DeadlineTier) => {
     if (TIER_RANK[tier] > TIER_RANK[courseCodeUrgency[code] ?? 'none']) courseCodeUrgency[code] = tier
@@ -97,8 +92,6 @@ export function linkAssignmentsToSlots(
   for (const a of assignments) {
     const codes = courseIdToCodes[a.courseId]
     if (!codes) continue
-    // 統合コース: そのコースが持つ全コードのコマに件数を計上
-    for (const code of codes) if (code in courseCodeCounts) courseCodeCounts[code] += 1
     if (
       a.deadline &&
       !isSubmittedAssignment(a) &&
@@ -120,5 +113,5 @@ export function linkAssignmentsToSlots(
     for (const code of extractCourseCodes(m.courseName)) bump(code, tier)
   }
 
-  return { assignmentInfo, courseCodeCounts, courseCodeUrgency }
+  return { assignmentInfo, courseCodeUrgency }
 }

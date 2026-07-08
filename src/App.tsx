@@ -92,10 +92,12 @@ import { SubscriberBadge } from './components/SubscriberBadge'
 import { ProBanner } from './components/ProBanner'
 import { ManualAssignmentCard } from './components/ManualAssignmentCard'
 import { TimetableSection } from './components/TimetableSection'
+import { TodayTimetable } from './components/TodayTimetable'
 import { CourseUpdatesSection } from './components/CourseUpdatesSection'
 import { AssignmentSlotContext } from './core/assignmentSlotContext'
 import { getTimetableCapture } from './core/timetableStore'
-import { linkAssignmentsToSlots, applyOverrides, type AssignmentSlotInfo } from './core/timetableLink'
+import { getUnreadUpdates } from './background/courseUpdatesStore'
+import { linkAssignmentsToSlots, applyOverrides, extractCourseCodes, type AssignmentSlotInfo } from './core/timetableLink'
 import { parseTimetable } from './core/timetable'
 import { academicYear } from './core/syllabus'
 import { resolveViewSemester, loadCourseOverrides } from './core/timetableView'
@@ -118,6 +120,7 @@ export default function App() {
   const [assignments, setAssignments] = useState<Assignment[]>([])
   const [courses, setCourses] = useState<Course[]>([])
   const [assignmentSlotMap, setAssignmentSlotMap] = useState<Record<string, AssignmentSlotInfo>>({})
+  const [newBadgeCodes, setNewBadgeCodes] = useState<string[]>([])
   const [syllabusTarget, setSyllabusTarget] = useState<{ year: number; code: string; name: string } | null>(null)
   const openSyllabus: OpenSyllabus = (year, code, name) => setSyllabusTarget({ year, code, name })
   const [ignoredAssignmentIds, setIgnoredAssignmentIds] = useState<string[]>([])
@@ -162,6 +165,19 @@ export default function App() {
       setAssignmentSlotMap(assignmentInfo)
     })()
   }, [courses, assignments])
+
+  useEffect(() => {
+    let cancelled = false
+    void (async () => {
+      const codes = new Set<string>()
+      for (const course of courses) {
+        const unread = await getUnreadUpdates(course.id)
+        if (unread.length > 0) for (const code of extractCourseCodes(course.name)) codes.add(code)
+      }
+      if (!cancelled) setNewBadgeCodes(Array.from(codes))
+    })()
+    return () => { cancelled = true }
+  }, [courses])
 
   async function refreshAll() {
     const [
@@ -1160,6 +1176,13 @@ export default function App() {
             </div>
           </section>
 
+          <TodayTimetable
+            courses={courses}
+            assignments={assignments}
+            manualAssignments={manualAssignments}
+            newCodes={newBadgeCodes}
+          />
+
           <Section
             title="24時間以内"
             count={urgentTimeline.length}
@@ -1270,7 +1293,12 @@ export default function App() {
             </div>
           </section>
 
-          <TimetableSection courses={courses} assignments={assignments} />
+          <TimetableSection
+            courses={courses}
+            assignments={assignments}
+            manualAssignments={manualAssignments}
+            newCodes={newBadgeCodes}
+          />
 
           <CourseUpdatesSection courses={courses} />
 

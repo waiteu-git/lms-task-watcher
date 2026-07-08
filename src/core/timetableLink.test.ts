@@ -80,37 +80,32 @@ describe('applyOverrides', () => {
 })
 
 describe('linkAssignmentsToSlots', () => {
-  it('7桁コードで課題をコマに紐づけ、件数を数える', () => {
+  it('7桁コードで課題をコマに紐づける', () => {
     const slots = [slot('mon', 1, '9973337', '445教室')]
     const courses = [course('c1', '9973337 基礎電気数学')]
     const assignments = [assignment('a1', 'c1'), assignment('a2', 'c1')]
-    const { assignmentInfo, courseCodeCounts } = linkAssignmentsToSlots(slots, courses, assignments)
+    const { assignmentInfo } = linkAssignmentsToSlots(slots, courses, assignments)
     expect(assignmentInfo['a1']).toEqual({ day: 'mon', period: 1, room: '445教室', isRemote: false, courseCode: '9973337' })
-    expect(courseCodeCounts['9973337']).toBe(2)
   })
   it('コード抽出できないコースの課題は紐づかない', () => {
     const slots = [slot('mon', 1, '9973337', '445教室')]
     const courses = [course('c1', 'コード無しコース')]
     const assignments = [assignment('a1', 'c1')]
-    const { assignmentInfo, courseCodeCounts } = linkAssignmentsToSlots(slots, courses, assignments)
+    const { assignmentInfo } = linkAssignmentsToSlots(slots, courses, assignments)
     expect(assignmentInfo['a1']).toBeUndefined()
-    expect(courseCodeCounts['9973337']).toBe(0)
   })
-  it('統合コース（複数コード）は各コードのコマに件数が乗り、先頭一致コマにチップが付く', () => {
+  it('統合コース（複数コード）は先頭一致コマにチップが付く', () => {
     const slots = [slot('mon', 1, '9973337', '445教室'), slot('tue', 4, '9973344', '444教室')]
     const courses = [course('c1', '統合 9973337 / 9973344')]
     const assignments = [assignment('a1', 'c1')]
-    const { assignmentInfo, courseCodeCounts } = linkAssignmentsToSlots(slots, courses, assignments)
-    expect(courseCodeCounts['9973337']).toBe(1)
-    expect(courseCodeCounts['9973344']).toBe(1)
+    const { assignmentInfo } = linkAssignmentsToSlots(slots, courses, assignments)
     expect(assignmentInfo['a1'].courseCode).toBe('9973337')
   })
   it('7桁コードの無いコマ(courseCode="")は突合キーにせず空文字で衝突させない', () => {
     const slots = [slot('mon', 1, '', 'A教室'), slot('tue', 2, '', 'B教室')]
     const courses = [course('c1', 'コード無しコース')]
     const assignments = [assignment('a1', 'c1')]
-    const { assignmentInfo, courseCodeCounts } = linkAssignmentsToSlots(slots, courses, assignments)
-    expect('' in courseCodeCounts).toBe(false)
+    const { assignmentInfo } = linkAssignmentsToSlots(slots, courses, assignments)
     expect(assignmentInfo['a1']).toBeUndefined()
   })
 })
