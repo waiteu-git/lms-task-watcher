@@ -3,6 +3,8 @@ export type Course = {
   name: string
   url: string
   enabled: boolean
+  /** ユーザーが手動でON/OFFを切り替えた印。自動選択はこれが立ったコースを触らない。 */
+  userToggled?: boolean
   lmsType: 'unknown' | 'letus' | 'moodle' | 'manaba' | 'webclass' | 'generic'
   createdAt: string
   updatedAt: string
