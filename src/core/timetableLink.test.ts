@@ -3,6 +3,7 @@ import { extractCourseCode, extractCourseCodes, resolveSemester } from './timeta
 import { applyOverrides, linkAssignmentsToSlots } from './timetableLink'
 import type { TimetableSlot } from './timetable'
 import type { Course, Assignment } from './types'
+import type { ManualAssignment } from './manualAssignment'
 
 function slot(day: TimetableSlot['day'], period: number, courseCode: string, room: string): TimetableSlot {
   return {
@@ -111,5 +112,43 @@ describe('linkAssignmentsToSlots', () => {
     const { assignmentInfo, courseCodeCounts } = linkAssignmentsToSlots(slots, courses, assignments)
     expect('' in courseCodeCounts).toBe(false)
     expect(assignmentInfo['a1']).toBeUndefined()
+  })
+})
+
+function assignmentWith(id: string, courseId: string, deadline: string | null, over: Partial<Assignment> = {}): Assignment {
+  return { ...assignment(id, courseId), deadline, ...over }
+}
+function manual(courseName: string, deadline: string, submitted = false): ManualAssignment {
+  return { id: 'm' + courseName, courseId: '', courseName, title: '', letusUrl: null, deadline, memo: '', submitted, createdAt: '' }
+}
+
+describe('linkAssignmentsToSlots 緊急度', () => {
+  const NOW = new Date('2026-07-08T10:00:00+09:00')
+  const slots = [slot('mon', 1, '9973337', '445')]
+  const courses = [course('a', '9973337 電気数学')]
+
+  it('当日締切の未提出は today', () => {
+    const a = [assignmentWith('1', 'a', '2026-07-08T23:00:00+09:00', { submissionStatus: 'not_submitted' })]
+    const { courseCodeUrgency } = linkAssignmentsToSlots(slots, courses, a, [], NOW)
+    expect(courseCodeUrgency['9973337']).toBe('today')
+  })
+  it('提出済み・期限切れは除外', () => {
+    const a = [
+      assignmentWith('1', 'a', '2026-07-08T23:00:00+09:00', { submissionStatus: 'submitted' }),
+      assignmentWith('2', 'a', '2026-07-08T23:00:00+09:00', { lifecycleStatus: 'passed' }),
+    ]
+    const { courseCodeUrgency } = linkAssignmentsToSlots(slots, courses, a, [], NOW)
+    expect(courseCodeUrgency['9973337'] ?? 'none').toBe('none')
+  })
+  it('手動課題(未提出・締切あり)も対象に含める', () => {
+    const m = [manual('9973337 電気数学', '2026-07-10T09:00:00+09:00')]
+    const { courseCodeUrgency } = linkAssignmentsToSlots(slots, courses, [], m, NOW)
+    expect(courseCodeUrgency['9973337']).toBe('week')
+  })
+  it('today と week が混在したら today を採る', () => {
+    const a = [assignmentWith('1', 'a', '2026-07-12T09:00:00+09:00', { submissionStatus: 'not_submitted' })]
+    const m = [manual('9973337 電気数学', '2026-07-08T20:00:00+09:00')]
+    const { courseCodeUrgency } = linkAssignmentsToSlots(slots, courses, a, m, NOW)
+    expect(courseCodeUrgency['9973337']).toBe('today')
   })
 })

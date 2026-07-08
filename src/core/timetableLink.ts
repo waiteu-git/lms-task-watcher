@@ -1,5 +1,8 @@
 import type { TimetableSlot, DayOfWeek } from './timetable'
 import type { Course, Assignment } from './types'
+import type { ManualAssignment } from './manualAssignment'
+import { deadlineTier, type DeadlineTier } from '../utils/date'
+import { isSubmittedAssignment } from '../utils/assignment'
 
 export type Semester = 'zenki' | 'kouki'
 export type TimetableOverride = { room?: string }
@@ -47,11 +50,19 @@ export function applyOverrides(
   }))
 }
 
+const TIER_RANK: Record<DeadlineTier, number> = { none: 0, week: 1, today: 2 }
+
 export function linkAssignmentsToSlots(
   slots: TimetableSlot[],
   courses: Course[],
   assignments: Assignment[],
-): { assignmentInfo: Record<string, AssignmentSlotInfo>; courseCodeCounts: Record<string, number> } {
+  manualAssignments: ManualAssignment[] = [],
+  now: Date = new Date(),
+): {
+  assignmentInfo: Record<string, AssignmentSlotInfo>
+  courseCodeCounts: Record<string, number>
+  courseCodeUrgency: Record<string, DeadlineTier>
+} {
   const courseIdToCodes: Record<string, string[]> = {}
   for (const c of courses) {
     const codes = extractCourseCodes(c.name)
@@ -73,17 +84,41 @@ export function linkAssignmentsToSlots(
 
   const assignmentInfo: Record<string, AssignmentSlotInfo> = {}
   const courseCodeCounts: Record<string, number> = {}
-  for (const s of slots) for (const c of s.classes) if (c.courseCode) courseCodeCounts[c.courseCode] ??= 0
+  const courseCodeUrgency: Record<string, DeadlineTier> = {}
+  for (const s of slots) for (const c of s.classes) if (c.courseCode) {
+    courseCodeCounts[c.courseCode] ??= 0
+    courseCodeUrgency[c.courseCode] ??= 'none'
+  }
+
+  const bump = (code: string, tier: DeadlineTier) => {
+    if (TIER_RANK[tier] > TIER_RANK[courseCodeUrgency[code] ?? 'none']) courseCodeUrgency[code] = tier
+  }
 
   for (const a of assignments) {
     const codes = courseIdToCodes[a.courseId]
     if (!codes) continue
     // 統合コース: そのコースが持つ全コードのコマに件数を計上
     for (const code of codes) if (code in courseCodeCounts) courseCodeCounts[code] += 1
+    if (
+      a.deadline &&
+      !isSubmittedAssignment(a) &&
+      a.lifecycleStatus !== 'passed' &&
+      a.lifecycleStatus !== 'before_start'
+    ) {
+      const tier = deadlineTier(a.deadline, now)
+      if (tier !== 'none') for (const code of codes) bump(code, tier)
+    }
     // チップは時間割に存在する先頭一致コマに付ける
     const matched = codes.find((code) => code in codeToSlot)
     if (matched) assignmentInfo[a.id] = codeToSlot[matched]
   }
 
-  return { assignmentInfo, courseCodeCounts }
+  for (const m of manualAssignments) {
+    if (m.submitted || !m.deadline) continue
+    const tier = deadlineTier(m.deadline, now)
+    if (tier === 'none') continue
+    for (const code of extractCourseCodes(m.courseName)) bump(code, tier)
+  }
+
+  return { assignmentInfo, courseCodeCounts, courseCodeUrgency }
 }
