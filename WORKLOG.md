@@ -4,6 +4,18 @@
 
 ---
 
+## 2026-07-08 — 自前バックエンド通信を無効化（凍結）＋アカウント/課金UI非表示
+
+無料開放・凍結方針（サブスク有料化・サーバー同期はリタス公開まで停止）に合わせ、自前バックエンド（`api.waiteu.dev`）への通信を全停止し、関連UIを隠した（commit `b22e14d`、develop merge `aa3e704`）。
+
+- 単一フラグ `BACKEND_ENABLED = API_BASE_URL !== ''`（[App.tsx](src/App.tsx)）。`.env` の `VITE_API_BASE_URL` 未設定（空）で false。`.env` はgitignoreで、コード既定 `?? ''` によりenv無しビルドは既定でバックエンド無効。再有効化は `VITE_API_BASE_URL=https://api.waiteu.dev` を設定してビルド
+- 通信停止: サブスク状態取得（`/api/subscription/status`）は `token && BACKEND_ENABLED` でガード、コース同期 `syncCoursesToServerIfSubscriber` に `if (!API_BASE_URL) return`、設定/データ同期（premium.ts）は既存の空URLガードで無効
+- UI非表示: ProBanner（ログイン/課金導線・LoginModal内包）・SubscriberBadge・アカウント欄・マイページ・ログアウトは `BACKEND_ENABLED && isSubscriber`／`BACKEND_ENABLED && !isSubscriber` でゲート。devパネル（サブスク状態）は元々 `__DEV_TOOLS__ || __BETA__` で本番非表示
+- 通知タイミング設定（全体/コース別）はローカル保存の実機能のため、サブスク欄から `notificationRulesSettings` に抽出し、バックエンド無効時は「通知設定」欄として**全員に開放**（無料開放と整合）。メモ・優先度・テーマは元々ローカルで無変更
+- 検証: `tsc -b`緑・vitest 190/190緑・`pnpm build`成功。**新distに `api.waiteu.dev` が含まれないことを確認**（通信先が焼き込まれない）
+
+---
+
 ## 2026-07-08 — v1.2.0リリース: 時間割UI改善＋コース自動選択＋ガイド改訂
 
 設計 `docs/superpowers/specs/2026-07-08-v1.2.0-release-timetable-onboarding-design.md` / 実装計画 `docs/superpowers/plans/2026-07-08-v1.2.0-timetable-onboarding.md` を subagent-driven（実装→独立レビュー→fix）で14タスク実装。ブランチ `feature/v1.2.0-timetable-onboarding`（develop分岐）。
