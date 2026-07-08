@@ -885,6 +885,7 @@ export default function App() {
       return {
         ...course,
         enabled: !course.enabled,
+        userToggled: true,
         updatedAt: new Date().toISOString(),
       }
     })
@@ -898,6 +899,7 @@ export default function App() {
       return {
         ...course,
         enabled,
+        userToggled: true,
         updatedAt: new Date().toISOString(),
       }
     })
