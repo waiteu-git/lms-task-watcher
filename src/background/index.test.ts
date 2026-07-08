@@ -7,6 +7,7 @@ import {
   DEADLINE_SCAN_STATUS_KEY,
   WELCOME_GUIDE_SHOWN_KEY,
 } from './storageKeys'
+import { TABLE_MINIMAL } from '../core/timetable.fixtures'
 
 const store: Record<string, unknown> = {}
 
@@ -29,6 +30,7 @@ vi.stubGlobal('chrome', {
         Object.assign(store, obj)
       }),
     },
+    onChanged: { addListener: vi.fn() },
   },
   notifications: {
     create: notificationsCreate,
@@ -57,6 +59,7 @@ const {
   scanAssignmentCandidatesInBackground,
   scanDeadlinesInBackground,
   handleInstalled,
+  applyAutoSelect,
   ALARM_PERIOD_MINUTES,
 } = await import('./index')
 
@@ -124,6 +127,7 @@ beforeEach(() => {
           Object.assign(store, obj)
         }),
       },
+      onChanged: { addListener: vi.fn() },
     },
     notifications: {
       create: notificationsCreate,
@@ -462,5 +466,22 @@ describe('handleInstalled', () => {
       expect.any(String),
       { delayInMinutes: ALARM_PERIOD_MINUTES, periodInMinutes: ALARM_PERIOD_MINUTES },
     )
+  })
+})
+
+describe('applyAutoSelect', () => {
+  beforeEach(() => { for (const k of Object.keys(store)) delete store[k] })
+  it('時間割にあるコースを自動ONし保存する', async () => {
+    store[COURSES_KEY] = [makeCourse({ id: 'a', name: '9973337 電気数学', enabled: false })]
+    store['timetable:2026:zenki'] = { rawTableHtml: TABLE_MINIMAL, jigenText: '', capturedAt: '2026-07-08T00:00:00.000Z' }
+    await applyAutoSelect(new Date('2026-07-08T10:00:00+09:00'))
+    const saved = store[COURSES_KEY] as Course[]
+    expect(saved[0].enabled).toBe(true)
+  })
+  it('時間割未取得なら何もしない', async () => {
+    store[COURSES_KEY] = [makeCourse({ id: 'a', name: '9973337 電気数学', enabled: false })]
+    await applyAutoSelect(new Date('2026-07-08T10:00:00+09:00'))
+    const saved = store[COURSES_KEY] as Course[]
+    expect(saved[0].enabled).toBe(false)
   })
 })
