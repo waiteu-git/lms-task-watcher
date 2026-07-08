@@ -20,4 +20,12 @@ describe('deadlineTier', () => {
     expect(deadlineTier(null, now)).toBe('none')
     expect(deadlineTier('not-a-date', now)).toBe('none')
   })
+  it('7日境界は開いた時刻でぶれない（カレンダー基準）', () => {
+    // ローカル日付コンストラクタで組み、テストランナーのTZに依存させない
+    const earlyMorning = new Date(2026, 6, 8, 0, 5) // 7/8 00:05
+    const day7Night = new Date(2026, 6, 15, 23, 59).toISOString() // 7日後
+    const day8 = new Date(2026, 6, 16, 0, 5).toISOString() // 8日後
+    expect(deadlineTier(day7Night, earlyMorning)).toBe('week')
+    expect(deadlineTier(day8, earlyMorning)).toBe('none')
+  })
 })

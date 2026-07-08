@@ -145,14 +145,12 @@ export function deadlineTier(deadline: string | null, now: Date): DeadlineTier {
   const d = new Date(deadline)
   const t = d.getTime()
   if (Number.isNaN(t)) return 'none'
-  const nowT = now.getTime()
-  if (t < nowT) return 'none'
-  if (
-    d.getFullYear() === now.getFullYear() &&
-    d.getMonth() === now.getMonth() &&
-    d.getDate() === now.getDate()
-  ) {
-    return 'today'
-  }
-  return t - nowT <= SEVEN_DAYS_MS ? 'week' : 'none'
+  if (t < now.getTime()) return 'none'
+  // today と同じくカレンダー日基準で判定する。ミリ秒経過だと開いた時刻で7日境界がぶれるため。
+  const startOfDeadline = new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime()
+  const startOfNow = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime()
+  const dayDiff = Math.round((startOfDeadline - startOfNow) / ONE_DAY_MS)
+  if (dayDiff === 0) return 'today'
+  if (dayDiff <= 7) return 'week'
+  return 'none'
 }
