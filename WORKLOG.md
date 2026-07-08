@@ -4,6 +4,25 @@
 
 ---
 
+## 2026-07-08 — v1.2.0リリース: 時間割UI改善＋コース自動選択＋ガイド改訂
+
+設計 `docs/superpowers/specs/2026-07-08-v1.2.0-release-timetable-onboarding-design.md` / 実装計画 `docs/superpowers/plans/2026-07-08-v1.2.0-timetable-onboarding.md` を subagent-driven（実装→独立レビュー→fix）で14タスク実装。ブランチ `feature/v1.2.0-timetable-onboarding`（develop分岐）。
+
+- 緊急度カラー: `deadlineTier`（`src/utils/date.ts`、`ed1c462`→`a771ce6`）＝当日=today/今日を除く7日以内=week/else none。**レビュー指摘でミリ秒経過→カレンダー日基準に統一**（`today`と整合、開いた時刻で7日境界がぶれる不具合を解消）。`linkAssignmentsToSlots` に `courseCodeUrgency` 集計を追加（scan＋手動課題、提出済/期限切れ/開始前除外、today>week>none）し件数チップ（`courseCodeCounts`）を撤去（`c3acedb`/`344a283`）
+- コース自動選択: `selectCoursesByTimetable`＋`Course.userToggled`（`c683611`）。片方コード一致でON・手動トグル尊重・自動DISABLEなし。background `applyAutoSelect` を UPSERT_COURSES と `chrome.storage.onChanged`（`timetable:`鍵限定・無限ループなし）に配線（`d7ea5fc`）。手動トグルで `userToggled:true`（`460d472`）
+- UI: `TodayTimetable.tsx`（ポップアップに今日の時間割常設、週末→翌月曜=`resolveDisplayDay`、`de93b86`）、時間割コマ/今日の時間割に緊急度ドット＋NEWバッジ（未読更新コース=`newBadgeCodes`、`344a283`）。CSS＋ポップアップ幅390→440px（`997eb59`）、デッドCSS`.timetableCount`除去
+- ガイド: `public/welcome.html` をCLASS先行→LETUS自動選択フローに改訂（`21d99c7`）
+- 問題と修正:
+  - **TZ移植性**（Task 8レビュー）: 日時テストが`+09:00`ISO×`getDay()`で非JSTランナー（米国等）に曜日ずれ→`vitest.setup.ts`で`process.env.TZ='Asia/Tokyo'`固定（`4f2ad0a`）。default/America/New_York両方で緑を実証
+  - **Task 5リグレッション**: top-levelに追加した`chrome.storage.onChanged.addListener`で、`checkIsLoggedIn.test.ts`のchromeスタブに`onChanged`が無くimport時例外→スタブ追加で復旧（`2f2128d`）
+- litus逆流: **不要**判定。litus `src/assignments/buckets.ts` が拡張の`deadlineTier`より高機能で先行。`selectCoursesByTimetable`/`resolveDisplayDay`は拡張固有
+- changelog/版数（`6959f02`）: `public/changelog.html`をv1.2.0＋7機能＋リタス導線 https://lms.waiteu.dev/app に。manifestは既に1.2.0（`public/manifest.json`、class.admin権限あり）
+- 品質: tsc -b緑・vite build成功・vitest **190/190**緑（実src、worktree除外）。opus最終whole-branchレビュー=**READY TO MERGE**（Critical/Importantなし、4不変条件をシーム実証）
+- 残（ストア申請前・別件）: `store-listing.md`本文がv1.0.5のまま（追跡タスク化）／`src/core/syllabusParse.ts`の既存 irregular-whitespace lintエラー（`fix/syllabus-irregular-whitespace`の領分）
+- 挙動メモ: 「すべてOFF」は全コースに`userToggled`を付けるため、以後の時間割取込で自動再選択されない（仕様「手動トグル尊重」に整合・ship-as-is）
+
+---
+
 ## 2026-07-08 — インストール時ウェルカムガイドを実装
 
 設計 `docs/superpowers/specs/2026-07-08-welcome-guide-design.md` / 実装計画 `docs/superpowers/plans/2026-07-08-welcome-guide.md` をtask-by-taskのTDDで実装（ブランチ `feature/welcome-guide`、worktree隔離）。

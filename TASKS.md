@@ -165,13 +165,24 @@
   - [x] シグネチャ/差分（`src/core/courseUpdates.ts`: `computeCourseSignature`/`diffCourseSignature`/`computeCourseUpdate`）はリタス `src/updates/courseUpdates.ts` の双子。初回ベースライン・skipSaveガード（ログイン切れ時のベースライン破壊防止）
   - [x] `letusLinks`（リンク抽出）を拡張の `src/background/index.ts` から共有モジュール `src/core/letusLinks.ts`＋`src/core/htmlText.ts` へ抽出（挙動不変・既存テスト緑）＝設計書の言う「突き合わせ」を完了
 
-- [ ] **純粋ロジックのlitus逆流**（各機能実装後）
-  - 拡張で磨いたパーサ・差分・シラバスURL生成を litus の対応ファイルへ反映し `litus` の `pnpm test` 通過を確認
-  - 単純上書きせず両者を突き合わせて良い方に寄せる。WORKLOG（拡張）とhandover（litus）に逆流済み/未を記録
-  - 対応表はスコープ変更設計を参照
+- [x] **時間割UI改善＋コース自動選択＋ウェルカムガイド改訂**（2026-07-08、設計: `docs/superpowers/specs/2026-07-08-v1.2.0-release-timetable-onboarding-design.md`、実装計画: `docs/superpowers/plans/2026-07-08-v1.2.0-timetable-onboarding.md`、feature/v1.2.0-timetable-onboarding）
+  - [x] 締切の緊急度カラーバッジ（当日=赤/今日を除く7日以内=橙、カレンダー日基準）＝`deadlineTier`（`src/utils/date.ts`）＋`linkAssignmentsToSlots`の`courseCodeUrgency`集計（scan＋手動課題、提出済/期限切れ/開始前除外、today>week>none）。件数チップ廃止（`courseCodeCounts`削除）
+  - [x] ポップアップに「今日の時間割」を常設（`TodayTimetable.tsx`、週末→翌月曜=`resolveDisplayDay`）。ポップアップ幅390→440px
+  - [x] コース内容に更新があるコマ／課題に**NEWバッジ**（未読更新コースの科目コード=`newBadgeCodes`をTimetableSection・TodayTimetableへ）
+  - [x] 時間割にある科目のコース自動選択（`selectCoursesByTimetable`＋`Course.userToggled`、background `applyAutoSelect`をUPSERT_COURSESと`storage.onChanged('timetable:')`に配線。片方コード一致でON・手動トグル尊重・自動DISABLEなし・手動締切課題も緊急度判定に含む）
+  - [x] ウェルカムガイドをCLASS先行→LETUS自動選択フローに改訂（`public/welcome.html`）
+  - [x] テストTZをAsia/Tokyoに固定（`vitest.setup.ts`、日時テストの非JSTランナー移植性）
+  - [x] 品質: tsc -b緑・vite build成功・vitest 190/190緑（実src）。opus最終whole-branchレビュー=READY TO MERGE（Critical/Importantなし）
 
-- [ ] **changelog本文の書き換え**（v1.2.0リリース時）
-  - `public/changelog.html` の「今回の変更点」をv1.2.0内容（無料開放・CLASS連携・シラバス・更新通知）に、見出しを「v1.2.0にアップデート」に更新。リタス告知は既存のロードマップカードで対応済み
+- [x] **純粋ロジックのlitus逆流**（2026-07-08 判定: **不要**）
+  - litus `src/assignments/buckets.ts`（within24h/tomorrow/thisWeek/…）が拡張の新`deadlineTier`（当日/今週）より高機能で先行＝逆流でもたらす改善なし
+  - `selectCoursesByTimetable`（enable管理連動）・`resolveDisplayDay`（popup今日）は拡張固有で単体完結アーキのlitusに非マップ
+  - 既存の parser/差分/シラバスURL は本リリースで未変更（前回逆流済みのまま）
+  - 注: litusの`within24h`/`thisWeek`はrolling-msだが設計doc準拠の意図的仕様（別件・scope外）
+
+- [x] **changelog本文の書き換え**（v1.2.0、commit 6959f02）
+  - `public/changelog.html` を「v1.2.0にアップデートしました」＋7機能＋リタス事前登録導線 https://lms.waiteu.dev/app に更新。ロードマップのフェーズ1.5クローズ/フェーズ2オープンも整合。manifestは既に1.2.0（`public/manifest.json`、class.admin権限あり）
+  - ⚠️ 残: `store-listing.md` のLong-description本文がv1.0.5のまま→ストア申請前に要更新（追跡タスク化済み）
 
 - [ ] **Phase C: Chrome Web Storeへv1.2.0を申請**
   - 上記完了後、付加価値機能込みで一括申請
