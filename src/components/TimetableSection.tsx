@@ -1,5 +1,6 @@
 import { useContext, useEffect, useMemo, useState } from 'react'
 import type { Course, Assignment } from '../core/types'
+import type { ManualAssignment } from '../core/manualAssignment'
 import type { DayOfWeek, TimetableSlot } from '../core/timetable'
 import { parseTimetable } from '../core/timetable'
 import { getTimetableCapture, listCapturedSemesters, getPreferredView, setPreferredView, setOverride } from '../core/timetableStore'
@@ -14,7 +15,9 @@ const DAY_LABELS: Record<DayOfWeek, string> = { mon: '月', tue: '火', wed: '�
 const JS_DAY_TO_DOW: Record<number, DayOfWeek | undefined> = { 1: 'mon', 2: 'tue', 3: 'wed', 4: 'thu', 5: 'fri' }
 const PERIODS = [1, 2, 3, 4, 5, 6, 7]
 
-export function TimetableSection({ courses, assignments }: { courses: Course[]; assignments: Assignment[] }) {
+export function TimetableSection({ courses, assignments, manualAssignments, newCodes }: {
+  courses: Course[]; assignments: Assignment[]; manualAssignments: ManualAssignment[]; newCodes: string[]
+}) {
   const now = new Date()
   const year = academicYear(now)
   const openSyllabus = useContext(SyllabusContext)
@@ -48,9 +51,9 @@ export function TimetableSection({ courses, assignments }: { courses: Course[]; 
     return applyOverrides(parseTimetable(rawHtml), overrides)
   }, [rawHtml, overrides])
 
-  const { courseCodeCounts } = useMemo(
-    () => linkAssignmentsToSlots(slots, courses, assignments),
-    [slots, courses, assignments],
+  const { courseCodeUrgency } = useMemo(
+    () => linkAssignmentsToSlots(slots, courses, assignments, manualAssignments, now),
+    [slots, courses, assignments, manualAssignments, now],
   )
 
   const grid = useMemo(() => {
@@ -118,13 +121,24 @@ export function TimetableSection({ courses, assignments }: { courses: Course[]; 
                 {DAYS.map((d) => {
                   const c = grid.get(`${d}:${period}`)
                   if (!c) return <div key={`${d}:${period}`} className={`timetableCell empty ${d === todayDow ? 'today' : ''}`} />
-                  const count = courseCodeCounts[c.courseCode] ?? 0
                   return (
                     <div key={`${d}:${period}`} className={`timetableCell ${d === todayDow ? 'today' : ''}`}>
                       <div className="timetableCellName">{c.name}</div>
                       <div className="timetableCellRoom">{c.room}</div>
                       <div className="timetableCellMeta">
-                        {count > 0 && <span className="timetableCount">課題{count}</span>}
+                        {(() => {
+                          const tier = courseCodeUrgency[c.courseCode] ?? 'none'
+                          return tier === 'none' ? null : (
+                            <span
+                              className={`timetableUrgency ${tier}`}
+                              title={tier === 'today' ? '当日提出の課題あり' : '今週提出の課題あり'}
+                              aria-label={tier === 'today' ? '当日提出の課題あり' : '今週提出の課題あり'}
+                            />
+                          )
+                        })()}
+                        {newCodes.includes(c.courseCode) && (
+                          <span className="timetableNew" title="コース内容に更新あり" aria-label="コース内容に更新あり">NEW</span>
+                        )}
                         {c.courseCode && (
                           openSyllabus ? (
                             <button

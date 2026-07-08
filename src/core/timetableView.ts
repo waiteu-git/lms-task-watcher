@@ -1,7 +1,9 @@
 import type { Course } from './types'
 import type { Semester, TimetableOverride } from './timetableLink'
+import type { DayOfWeek } from './timetable'
 import { extractCourseCodes, resolveSemester } from './timetableLink'
-import { getPreferredView, listCapturedSemesters, getOverrides } from './timetableStore'
+import { getPreferredView, listCapturedSemesters, getOverrides, getTimetableCapture } from './timetableStore'
+import { parseTimetable } from './timetable'
 
 /**
  * 時間割ビューの学期解決とオーバーライド読込を App.tsx と TimetableSection で共有する。
@@ -22,4 +24,23 @@ export async function loadCourseOverrides(
 ): Promise<Record<string, TimetableOverride>> {
   const codes = Array.from(new Set(courses.flatMap((c) => extractCourseCodes(c.name))))
   return getOverrides(year, semester, codes)
+}
+
+/** 取得済み時間割から重複なしの7桁科目コード配列を返す（未取得は空）。 */
+export async function getCapturedCourseCodes(year: number, semester: Semester): Promise<string[]> {
+  const cap = await getTimetableCapture(year, semester)
+  if (!cap) return []
+  const codes = new Set<string>()
+  for (const s of parseTimetable(cap.rawTableHtml)) {
+    for (const c of s.classes) if (c.courseCode) codes.add(c.courseCode)
+  }
+  return Array.from(codes)
+}
+
+const WEEKDAY: Record<number, DayOfWeek | undefined> = { 1: 'mon', 2: 'tue', 3: 'wed', 4: 'thu', 5: 'fri' }
+
+/** ポップアップに表示する曜日を決める。平日は当日、土日は翌月曜。 */
+export function resolveDisplayDay(now: Date): { day: DayOfWeek; label: string } {
+  const day = WEEKDAY[now.getDay()]
+  return day ? { day, label: '今日' } : { day: 'mon', label: '月曜' }
 }

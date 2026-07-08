@@ -23,6 +23,13 @@ Copyright (c) 2026 waiteu. All rights reserved.
 本ソフトウェアは現状有姿で提供され、著作権者はいかなる保証も行わず、
 本ソフトウェアの使用に起因する損害について一切の責任を負いません。
 
+■ 個別許諾
+本ライセンスの複製・改変・再配布の禁止条項にかかわらず、GitHub ユーザー
+haya9924 氏が開発するアプリ「cabetus」（github.com/haya9924/cabetus）に
+限り、複製・改変・再配布を許諾する。本許諾は上記の個人・アプリに対する
+個別の例外であり、本ライセンスの他の条項を変更するものではない。
+（許諾日: 2026-07-08）
+
 【English】
 
 The source code of this software is made publicly viewable for transparency,
@@ -44,6 +51,15 @@ PROHIBITED (without prior written permission from the copyright holder):
 THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND. IN NO EVENT
 SHALL THE COPYRIGHT HOLDER BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 LIABILITY ARISING FROM THE USE OF THE SOFTWARE.
+
+INDIVIDUAL GRANT:
+Notwithstanding the restrictions on reproduction, modification, and
+redistribution set forth above, reproduction, modification, and
+redistribution are permitted solely for the application "cabetus"
+(github.com/haya9924/cabetus) developed by the GitHub user haya9924.
+This grant is an individual exception applying only to the person and
+application named above, and does not modify any other terms of this
+license. (Granted: 2026-07-08)
 
 In case of any discrepancy between the Japanese and English texts, the
 Japanese text shall prevail.

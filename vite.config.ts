@@ -57,5 +57,8 @@ export default defineConfig(({ mode }) => {
       },
     },
   },
+  test: {
+    setupFiles: ['./vitest.setup.ts'],
+  },
   }
 })

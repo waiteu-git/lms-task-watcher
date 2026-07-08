@@ -27,6 +27,9 @@ import { normalizeText, stripTags, decodeHtmlEntities } from '../core/htmlText'
 import { extractLinksFromHtml } from '../core/letusLinks'
 import { computeCourseUpdate } from '../core/courseUpdates'
 import { getCourseSignature, saveCourseSignature, addUnreadUpdates } from './courseUpdatesStore'
+import { getCapturedCourseCodes } from '../core/timetableView'
+import { selectCoursesByTimetable } from '../core/courseSelect'
+import { academicYear } from '../core/syllabus'
 
 console.log('[LETUS Task Watcher] background service worker loaded')
 
@@ -284,6 +287,19 @@ async function upsertCourses(newCourses: Course[]): Promise<void> {
   }
 
   await saveCourses(Array.from(courseMap.values()))
+}
+
+export async function applyAutoSelect(now: Date = new Date()): Promise<void> {
+  const year = academicYear(now)
+  const [zenki, kouki] = await Promise.all([
+    getCapturedCourseCodes(year, 'zenki'),
+    getCapturedCourseCodes(year, 'kouki'),
+  ])
+  const codes = new Set([...zenki, ...kouki])
+  if (codes.size === 0) return
+  const courses = await getCourses()
+  const next = selectCoursesByTimetable(courses, codes, now.toISOString())
+  if (next !== courses) await saveCourses(next)
 }
 
 async function syncCoursesToServerIfSubscriber(courses: Course[]): Promise<void> {
@@ -948,6 +964,15 @@ chrome.alarms.onAlarm.addListener((alarm) => {
   })
 })
 
+chrome.storage.onChanged.addListener((changes, area) => {
+  if (area !== 'local') return
+  if (Object.keys(changes).some((k) => k.startsWith('timetable:'))) {
+    applyAutoSelect().catch((error) => {
+      console.error('[LETUS Task Watcher] auto select failed', error)
+    })
+  }
+})
+
 // ─── Message handler ──────────────────────────────────────────────────────────
 
 chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
@@ -962,6 +987,7 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
     const courses = (message.courses ?? []) as Course[]
     sendResponse({ ok: true, count: courses.length })
     upsertCourses(courses)
+      .then(() => applyAutoSelect())
       .then(() => syncCoursesToServerIfSubscriber(courses))
       .catch((error) => {
         console.error('[LETUS Task Watcher] upsertCourses failed', error)
