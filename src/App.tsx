@@ -113,6 +113,9 @@ import {
 } from './utils/manualAssignment'
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL as string ?? ''
+// 自前バックエンドの有効/無効。凍結中は VITE_API_BASE_URL 未設定（空）で false になり、
+// サーバー通信を全停止し、ログイン/サブスク/課金導線UIを非表示にする。
+const BACKEND_ENABLED = API_BASE_URL !== ''
 
 export default function App() {
   const isDashboard = window.location.hash === '#dashboard'
@@ -317,7 +320,7 @@ export default function App() {
       document.documentElement.setAttribute('data-theme', savedTheme)
 
       const override = await getBetaSubscriptionOverride()
-      if (token) {
+      if (token && BACKEND_ENABLED) {
         // トークンがある場合はサーバーから最新のサブスク状態を取得
         try {
           const res = await fetch(`${API_BASE_URL}/api/subscription/status`, {
@@ -405,7 +408,7 @@ export default function App() {
     const override = await getBetaSubscriptionOverride()
     try {
       const token = await getAuthToken()
-      if (!token) { setIsSubscriber(resolveSubscriber(false, override)); return }
+      if (!token || !BACKEND_ENABLED) { setIsSubscriber(resolveSubscriber(false, override)); return }
       const res = await fetch(`${API_BASE_URL}/api/subscription/status`, {
         headers: { Authorization: `Bearer ${token}` },
       })
@@ -1069,6 +1072,82 @@ export default function App() {
     void chrome.tabs.create({ url: 'https://lms.waiteu.dev/mypage.html' })
   }
 
+  // 通知タイミング設定（ローカル保存の実機能）。サブスク欄とバックエンド無効時の
+  // 通知設定欄の両方から参照するため抽出。
+  const notificationRulesSettings = (
+    <>
+      <div className="notificationRulesSection">
+        <p className="premiumSectionLabel">通知タイミング（全体）</p>
+        <p className="notificationHint">
+          締切の何時間前に通知するかを選べます。快適機能のアンロックと、このサービスの開発・運営を支える支援です。
+        </p>
+        <div className="thresholdChips">
+          {[1, 3, 6, 12, 24, 48, 72].map((hours) => (
+            <button
+              key={hours}
+              type="button"
+              className={`thresholdChip ${notificationRules.defaultThresholds.includes(hours) ? 'active' : ''}`}
+              onClick={() => toggleDefaultThreshold(hours)}
+            >
+              {hours}時間前
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <div className="notificationRulesSection">
+        <p className="premiumSectionLabel">通知タイミング（コース別）</p>
+        {courses.length === 0 ? (
+          <p className="notificationHint">
+            LETUSのコースを開くと、ここでコース別に設定できます。
+          </p>
+        ) : (
+          courses.map((course) => {
+            const override = notificationRules.courseOverrides[course.id]
+            return (
+              <div key={course.id} className="courseRuleRow">
+                <label className="courseRuleHead">
+                  <input
+                    type="checkbox"
+                    checked={Boolean(override)}
+                    onChange={() => toggleCourseOverride(course.id)}
+                  />
+                  <span>{course.name}</span>
+                </label>
+                {override && (
+                  <div className="courseRuleBody">
+                    <label className="muteToggle">
+                      <input
+                        type="checkbox"
+                        checked={override.muted}
+                        onChange={() => toggleCourseMuted(course.id)}
+                      />
+                      <span>このコースをミュート</span>
+                    </label>
+                    {!override.muted && (
+                      <div className="thresholdChips">
+                        {[1, 3, 6, 12, 24, 48, 72].map((hours) => (
+                          <button
+                            key={hours}
+                            type="button"
+                            className={`thresholdChip ${override.thresholds.includes(hours) ? 'active' : ''}`}
+                            onClick={() => toggleCourseThreshold(course.id, hours)}
+                          >
+                            {hours}時間前
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            )
+          })
+        )}
+      </div>
+    </>
+  )
+
   return (
     <AssignmentSlotContext.Provider value={assignmentSlotMap}>
     <SyllabusContext.Provider value={isDashboard ? openSyllabus : null}>
@@ -1483,7 +1562,7 @@ export default function App() {
             ))}
           </CollapsibleSection>
 
-          {isSubscriber ? (
+          {BACKEND_ENABLED && isSubscriber && (
             <details className="settings" open>
               <summary>
                 プレミアム
@@ -1517,75 +1596,7 @@ export default function App() {
                   </ul>
                 </div>
 
-                <div className="notificationRulesSection">
-                  <p className="premiumSectionLabel">通知タイミング（全体）</p>
-                  <p className="notificationHint">
-                    締切の何時間前に通知するかを選べます。快適機能のアンロックと、このサービスの開発・運営を支える支援です。
-                  </p>
-                  <div className="thresholdChips">
-                    {[1, 3, 6, 12, 24, 48, 72].map((hours) => (
-                      <button
-                        key={hours}
-                        type="button"
-                        className={`thresholdChip ${notificationRules.defaultThresholds.includes(hours) ? 'active' : ''}`}
-                        onClick={() => toggleDefaultThreshold(hours)}
-                      >
-                        {hours}時間前
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
-                <div className="notificationRulesSection">
-                  <p className="premiumSectionLabel">通知タイミング（コース別）</p>
-                  {courses.length === 0 ? (
-                    <p className="notificationHint">
-                      LETUSのコースを開くと、ここでコース別に設定できます。
-                    </p>
-                  ) : (
-                    courses.map((course) => {
-                      const override = notificationRules.courseOverrides[course.id]
-                      return (
-                        <div key={course.id} className="courseRuleRow">
-                          <label className="courseRuleHead">
-                            <input
-                              type="checkbox"
-                              checked={Boolean(override)}
-                              onChange={() => toggleCourseOverride(course.id)}
-                            />
-                            <span>{course.name}</span>
-                          </label>
-                          {override && (
-                            <div className="courseRuleBody">
-                              <label className="muteToggle">
-                                <input
-                                  type="checkbox"
-                                  checked={override.muted}
-                                  onChange={() => toggleCourseMuted(course.id)}
-                                />
-                                <span>このコースをミュート</span>
-                              </label>
-                              {!override.muted && (
-                                <div className="thresholdChips">
-                                  {[1, 3, 6, 12, 24, 48, 72].map((hours) => (
-                                    <button
-                                      key={hours}
-                                      type="button"
-                                      className={`thresholdChip ${override.thresholds.includes(hours) ? 'active' : ''}`}
-                                      onClick={() => toggleCourseThreshold(course.id, hours)}
-                                    >
-                                      {hours}時間前
-                                    </button>
-                                  ))}
-                                </div>
-                              )}
-                            </div>
-                          )}
-                        </div>
-                      )
-                    })
-                  )}
-                </div>
+                {notificationRulesSettings}
 
                 <button
                   type="button"
@@ -1596,8 +1607,17 @@ export default function App() {
                 </button>
               </div>
             </details>
-          ) : (
+          )}
+          {BACKEND_ENABLED && !isSubscriber && (
             <ProBanner apiBaseUrl={API_BASE_URL} onLogin={() => void handleAfterLogin()} />
+          )}
+          {!BACKEND_ENABLED && (
+            <details className="settings" open>
+              <summary>通知設定</summary>
+              <div className="premiumSettingsBody">
+                {notificationRulesSettings}
+              </div>
+            </details>
           )}
 
           <div className="displaySettings">

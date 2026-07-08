@@ -303,6 +303,7 @@ export async function applyAutoSelect(now: Date = new Date()): Promise<void> {
 }
 
 async function syncCoursesToServerIfSubscriber(courses: Course[]): Promise<void> {
+  if (!API_BASE_URL) return
   const [token, active] = await Promise.all([getAuthToken(), isSubscriptionActive()])
 
   if (!token || !active) {
