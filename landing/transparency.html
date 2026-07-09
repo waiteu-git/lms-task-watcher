@@ -40,7 +40,7 @@
     <main style="max-width:820px;margin:0 auto;padding:44px 24px 20px;">
       <span style="display:inline-block;background:#eef2ff;color:#4f46e5;border:1px solid #e0e7ff;font-size:11px;font-weight:800;letter-spacing:0.08em;padding:4px 12px;border-radius:999px;margin-bottom:14px;">TRANSPARENCY</span>
       <h1 style="font-size:clamp(26px,4vw,34px);font-weight:900;letter-spacing:-0.02em;margin-bottom:8px;color:#0f172a;">透明性レポート</h1>
-      <p style="font-size:13px;color:#64748b;font-weight:600;">最終更新日: 2026年7月7日</p>
+      <p style="font-size:13px;color:#64748b;font-weight:600;">最終更新日: 2026年7月9日 ／ 対象: v1.2.0</p>
     </main>
   </div>
 
@@ -48,13 +48,13 @@
     <h2>このページについて</h2>
     <p>「拡張機能が裏で何をしているのか、自分の目で確かめたい」という方向けの技術文書です。LETUS Task Watcherの通信先とデータの扱いを説明し、<strong>本文の記載を信用せずに自分で検証する方法</strong>を案内します。一般的な説明は<a href="privacy.html">プライバシーポリシー</a>をご覧ください。</p>
 
-    <h2>通信先（現行公開版）</h2>
-    <p>Chrome Web Store / Edge Add-ons で配布中のバージョンが通信するのは <code>https://letus.ed.tus.ac.jp</code>（LETUS本体）のみです。<strong>外部サーバーへのデータ送信は一切ありません。</strong>課題スキャンはお使いのブラウザの中で完結し、取得したデータはすべて <code>chrome.storage.local</code>（端末内）に保存されます。</p>
-    <p>これは設定や実装ではなく<strong>マニフェストの権限レベルで保証</strong>されています。<code>manifest.json</code> の <code>host_permissions</code> が <code>https://letus.ed.tus.ac.jp/*</code> のみのため、拡張機能は技術的に他のドメインへリクエストを送れません。</p>
+    <h2>通信先</h2>
+    <p>拡張機能が通信するのは <code>https://letus.ed.tus.ac.jp</code>（LETUS）と <code>https://class.admin.tus.ac.jp</code>（CLASS）の2つのみです。CLASSへのアクセスは v1.2.0 で追加され、取得するのは履修科目・時間割（曜日時限・科目コード）だけで、成績・出欠記録などにはアクセスしません。<strong>いずれも自前サーバーを経由せず、お使いのブラウザの中で完結します。外部サーバーへのデータ送信は一切ありません。</strong>取得したデータはすべて <code>chrome.storage.local</code>（端末内）に保存されます。</p>
+    <p>これは設定や実装ではなく<strong>マニフェストの権限レベルで保証</strong>されています。<code>manifest.json</code> の <code>host_permissions</code> が上記2ドメインに限定されているため、拡張機能は技術的にそれ以外のドメインへリクエストを送れません。</p>
     <table>
       <tr><th>項目</th><th>内容</th></tr>
       <tr><td>権限（permissions）</td><td><code>storage</code> / <code>notifications</code> / <code>alarms</code></td></tr>
-      <tr><td>ホスト権限（host_permissions）</td><td><code>https://letus.ed.tus.ac.jp/*</code> のみ</td></tr>
+      <tr><td>ホスト権限（host_permissions）</td><td><code>https://letus.ed.tus.ac.jp/*</code> と <code>https://class.admin.tus.ac.jp/*</code> のみ</td></tr>
       <tr><td>認証情報の扱い</td><td>ID・パスワードには一切アクセスしない。既にブラウザにあるログインセッションをそのまま利用</td></tr>
       <tr><td>データの保存先</td><td><code>chrome.storage.local</code>（端末内のみ）</td></tr>
     </table>
@@ -80,7 +80,7 @@
     <ol>
       <li><code>chrome://extensions</code> でLETUS Task Watcherの「ビューを検証: Service Worker」をクリック</li>
       <li>開いたDevToolsの <strong>Network</strong> タブを表示したまま、拡張機能のスキャンを実行</li>
-      <li>リクエスト先がすべて <code>letus.ed.tus.ac.jp</code> であることを確認（これが拡張機能の全通信です）</li>
+      <li>リクエスト先がすべて <code>letus.ed.tus.ac.jp</code> または <code>class.admin.tus.ac.jp</code> であることを確認（これが拡張機能の全通信です）</li>
     </ol>
 
     <h3>3. 保存されているデータを確認する</h3>

@@ -39,19 +39,20 @@
     <main style="max-width:820px;margin:0 auto;padding:44px 24px 20px;">
       <span style="display:inline-block;background:#eef2ff;color:#4f46e5;border:1px solid #e0e7ff;font-size:11px;font-weight:800;letter-spacing:0.08em;padding:4px 12px;border-radius:999px;margin-bottom:14px;">PRIVACY</span>
       <h1 style="font-size:clamp(26px,4vw,34px);font-weight:900;letter-spacing:-0.02em;margin-bottom:8px;color:#0f172a;">プライバシーポリシー</h1>
-      <p style="font-size:13px;color:#64748b;font-weight:600;">最終更新日: 2026年6月28日</p>
+      <p style="font-size:13px;color:#64748b;font-weight:600;">最終更新日: 2026年7月9日 ／ 対象: v1.2.0（CLASS連携対応）</p>
     </main>
   </div>
 
   <main id="doc" style="max-width:820px;margin:0 auto;padding:20px 24px 72px;">
     <h2>概要</h2>
-    <p>LETUS Task Watcherは、東京理科大学のLMS「LETUS」における課題締切の管理を支援するChrome拡張機能です。本ポリシーでは、拡張機能がアクセスするデータとその取り扱いについて説明します。</p>
+    <p>LETUS Task Watcherは、東京理科大学のLMS「LETUS」の課題締切と、履修システム「CLASS」の時間割の管理を支援するChrome / Edge 拡張機能です。本ポリシーでは、拡張機能がアクセスするデータとその取り扱いについて説明します。CLASSの時間割連携（科目連携・コース更新の可視化を含む）は v1.2.0 で追加されました。</p>
 
     <h2>アクセスするデータ</h2>
     <p>スキャン実行時、拡張機能はブラウザの既存ログインセッション（Cookie）を使用して以下のページを取得します。</p>
     <ul>
-      <li><code>https://letus.ed.tus.ac.jp</code> のコースページ（課題リンクの収集）</li>
+      <li><code>https://letus.ed.tus.ac.jp</code> のコースページ（課題リンク・コース内容の収集）</li>
       <li><code>https://letus.ed.tus.ac.jp</code> の課題ページ（締切日・提出状況の取得）</li>
+      <li><code>https://class.admin.tus.ac.jp</code> の学生時間割表（履修科目・曜日時限・科目コードの取得）※v1.2.0で追加</li>
     </ul>
     <table>
       <tr><th>データ</th><th>用途</th></tr>
@@ -59,7 +60,8 @@
       <tr><td>課題URL</td><td>課題ページへのリンク</td></tr>
       <tr><td>締切日時</td><td>締切表示・通知</td></tr>
       <tr><td>提出状況テキスト</td><td>提出済み・未提出の判定</td></tr>
-      <tr><td>コース名・コースURL</td><td>コースごとの課題グループ化</td></tr>
+      <tr><td>コース名・コースURL・科目コード</td><td>コースごとの課題グループ化・コース更新の可視化</td></tr>
+      <tr><td>時間割（科目・曜日時限）</td><td>時間割表示・課題との科目連携（自動ひも付け）</td></tr>
     </table>
     <p>モバイルアプリの公開前事前登録では、入力いただいたメールアドレスのみを取得し、アプリ公開のお知らせを送る目的にのみ使用します。第三者への提供や、その他の宣伝目的での利用は行いません。</p>
 
@@ -70,8 +72,9 @@
     <ul>
       <li>ログインID・パスワード等の認証情報</li>
       <li>個人プロフィール情報</li>
-      <li>成績データ</li>
-      <li><code>https://letus.ed.tus.ac.jp</code> 以外のページ</li>
+      <li>成績・評価に関するデータ</li>
+      <li>時間割・履修科目以外のCLASS情報（掲示・お知らせ・出欠記録など）</li>
+      <li>上記2ドメイン（<code>letus.ed.tus.ac.jp</code> / <code>class.admin.tus.ac.jp</code>）以外のページ</li>
     </ul>
 
     <h2>データの削除</h2>
@@ -87,7 +90,9 @@
       <tr><th>パーミッション</th><th>必要な理由</th></tr>
       <tr><td>storage</td><td>課題データと設定を chrome.storage.local に保存するため</td></tr>
       <tr><td>notifications</td><td>締切リマインダーとスキャン完了の通知を表示するため</td></tr>
-      <tr><td>host_permissions: https://letus.ed.tus.ac.jp/*</td><td>ユーザーのログインセッションを使ってコース・課題ページを取得するため</td></tr>
+      <tr><td>alarms</td><td>バックグラウンドで定期的に自動更新を実行するため</td></tr>
+      <tr><td>host_permissions: https://letus.ed.tus.ac.jp/*</td><td>ログインセッションを使ってコース・課題ページを取得するため</td></tr>
+      <tr><td>host_permissions: https://class.admin.tus.ac.jp/*</td><td>ログインセッションを使って学生時間割表を取得するため（v1.2.0で追加）</td></tr>
     </table>
 
     <h2>プライバシーポリシーの変更</h2>
