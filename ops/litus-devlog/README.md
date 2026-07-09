@@ -20,7 +20,17 @@ litus の進捗を「自分用ダイジェスト／X下書き／devlogエント�
 2. 下書き3種を作る（LLM/自分で）: `ops/litus-devlog/.delta.json` の commits・changelogHead **のみ**を根拠に、次の3セクションを1つのテキスト `ops/litus-devlog/.draft.txt` に書く。実データに無い機能は書かない。トーンは既存ランディング準拠。
    - `## 自分用ダイジェスト`（出た/進行中/次）
    - `## X下書き`（ハイライト1本。必要ならスレッド）
-   - `## devlogエントリ`（`updates.html` に貼れる日付つきHTML断片 or 素の文）
+   - `## devlogエントリ`（`updates.html` に貼れるHTML断片。**必ず下の `.entry` 形式**で書く。デザイン（タイムライン・翠テーマ）は `updates.html` の `<style>` が `.entry` に付与するので、マークアップは classのみでよい。インラインstyleや別構造にしない）:
+     ```html
+     <div class="entry">
+       <div class="date">YYYY-MM-DD</div>
+       <h2>見出し（体言止め〜短文）</h2>
+       <p>本文。複数段落や箇条書きも可。</p>
+       <ul>
+         <li><strong>小見出し。</strong> 補足。</li>
+       </ul>
+     </div>
+     ```
 
 3. Discord へ投稿:
    ```bash
