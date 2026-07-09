@@ -23,19 +23,17 @@
     .foot { margin-top: 38px; font-size: 21px; font-weight: 700; opacity: 0.92; }
     .phone { width: 296px; flex-shrink: 0; background: #0c1512; border-radius: 44px; padding: 11px;
              position: relative; z-index: 1; box-shadow: 0 30px 60px rgba(6,40,30,0.45); }
-    .screen { background: linear-gradient(180deg, #18b892, #0d7256); border-radius: 34px; height: 556px;
-              padding: 24px 15px; overflow: hidden; }
-    .tt-head { display: flex; align-items: center; gap: 8px; color: #fff; margin-bottom: 16px; }
-    .tt-title { font-size: 22px; font-weight: 700; }
-    .card { background: rgba(255,255,255,0.34); border: 1px solid rgba(255,255,255,0.55); border-radius: 18px; padding: 9px; }
-    .grid { display: grid; grid-template-columns: 20px repeat(5, 1fr); gap: 5px; }
-    .dh { text-align: center; font-size: 12px; color: #eafff7; padding-bottom: 4px; }
-    .dh.t { color: #04322a; font-weight: 700; background: rgba(255,255,255,0.55); border-radius: 6px; padding-bottom: 4px; }
-    .pn { display: flex; align-items: center; justify-content: center; font-size: 12px; color: #fff; }
-    .c { min-height: 62px; border-radius: 9px; }
-    .c.e { background: rgba(255,255,255,0.16); }
-    .c.f { background: rgba(255,255,255,0.5); color: #04322a; font-size: 10.5px; font-weight: 600; line-height: 1.2; padding: 6px 4px; }
-    .c.tf { background: rgba(255,255,255,0.62); border: 1.5px solid #fff; color: #04322a; font-size: 10.5px; font-weight: 600; line-height: 1.2; padding: 6px 4px; }
+    /* 起動アニメーション（ブートロゴ）画面 */
+    .screen { background: #ffffff; border-radius: 34px; height: 556px; position: relative;
+              display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 40px; padding: 26px; }
+    .boot-mark { width: 88px; height: 84px; display: flex; align-items: center; justify-content: center; }
+    .boot-lockup { display: flex; flex-direction: column; align-items: center; gap: 22px; }
+    .boot-word { font-size: 54px; font-weight: 900; letter-spacing: -1px; line-height: 1; }
+    .boot-word .li { color: #12332a; }
+    .boot-word .tus { color: #0f9e75; }
+    .boot-tag { font-size: 15px; font-weight: 600; letter-spacing: 0.5em; padding-left: 0.5em; color: #8a968f; }
+    .boot-copy { position: absolute; bottom: 30px; left: 0; right: 0; text-align: center;
+                 font-size: 12px; color: #b4bfba; letter-spacing: 0.04em; }
   </style>
 </head>
 <body>
@@ -52,16 +50,12 @@
     </div>
     <div class="phone">
       <div class="screen">
-        <div class="tt-head"><svg width="21" height="20" viewBox="0 0 48 46" fill="none"><path fill="#fff" d="M25.946 44.938c-.664.845-2.021.375-2.021-.698V33.937a2.26 2.26 0 0 0-2.262-2.262H10.287c-.92 0-1.456-1.04-.92-1.788l7.48-10.471c1.07-1.497 0-3.578-1.842-3.578H1.237c-.92 0-1.456-1.04-.92-1.788L10.013.474c.214-.297.556-.474.92-.474h28.894c.92 0 1.456 1.04.92 1.788l-7.48 10.471c-1.07 1.498 0 3.579 1.842 3.579h11.377c.943 0 1.473 1.088.89 1.83L25.947 44.94z"/></svg><span class="tt-title">時間割</span></div>
-        <div class="card">
-          <div class="grid">
-            <div></div><div class="dh">月</div><div class="dh">火</div><div class="dh">水</div><div class="dh t">木</div><div class="dh">金</div>
-            <div class="pn">1</div><div class="c f">線形代数</div><div class="c e"></div><div class="c f">化学基礎</div><div class="c tf">微積II</div><div class="c e"></div>
-            <div class="pn">2</div><div class="c e"></div><div class="c f">演習</div><div class="c e"></div><div class="c tf">英語</div><div class="c f">統計</div>
-            <div class="pn">3</div><div class="c e"></div><div class="c e"></div><div class="c f">情報</div><div class="c tf">実験</div><div class="c e"></div>
-            <div class="pn">4</div><div class="c f">体育</div><div class="c e"></div><div class="c e"></div><div class="c tf">データ</div><div class="c e"></div>
-          </div>
+        <div class="boot-lockup">
+          <span class="boot-mark"><svg width="88" height="84" viewBox="0 0 48 46" fill="none"><path fill="#0f9e75" d="M25.946 44.938c-.664.845-2.021.375-2.021-.698V33.937a2.26 2.26 0 0 0-2.262-2.262H10.287c-.92 0-1.456-1.04-.92-1.788l7.48-10.471c1.07-1.497 0-3.578-1.842-3.578H1.237c-.92 0-1.456-1.04-.92-1.788L10.013.474c.214-.297.556-.474.92-.474h28.894c.92 0 1.456 1.04.92 1.788l-7.48 10.471c-1.07 1.498 0 3.579 1.842 3.579h11.377c.943 0 1.473 1.088.89 1.83L25.947 44.94z"/></svg></span>
+          <div class="boot-word"><span class="li">LI</span><span class="tus">TUS</span></div>
+          <div class="boot-tag">リタス</div>
         </div>
+        <div class="boot-copy">© 2026 waiteu</div>
       </div>
     </div>
   </div>
