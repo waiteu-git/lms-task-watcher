@@ -1,55 +1,56 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>開発の歩み — リタス（Litus）</title>
-  <link rel="canonical" href="https://lms.waiteu.dev/updates">
-  <meta name="description" content="モバイルアプリ「リタス（Litus）」の開発の歩み（devlog）。">
-  <style>
-    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-    :root { --accent:#0f9e75; --text-dark:#0f172a; --text-mid:#475569; --border:#e2e8f0; --bg-pale:#e7f6f1; --border-pale:#c9ece1; }
-    body { font-family: system-ui, -apple-system, "Segoe UI", sans-serif; color: var(--text-dark); background:#fff; line-height:1.8; font-size:16px; }
-    header { border-bottom:1px solid var(--border); padding:14px 20px; }
-    header .inner { max-width:760px; margin:0 auto; display:flex; align-items:center; justify-content:space-between; }
-    .logo { display:flex; align-items:center; gap:8px; font-weight:900; color:var(--text-dark); text-decoration:none; }
-    .logo svg { width:20px; height:19px; }
-    .back-link { font-size:0.85rem; color:var(--accent); text-decoration:none; }
-    main { max-width:760px; margin:0 auto; padding:40px 20px 80px; }
-    h1 { font-size:1.6rem; font-weight:950; letter-spacing:-0.02em; margin-bottom:6px; }
-    .sub { color:var(--text-mid); font-size:0.9rem; margin-bottom:36px; }
-    .entry { border-left:3px solid var(--accent); padding:4px 0 4px 16px; margin:0 0 28px; }
-    .entry .date { font-size:0.8rem; color:var(--accent); font-weight:900; }
-    .entry h2 { font-size:1.05rem; font-weight:900; margin:2px 0 8px; }
-    .entry p { font-size:0.95rem; color:var(--text-mid); margin:0 0 8px; }
-    .entry ul { padding-left:1.3em; color:var(--text-mid); font-size:0.95rem; }
-    footer { background:#0f172a; color:rgba(255,255,255,0.55); text-align:center; padding:20px; font-size:0.82rem; }
-    footer a { color:rgba(255,255,255,0.75); }
-  </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>開発の歩み — リタス（Litus）</title>
+<link rel="icon" type="image/svg+xml" href="favicon-litus.svg">
+<link rel="icon" type="image/png" sizes="48x48" href="favicon-litus-48.png">
+<link rel="apple-touch-icon" href="apple-touch-icon-litus.png">
+<meta name="description" content="モバイルアプリ「リタス（Litus）」の開発の歩み（devlog）。">
+<link rel="canonical" href="https://lms.waiteu.dev/updates">
+<style>
+  *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color:#0f172a;background:#fff;line-height:1.85;font-size:16px;-webkit-font-smoothing:antialiased}
+  a{color:#0b7d63;font-weight:600}
+</style>
 </head>
 <body>
-<header>
-  <div class="inner">
-    <a href="app.html" class="logo">
-      <svg viewBox="0 0 48 46" fill="none" aria-hidden="true"><path fill="#0f9e75" d="M25.946 44.938c-.664.845-2.021.375-2.021-.698V33.937a2.26 2.26 0 0 0-2.262-2.262H10.287c-.92 0-1.456-1.04-.92-1.788l7.48-10.471c1.07-1.497 0-3.578-1.842-3.578H1.237c-.92 0-1.456-1.04-.92-1.788L10.013.474c.214-.297.556-.474.92-.474h28.894c.92 0 1.456 1.04.92 1.788l-7.48 10.471c-1.07 1.498 0 3.579 1.842 3.579h11.377c.943 0 1.473 1.088.89 1.83L25.947 44.94z"/></svg>
-      リタス
-    </a>
-    <a href="app.html" class="back-link">← リタスのページへ</a>
-  </div>
-</header>
-<main>
-  <h1>開発の歩み</h1>
-  <p class="sub">リタス（Litus）の開発進捗を数日おきに記録しています。<a href="app.html">事前登録はこちら →</a></p>
+<div>
+  <header style="position:sticky;top:0;z-index:50;background:rgba(255,255,255,0.86);backdrop-filter:blur(16px);border-bottom:1px solid #e8f0ec;">
+    <div style="max-width:780px;margin:0 auto;padding:13px 24px;display:flex;align-items:center;justify-content:space-between;">
+      <a href="app.html" style="display:flex;align-items:center;gap:9px;text-decoration:none;"><span style="display:inline-flex;align-items:center;justify-content:center;width:26px;height:26px;border-radius:7px;background:linear-gradient(160deg,#18b892,#0d7256);"><svg width="14" height="13" viewBox="0 0 48 46" fill="none"><path fill="#fff" d="M25.946 44.938c-.664.845-2.021.375-2.021-.698V33.937a2.26 2.26 0 0 0-2.262-2.262H10.287c-.92 0-1.456-1.04-.92-1.788l7.48-10.471c1.07-1.497 0-3.578-1.842-3.578H1.237c-.92 0-1.456-1.04-.92-1.788L10.013.474c.214-.297.556-.474.92-.474h28.894c.92 0 1.456 1.04.92 1.788l-7.48 10.471c-1.07 1.498 0 3.579 1.842 3.579h11.377c.943 0 1.473 1.088.89 1.83L25.947 44.94z"/></svg></span><span style="font-size:14.5px;font-weight:900;color:#0b3b2e;">リタス</span></a>
+      <a href="app.html" style="font-size:13px;color:#0b7d63;font-weight:700;text-decoration:none;">← リタスのページへ</a>
+    </div>
+  </header>
 
-  <!-- 新しいエントリはこの下（このコメント直後）に追加する。日付降順（新しいものが上）。 -->
-  <div class="entry">
-    <div class="date">2026-07-08</div>
-    <h2>開発の歩みを公開しはじめました</h2>
-    <p>リタスの開発進捗を、このページで数日おきにお知らせしていきます。公開に向けて開発中です。</p>
+  <div style="background:radial-gradient(circle at 92% 0%,rgba(15,158,117,0.10),transparent 44%),#fff;border-bottom:1px solid #eef4f1;">
+    <main style="max-width:780px;margin:0 auto;padding:44px 24px 24px;">
+      <span style="display:inline-block;background:#e7f6f1;color:#0b7d63;border:1px solid #c9ece1;font-size:11px;font-weight:800;letter-spacing:0.08em;padding:4px 12px;border-radius:999px;margin-bottom:14px;">DEVLOG</span>
+      <h1 style="font-size:clamp(26px,4vw,34px);font-weight:900;letter-spacing:-0.02em;margin-bottom:8px;color:#0f172a;">開発の歩み</h1>
+      <p style="font-size:14px;color:#475569;font-weight:600;">リタス（Litus）の開発進捗を数日おきに記録しています。<a href="app.html">事前登録はこちら →</a></p>
+    </main>
   </div>
-</main>
-<footer>
-  <a href="app.html">リタスのページ</a> &nbsp;|&nbsp; <a href="index.html">PC版（拡張機能）</a> &nbsp;|&nbsp; <a href="app-privacy.html">プライバシーポリシー</a>
-</footer>
+
+  <main style="max-width:780px;margin:0 auto;padding:32px 24px 80px;">
+    <div style="position:relative;padding-left:26px;">
+      <div style="position:absolute;left:5px;top:6px;bottom:6px;width:2px;background:linear-gradient(180deg,#18b892,#c9ece1);border-radius:2px;"></div>
+
+      <!-- 新しいエントリはこの下（このコメント直後）に追加する。日付降順（新しいものが上）。 -->
+      <div style="position:relative;margin-bottom:30px;">
+        <span style="position:absolute;left:-25px;top:5px;width:12px;height:12px;border-radius:50%;background:#0f9e75;border:2.5px solid #fff;box-shadow:0 0 0 2px #c9ece1;"></span>
+        <div style="font-size:12px;font-weight:900;color:#0f9e75;font-family:ui-monospace,monospace;letter-spacing:0.02em;">2026-07-08</div>
+        <h2 style="font-size:17px;font-weight:900;color:#0f172a;margin:3px 0 8px;">開発の歩みを公開しはじめました</h2>
+        <p style="font-size:14.5px;color:#475569;margin:0;">リタスの開発進捗を、このページで数日おきにお知らせしていきます。公開に向けて開発中です。</p>
+      </div>
+
+    </div>
+  </main>
+
+  <footer style="background:#06201a;color:rgba(234,255,247,0.55);text-align:center;padding:24px;font-size:13px;">
+    <div style="display:flex;gap:20px;justify-content:center;flex-wrap:wrap;margin-bottom:8px;"><a href="app.html" style="color:rgba(234,255,247,0.78);font-weight:700;">リタスのページ</a><a href="index.html" style="color:rgba(234,255,247,0.78);font-weight:700;">PC版（拡張機能）</a><a href="app-privacy.html" style="color:rgba(234,255,247,0.78);font-weight:700;">プライバシーポリシー</a></div>
+    <p>© 2026 リタス（Litus）. 東京理科大学非公式の学生個人プロジェクトです。</p>
+  </footer>
+</div>
 </body>
 </html>
