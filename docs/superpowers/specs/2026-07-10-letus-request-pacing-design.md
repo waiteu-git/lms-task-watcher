@@ -87,6 +87,8 @@ if (wait > 0) await deps.sleep(wait)
 
 `src/core/pacer.test.ts`（vitest）。偽の `now` / `sleep` を注入する。
 
+偽の `sleep` は、時刻の更新を `await Promise.resolve()` の後ろに置くこと。現実の `sleep` は呼んだ瞬間に時計を進めないためである。同期的に進めると `Promise.all` の同期スイープの途中で時計が動き、同時実行の待ちが 0/180/360/540/720 ではなく 0/180/180/180/180 になって実挙動を検証できない。実時間タイマーは使わない。
+
 - 初回の `acquire()` は待たない
 - 連続して5回呼ぶと、待ち時間が 0, 180, 360, 540, 720 ms になる
 - 前回の発射から `minIntervalMs` 以上経過していれば待たない

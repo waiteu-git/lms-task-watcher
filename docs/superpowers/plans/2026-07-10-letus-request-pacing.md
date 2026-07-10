@@ -57,6 +57,11 @@ import { createPacer, LETUS_MIN_REQUEST_GAP_MS } from './pacer'
 
 /**
  * 偽の時計。sleep が呼ばれた分だけ時刻を進める（実時間は使わない）。
+ *
+ * 時刻の更新は `await Promise.resolve()` の後ろに置く。現実の sleep は呼んだ瞬間に
+ * 時計を進めないため。同期的に `t += ms` すると、Promise.all の同期スイープの途中で
+ * 時計が進み、後続の acquire() が進んだ時刻を読んでしまう。結果、同時実行の待ちが
+ * 0/180/360/540/720 ではなく 0/180/180/180/180 になり、実挙動を検証できなくなる。
  */
 function fakeDeps(start = 1000) {
   let t = start
@@ -70,6 +75,7 @@ function fakeDeps(start = 1000) {
       now: () => t,
       sleep: async (ms: number) => {
         sleeps.push(ms)
+        await Promise.resolve()
         t += ms
       },
     },
