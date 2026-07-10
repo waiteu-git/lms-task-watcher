@@ -21,7 +21,7 @@ v1.2.1 の機能修正（`ea131ed`、リスク抑制着手前から存在）も�
 - [x] `dist/classTimetable.js` / `dist/content.js` に `import` 文なし（classic script が壊れていないことの確認）
 - [x] `dist/manifest.json` の `host_permissions` は `letus.ed.tus.ac.jp` と `class.admin.tus.ac.jp` の2つのみ（**api.waiteu.dev は削除済み・新規ホストの追加なし**）
 - [x] `pnpm gen:terms` 再実行後も差分なし（規約の生成物が正典と一致）
-- [ ] **`landing/terms.html` を `https://lms.waiteu.dev/terms` として公開**（下記§1.5、未実施 — ここが未完了だと申請できない）
+- [x] **`landing/terms.html` を `https://lms.waiteu.dev/terms` として公開**（2026-07-11 完了。develop マージ＋push で Cloudflare Pages が反映。`curl` で 200・`<title>利用規約 — LETUS Task Watcher</title>` を確認）
 - [ ] プライバシーポリシーを公開URLでホスト（v1.2.0から継続。まだ未対応なら本リリースと合わせて対応）
 - [ ] スクリーンショットを1枚以上用意（1280×800、v1.2.0の素材を流用可・`store-assets/`参照）
 
@@ -43,26 +43,13 @@ v1.2.1 の機能修正（`ea131ed`、リスク抑制着手前から存在）も�
 2. Chrome ウェブストア デベロッパー ダッシュボード → 既存アイテムの「パッケージ」タブから新バージョンをアップロード
 3. manifest の `version` は **1.2.1 のまま**（前回申請時点から未提出であれば据え置きでよい。既に 1.2.1 で提出済みなら、Chrome Web Store の仕様上 version の再アップロードには番号を上げる必要がある点に注意 — ダッシュボードでの提出履歴を確認すること）
 
-## 1.5 規約URLの公開手順（申請前に必ずこの順序で）
+## 1.5 規約URLの公開（完了済み・2026-07-11）
 
-規約本文 `landing/terms.html` は `https://lms.waiteu.dev/terms` として公開される想定だが、**このブランチ（`feature/risk-mitigation`）はまだ `develop` にマージされておらず、`landing/*` も Cloudflare Pages に自動デプロイされていない**。`docs/app-landing-publish-runbook.md` の記載どおり、`landing/*` は develop ブランチへの push で自動デプロイされる構成（`landing/app.html` → `/app` と同じ対応関係で `landing/terms.html` → `/terms` になる）。
+**`https://lms.waiteu.dev/terms` は規約本文で 200 を返す状態になっている。この節の作業は完了しており、申請の前提条件は満たされている。**
 
-実際に `https://lms.waiteu.dev/terms` を確認したところ、404 エラーではなく**トップページ（製品紹介ページ）の内容が返っている**（Cloudflare Pages 側のフォールバックにより未デプロイのパスがルートにフォールバックしていると推測される）。いずれにせよ規約本文は表示されず、**現状のまま申請するとストア審査担当者が開く規約URLに規約が存在しない**。
+経緯: `feature/risk-mitigation` を `develop` にマージして push（2026-07-11、マージコミット含む）。`docs/app-landing-publish-runbook.md` の構成どおり Cloudflare Pages が `landing/*` を自動デプロイし、`landing/terms.html` → `/terms` が反映された。反映後に `curl` で確認したところ、HTTP 200・`<title>利用規約 — LETUS Task Watcher</title>` を返し、本文には規約の版番号（`TERMS_VERSION: 1`）と準拠法の記述を含む。ローカルの `landing/terms.html` との差分は Cloudflare が挿入するチャレンジスクリプト1行のみで、規約本文は完全に一致する。
 
-申請は必ず次の順序で行うこと。
-
-1. **`feature/risk-mitigation` を `develop` にマージし、push して landing を公開する**
-   ```bash
-   git checkout develop
-   git pull origin develop
-   git merge feature/risk-mitigation
-   git push origin develop
-   # Cloudflare Pages が landing/* を自動ビルド・デプロイ（数分）
-   ```
-2. **`https://lms.waiteu.dev/terms` が規約本文で 200 を返すことを確認する**（ブラウザで開く、または `curl -I` でステータス確認）
-3. **上記が確認できてから** Chrome Web Store に提出する
-
-この順序を守らずに申請すると、審査担当者が規約URLを開いた際にトップページしか表示されず、申請が差し戻される可能性が高い。
+念のため申請直前にもう一度 `https://lms.waiteu.dev/terms` をブラウザで開き、規約本文が表示されることを目視すること（Cloudflare Pages の再デプロイ等で万一内容が変わっていないかの最終確認）。
 
 ---
 
@@ -86,6 +73,7 @@ v1.2.1 の機能修正（`ea131ed`、リスク抑制着手前から存在）も�
   - 課題提出後、LETUSページ上のバッジが「未提出」のまま更新されない問題を修正
   - 課題ページ右下の表示を「登録済み」から実際の提出状態へ変更
 - **サブスク・認証機能を撤去**。ログイン・課金・バックエンド連携は一切なくなり、**外部送信はゼロ**になった
+- **スキャンのリクエスト間隔を制御**。LETUSへのリクエストを最低180ms間隔（約4 req/s）に均し、サーバーへの瞬間的な負荷を人間の閲覧に近づけた（総リクエスト数は不変で、大学サーバーに優しい挙動になっただけ。ユーザー体感は「今すぐ更新」の完了が数十秒程度）
 
 ---
 
@@ -219,3 +207,20 @@ $ git status --porcelain
 ```
 
 これは**ソースコードとビルドの機械的検証のみ**であり、実機（Chromeに読み込んでの動作）確認は含まれない（§7参照）。
+
+### 追記（2026-07-11、リクエストペーシング反映後）
+
+リクエストペーシング（§2の変更点サマリ参照）を develop にマージした後の再検証:
+
+```
+$ pnpm vitest run src --exclude "**/.claude/worktrees/**"
+ Test Files  30 passed (30)
+      Tests  244 passed (244)
+（注: `pnpm vitest run src` の素の実行は .claude/worktrees/* 配下の他ブランチのテストも拾うため、
+  当該worktreeのみを対象にするには上記の --exclude が必要。本ブランチ本来のテストは30ファイル/244件）
+
+$ npx tsc -b        # exit 0
+$ pnpm build        # 成功。dist/background.js 18.04 kB（ペーサー分 +0.27 kB）
+```
+
+実機確認（2026-07-11、ユーザー実施）: 128リクエストのスキャンが33秒で完走。MV3 service worker は途中で停止せず、Networkのリクエストが等間隔に並ぶことを確認。
