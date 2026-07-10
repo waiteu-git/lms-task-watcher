@@ -9,6 +9,9 @@ export type TermsConsent = { version: number; acceptedAt: string }
  */
 export function hasValidConsent(stored: unknown, version: number): boolean {
   if (typeof stored !== 'object' || stored === null) return false
+  if (Array.isArray(stored)) return false
+  if (!Object.hasOwn(stored, 'version')) return false
+  if (!Object.hasOwn(stored, 'acceptedAt')) return false
   const c = stored as Partial<TermsConsent>
   if (typeof c.version !== 'number') return false
   if (typeof c.acceptedAt !== 'string' || c.acceptedAt === '') return false
@@ -16,11 +19,16 @@ export function hasValidConsent(stored: unknown, version: number): boolean {
 }
 
 export async function getConsent(): Promise<TermsConsent | null> {
-  const result = await chrome.storage.local.get(TERMS_CONSENT_KEY) as {
-    termsConsent?: unknown
+  try {
+    const result = await chrome.storage.local.get(TERMS_CONSENT_KEY) as {
+      termsConsent?: unknown
+    }
+    const stored = result.termsConsent
+    return hasValidConsent(stored, TERMS_VERSION) ? (stored as TermsConsent) : null
+  } catch (err) {
+    console.warn('[LETUS Task Watcher] failed to read consent:', err)
+    return null
   }
-  const stored = result.termsConsent
-  return hasValidConsent(stored, TERMS_VERSION) ? (stored as TermsConsent) : null
 }
 
 export async function saveConsent(version: number = TERMS_VERSION): Promise<void> {
@@ -30,8 +38,5 @@ export async function saveConsent(version: number = TERMS_VERSION): Promise<void
 
 /** 収集を行ってよいか。すべてのガードはこれを呼ぶ。 */
 export async function isConsented(): Promise<boolean> {
-  const result = await chrome.storage.local.get(TERMS_CONSENT_KEY) as {
-    termsConsent?: unknown
-  }
-  return hasValidConsent(result.termsConsent, TERMS_VERSION)
+  return (await getConsent()) !== null
 }
