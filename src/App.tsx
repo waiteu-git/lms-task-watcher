@@ -101,6 +101,8 @@ import {
   getManualLater,
   getManualSubmitted,
 } from './utils/manualAssignment'
+import { isConsented, saveConsent } from './legal/termsConsent'
+import { TermsConsentScreen } from './components/TermsConsentScreen'
 
 // 自前バックエンドは凍結中（VITE_API_BASE_URL 未設定=空）。空なら syncToServer 等は no-op。
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL as string ?? ''
@@ -134,6 +136,7 @@ export default function App() {
   })
   const [message, setMessage] = useState('')
   const [showOnboarding, setShowOnboarding] = useState(false)
+  const [consentState, setConsentState] = useState<'loading' | 'needed' | 'ok'>('loading')
   const hasAutoRefreshCheckedRef = useRef(false)
   const hasCheckedDeadlineNotificationRef = useRef(false)
 
@@ -304,6 +307,12 @@ export default function App() {
   }, [])
 
   useEffect(() => {
+    void isConsented().then((consented) => {
+      setConsentState(consented ? 'ok' : 'needed')
+    })
+  }, [])
+
+  useEffect(() => {
     void getOnboardingCompleted().then((completed) => {
       if (!completed) setShowOnboarding(true)
     })
@@ -332,6 +341,10 @@ export default function App() {
   }, [])
 
   useEffect(() => {
+    if (consentState !== 'ok') {
+      return
+    }
+
     if (hasCheckedDeadlineNotificationRef.current) {
       return
     }
@@ -351,7 +364,7 @@ export default function App() {
         savedManualAssignments,
       )
     })()
-  }, [])
+  }, [consentState])
 
   const updateNow = useCallback(async () => {
     const currentCourses = await getCourses()
@@ -464,6 +477,10 @@ export default function App() {
   }, [showOnboarding, manualAssignments])
 
   useEffect(() => {
+    if (consentState !== 'ok') {
+      return
+    }
+
     if (hasAutoRefreshCheckedRef.current) {
       return
     }
@@ -507,7 +524,7 @@ export default function App() {
       setMessage('前回更新から2時間以上経過したため、自動更新します。')
       await updateNow()
     })()
-  }, [])
+  }, [consentState])
 
   const selectedCourseCount = useMemo(() => {
     return courses.filter((course) => course.enabled).length
@@ -1058,6 +1075,22 @@ export default function App() {
       </div>
     </>
   )
+
+  if (consentState === 'loading') {
+    return <main className="app popup" />
+  }
+
+  if (consentState === 'needed') {
+    return (
+      <main className={`app ${isDashboard ? 'dashboard' : 'popup'}`}>
+        <TermsConsentScreen
+          onAccept={() => {
+            void saveConsent().then(() => setConsentState('ok'))
+          }}
+        />
+      </main>
+    )
+  }
 
   return (
     <AssignmentSlotContext.Provider value={assignmentSlotMap}>

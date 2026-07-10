@@ -1311,3 +1311,54 @@ button.slotChip { font-family: inherit; cursor: pointer; line-height: 1.3; }
 @media (max-width: 720px) {
   .dashboardSummary { grid-template-columns: repeat(2, 1fr); }
 }
+
+.termsConsent {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 16px;
+  height: 100%;
+  box-sizing: border-box;
+}
+
+.termsConsentTitle {
+  margin: 0;
+  font-size: 18px;
+}
+
+.termsConsentLead {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.termsConsentBody {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  margin: 0;
+  padding: 12px;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  background: #fafafa;
+  font-family: inherit;
+  font-size: 12px;
+  line-height: 1.7;
+  white-space: pre-wrap;
+  word-wrap: break-word;
+}
+
+.termsConsentAccept {
+  padding: 12px;
+  border: none;
+  border-radius: 8px;
+  background: #1d9e75;
+  color: #fff;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.termsConsentAccept:hover {
+  background: #178360;
+}
