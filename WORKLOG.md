@@ -4,6 +4,43 @@
 
 ---
 
+## 2026-07-10 — v1.2.1リリース準備: リスク抑制パッケージ＋サブスク撤去＋ストア提出文書（Task 8）
+
+`feature/risk-mitigation` ブランチで実装計画 `docs/superpowers/plans/2026-07-10-ltw-terms-consent-license-hardening.md` の全8タスクを完了。SDD進捗台帳: `.superpowers/sdd/progress.md`（「LTW リスク抑制パッケージ」節）。本節は最終タスク（Task 8: ストア提出文書＋最終検証）の記録。
+
+### このリリースに含まれる独立した2つの変更
+
+1. **サブスク・認証UIとバックエンド連携の撤去**（`5176d98`）: `App.tsx` から auth/premium/betaOverride/ProBanner/SubscriberBadge を除去、`ProBanner.tsx`/`SubscriberBadge.tsx`/`LoginModal.tsx`/`betaOverride.ts` を削除、**`manifest.json` の `host_permissions` から `https://api.waiteu.dev/*` を削除**、Stripe・バッジ画像を削除。結果: 拡張の通信先は LETUS と CLASS のみ・外部送信ゼロ
+2. **リスク抑制パッケージ**（`6d2da78`〜`69f69da`）: 利用規約新設（正典 `docs/legal/terms-ja.md`、公開版 `landing/terms.html`、拡張内 `src/legal/termsBody.ts` は `pnpm gen:terms` で生成）／同意ゲート（同意するまで `runAutoScan`・収集系メッセージ3種・content script 2本のすべてを停止、未同意は拡張アイコンに `!` バッジ・Chrome通知は不使用）／`TERMS_VERSION` をビルド時定数で単一正典から注入／LICENSE 4条追記（不正利用の禁止・自己責任免責強化・違反時自動終了・準拠法=日本法東京地裁、cabetus個別許諾は無傷）／changelog最上部・welcome手順②で告知
+
+v1.2.1 の機能修正（`ea131ed`、リスク抑制着手前から存在）も同梱: 英字入り科目ID（例`9975A06`）のコース自動選択・LETUSページ上バッジの提出状態更新・課題ページ右下表示の提出状態化。
+
+### 実装済み（Task 8で新規作成・確認）
+
+- `store-submission-v1.2.1.md` 新規作成。`store-submission-v1.2.0.md` と同じ節構成で、v1.2.1固有の内容を追加: 挙動変更の明示（同意までは収集・通知ゼロ、既存ユーザーへの破壊的変更）／権限は増えていない・むしろ`api.waiteu.dev`を削減した旨／規約URL公開の**手順の順序**（① `feature/risk-mitigation`を`develop`にマージしlanding公開 → ② `https://lms.waiteu.dev/terms`が200で規約本文を返すことを確認 → ③ ストア提出）
+- `docs/permission-justification.md` の更新要否を確認: **更新不要と判断**。この文書はそもそも `api.waiteu.dev` に一度も言及していなかったため（`grep`で無ヒット確認）、host_permissionsからの削除に伴う記述の齟齬は生じていない
+- `https://lms.waiteu.dev/terms` を実際にfetchして確認: **404ではなくトップページ（製品紹介ページ）の内容が返る**。`feature/risk-mitigation`が`develop`未マージ・`landing/terms.html`が未デプロイのため。`docs/app-landing-publish-runbook.md`の記載どおり`landing/*`はdevelopへのpushでCloudflare Pagesが自動デプロイする構成（`landing/app.html`→`/app`と同じ対応で`landing/terms.html`→`/terms`になる想定）なので、コード側の修正は不要・**develop マージが唯一の対応**
+- TASKS.mdは確認のみ（リスク抑制パッケージに対応する未完了項目が見当たらず、変更なし）
+
+### 検証（機械的検証のみ・実施済み）
+
+- `pnpm vitest run src` → **659/659 PASS**
+- `npx tsc -p tsconfig.app.json --noEmit` → exit 0・出力なし
+- `pnpm build` → 成功（`dist/classTimetable.js`/`content.js`/`background.js`等を生成）
+- `npx eslint src` → 新規エラーなし（`src/core/syllabusParse.ts`のirregular-whitespace 2件・`TimetableSection.tsx`/`TodayTimetable.tsx`のexhaustive-deps警告4件はいずれも既存・別件）
+- `grep -nE "^[[:space:]]*import[[:space:]{'\"]" dist/classTimetable.js dist/content.js` → ヒット0件（classic content scriptにimport文が混入していないことを確認）
+- `pnpm gen:terms` 再実行 → `git status --porcelain`に差分なし（規約生成物が正典と一致）
+
+### 実機検証（未実施）
+
+**Chromeに拡張を読み込んでの動作確認はこのセッションでは実施していない。** `store-submission-v1.2.1.md` §7に手順10項目（未同意時のバッジ・収集停止・Network無通信・同意後の復帰・再同意動作・英字科目ID自動選択・提出状態バッジ更新等）を明記した。コントローラまたはユーザーが実施し、結果を本ログに追記すること。
+
+- [ ] §7の手順1〜10を実機で確認
+- [ ] `feature/risk-mitigation` を `develop` にマージし、`https://lms.waiteu.dev/terms` が200で規約本文を返すことを確認
+- [ ] 上記2件の完了後にChrome Web Storeへ提出
+
+---
+
 ## 2026-07-08 — v1.2.0リリース: 時間割UI改善＋コース自動選択＋ガイド改訂
 
 設計 `docs/superpowers/specs/2026-07-08-v1.2.0-release-timetable-onboarding-design.md` / 実装計画 `docs/superpowers/plans/2026-07-08-v1.2.0-timetable-onboarding.md` を subagent-driven（実装→独立レビュー→fix）で14タスク実装。ブランチ `feature/v1.2.0-timetable-onboarding`（develop分岐）。
