@@ -15,6 +15,7 @@ function escapeHtml(s) {
     .replaceAll('<', '&lt;')
     .replaceAll('>', '&gt;')
     .replaceAll('"', '&quot;')
+    .replaceAll("'", '&#39;')
 }
 
 export function renderTermsBodyTs(markdown) {

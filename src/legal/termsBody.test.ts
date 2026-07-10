@@ -1,13 +1,11 @@
 import { describe, expect, it } from 'vitest'
-import { readFileSync } from 'node:fs'
+import termsSource from '../../docs/legal/terms-ja.md?raw'
 import { TERMS_BODY } from './termsBody'
 import { TERMS_VERSION } from './termsVersion'
 
-const SOURCE = 'docs/legal/terms-ja.md'
-
 describe('TERMS_BODY', () => {
   it('正典 docs/legal/terms-ja.md と完全に一致する（手編集・再生成漏れの検出）', () => {
-    expect(TERMS_BODY).toBe(readFileSync(SOURCE, 'utf8'))
+    expect(TERMS_BODY).toBe(termsSource)
   })
 
   it('正典に記載された版番号が TERMS_VERSION と一致する', () => {
