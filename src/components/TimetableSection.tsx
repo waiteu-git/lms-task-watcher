@@ -5,7 +5,7 @@ import type { DayOfWeek, TimetableSlot } from '../core/timetable'
 import { parseTimetable } from '../core/timetable'
 import { getTimetableCapture, listCapturedSemesters, getPreferredView, setPreferredView, setOverride } from '../core/timetableStore'
 import type { Semester } from '../core/timetableLink'
-import { resolveSemester, applyOverrides, linkAssignmentsToSlots } from '../core/timetableLink'
+import { resolveSemester, applyOverrides, linkAssignmentsToSlots, extractCourseCodes } from '../core/timetableLink'
 import { loadCourseOverrides } from '../core/timetableView'
 import { SyllabusContext } from '../core/syllabusContext'
 import { buildSyllabusUrl, academicYear } from '../core/syllabus'
@@ -61,6 +61,15 @@ export function TimetableSection({ courses, assignments, manualAssignments, newC
     for (const s of slots) for (const c of s.classes) m.set(`${s.day}:${s.period}`, c)
     return m
   }, [slots])
+
+  const codeToUrl = useMemo(() => {
+    const m: Record<string, string> = {}
+    for (const c of courses) {
+      if (!c.url) continue
+      for (const code of extractCourseCodes(c.name)) if (!(code in m)) m[code] = c.url
+    }
+    return m
+  }, [courses])
 
   const todayDow = JS_DAY_TO_DOW[now.getDay()]
 
@@ -123,7 +132,18 @@ export function TimetableSection({ courses, assignments, manualAssignments, newC
                   if (!c) return <div key={`${d}:${period}`} className={`timetableCell empty ${d === todayDow ? 'today' : ''}`} />
                   return (
                     <div key={`${d}:${period}`} className={`timetableCell ${d === todayDow ? 'today' : ''}`}>
-                      <div className="timetableCellName">{c.name}</div>
+                      {codeToUrl[c.courseCode] ? (
+                        <button
+                          type="button"
+                          className="timetableCellName timetableCellNameLink"
+                          title="LETUSのコースを開く"
+                          onClick={() => chrome.tabs.create({ url: codeToUrl[c.courseCode] })}
+                        >
+                          {c.name}
+                        </button>
+                      ) : (
+                        <div className="timetableCellName">{c.name}</div>
+                      )}
                       <div className="timetableCellRoom">{c.room}</div>
                       <div className="timetableCellMeta">
                         {(() => {

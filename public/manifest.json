@@ -11,8 +11,7 @@
   ],
   "host_permissions": [
     "https://letus.ed.tus.ac.jp/*",
-    "https://class.admin.tus.ac.jp/*",
-    "https://api.waiteu.dev/*"
+    "https://class.admin.tus.ac.jp/*"
   ],
   "background": {
     "service_worker": "background.js",

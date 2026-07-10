@@ -79,9 +79,11 @@ export function AssignmentCard({
 
       {!compact && slot && (
         <div className="assignmentSlotChips">
-          <span className="slotChip slotChipDay">
-            {DAY_LABEL_SHORT[slot.day]}{slot.period}
-          </span>
+          {slot.occurrences.map((o) => (
+            <span key={`${o.day}:${o.period}`} className="slotChip slotChipDay">
+              {DAY_LABEL_SHORT[o.day]}{o.period}
+            </span>
+          ))}
           <span className="slotChip">{slot.room}</span>
           {openSyllabus ? (
             <button

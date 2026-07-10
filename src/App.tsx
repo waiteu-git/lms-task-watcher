@@ -67,16 +67,8 @@ import {
   getNotificationRules,
   saveNotificationRules,
   syncToServer,
-  pullSettingsFromServer,
 } from './core/premium'
 import { DEFAULT_THRESHOLDS, type NotificationRules } from './background/notificationRules'
-import { saveSubscriptionCache, isSubscriptionActive, clearAuthSession, getAuthToken, getAuthEmail, getSubscriptionCurrentPeriodEnd } from './core/auth'
-import {
-  getBetaSubscriptionOverride,
-  setBetaSubscriptionOverride,
-  clearBetaSubscriptionOverride,
-  resolveSubscriber,
-} from './core/betaOverride'
 import { getOnboardingCompleted, setOnboardingCompleted } from './core/onboarding'
 import { OnboardingBanner } from './components/OnboardingBanner'
 import {
@@ -88,8 +80,6 @@ import {
 } from './core/manualAssignment'
 import { MANUAL_ASSIGNMENTS_KEY } from './background/storageKeys'
 import { AssignmentMemo } from './components/AssignmentMemo'
-import { SubscriberBadge } from './components/SubscriberBadge'
-import { ProBanner } from './components/ProBanner'
 import { ManualAssignmentCard } from './components/ManualAssignmentCard'
 import { TimetableSection } from './components/TimetableSection'
 import { TodayTimetable } from './components/TodayTimetable'
@@ -112,10 +102,8 @@ import {
   getManualSubmitted,
 } from './utils/manualAssignment'
 
+// 自前バックエンドは凍結中（VITE_API_BASE_URL 未設定=空）。空なら syncToServer 等は no-op。
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL as string ?? ''
-// 自前バックエンドの有効/無効。凍結中は VITE_API_BASE_URL 未設定（空）で false になり、
-// サーバー通信を全停止し、ログイン/サブスク/課金導線UIを非表示にする。
-const BACKEND_ENABLED = API_BASE_URL !== ''
 
 export default function App() {
   const isDashboard = window.location.hash === '#dashboard'
@@ -138,9 +126,6 @@ export default function App() {
   const [lastRefreshAt, setLastRefreshAt] = useState<string | null>(null)
   const [manualAssignments, setManualAssignments] = useState<ManualAssignment[]>([])
   const [isUpdating, setIsUpdating] = useState(false)
-  const [isSubscriber, setIsSubscriber] = useState(false)
-  const [accountEmail, setAccountEmail] = useState<string | null>(null)
-  const [nextPaymentDate, setNextPaymentDate] = useState<string | null>(null)
   const [theme, setTheme] = useState('default')
   const [notificationRules, setNotificationRules] = useState<NotificationRules>({
     version: 1,
@@ -309,47 +294,12 @@ export default function App() {
 
   useEffect(() => {
     void (async () => {
-      const [savedTheme, cachedSubscriber, email, token] = await Promise.all([
-        getTheme(),
-        isSubscriptionActive(),
-        getAuthEmail(),
-        getAuthToken(),
-      ])
+      const savedTheme = await getTheme()
       setTheme(savedTheme)
-      setAccountEmail(email)
       document.documentElement.setAttribute('data-theme', savedTheme)
-
-      const override = await getBetaSubscriptionOverride()
-      if (token && BACKEND_ENABLED) {
-        // トークンがある場合はサーバーから最新のサブスク状態を取得
-        try {
-          const res = await fetch(`${API_BASE_URL}/api/subscription/status`, {
-            headers: { Authorization: `Bearer ${token}` },
-          })
-          if (res.ok) {
-            const data = await res.json() as { status: string; currentPeriodEnd: string | null }
-            await saveSubscriptionCache(data.status, data.currentPeriodEnd)
-            setIsSubscriber(resolveSubscriber(data.status === 'active', override))
-            setNextPaymentDate(data.currentPeriodEnd)
-          } else {
-            setIsSubscriber(resolveSubscriber(cachedSubscriber, override))
-            setNextPaymentDate(await getSubscriptionCurrentPeriodEnd())
-          }
-        } catch {
-          setIsSubscriber(resolveSubscriber(cachedSubscriber, override))
-          setNextPaymentDate(await getSubscriptionCurrentPeriodEnd())
-        }
-      } else {
-        setIsSubscriber(resolveSubscriber(false, override))
-      }
 
       const savedRules = await getNotificationRules()
       if (savedRules) setNotificationRules(savedRules)
-      if (API_BASE_URL) {
-        await pullSettingsFromServer(API_BASE_URL)
-        const pulledRules = await getNotificationRules()
-        if (pulledRules) setNotificationRules(pulledRules)
-      }
     })()
   }, [])
 
@@ -402,40 +352,6 @@ export default function App() {
       )
     })()
   }, [])
-
-  async function handleAfterLogin() {
-    void getAuthEmail().then(setAccountEmail)
-    const override = await getBetaSubscriptionOverride()
-    try {
-      const token = await getAuthToken()
-      if (!token || !BACKEND_ENABLED) { setIsSubscriber(resolveSubscriber(false, override)); return }
-      const res = await fetch(`${API_BASE_URL}/api/subscription/status`, {
-        headers: { Authorization: `Bearer ${token}` },
-      })
-      if (res.ok) {
-        const data = await res.json() as { status: string; currentPeriodEnd: string | null }
-        await saveSubscriptionCache(data.status, data.currentPeriodEnd)
-        setIsSubscriber(resolveSubscriber(data.status === 'active', override))
-      } else {
-        setIsSubscriber(resolveSubscriber(false, override))
-      }
-    } catch {
-      const active = await isSubscriptionActive()
-      setIsSubscriber(resolveSubscriber(active, override))
-    }
-
-    if (API_BASE_URL) {
-      await pullSettingsFromServer(API_BASE_URL)
-      const pulledRules = await getNotificationRules()
-      if (pulledRules) setNotificationRules(pulledRules)
-    }
-  }
-
-  async function handleLogout() {
-    await clearAuthSession()
-    setIsSubscriber(false)
-    setAccountEmail(null)
-  }
 
   const updateNow = useCallback(async () => {
     const currentCourses = await getCourses()
@@ -591,7 +507,7 @@ export default function App() {
       setMessage('前回更新から2時間以上経過したため、自動更新します。')
       await updateNow()
     })()
-  }, [updateNow])
+  }, [])
 
   const selectedCourseCount = useMemo(() => {
     return courses.filter((course) => course.enabled).length
@@ -1068,18 +984,13 @@ export default function App() {
     void chrome.tabs.create({ url: FEEDBACK_FORM_URL })
   }
 
-  function openMyPage() {
-    void chrome.tabs.create({ url: 'https://lms.waiteu.dev/mypage.html' })
-  }
-
-  // 通知タイミング設定（ローカル保存の実機能）。サブスク欄とバックエンド無効時の
-  // 通知設定欄の両方から参照するため抽出。
+  // 通知タイミング設定（ローカル保存の実機能）。
   const notificationRulesSettings = (
     <>
       <div className="notificationRulesSection">
         <p className="premiumSectionLabel">通知タイミング（全体）</p>
         <p className="notificationHint">
-          締切の何時間前に通知するかを選べます。快適機能のアンロックと、このサービスの開発・運営を支える支援です。
+          締切の何時間前に通知するかを選べます。科目ごとに個別のタイミングも設定できます。
         </p>
         <div className="thresholdChips">
           {[1, 3, 6, 12, 24, 48, 72].map((hours) => (
@@ -1562,63 +1473,12 @@ export default function App() {
             ))}
           </CollapsibleSection>
 
-          {BACKEND_ENABLED && isSubscriber && (
-            <details className="settings" open>
-              <summary>
-                プレミアム
-                <SubscriberBadge />
-              </summary>
-
-              <div className="premiumSettingsBody">
-                <div className="premiumAccountSection">
-                  {accountEmail && (
-                    <p className="premiumAccountEmail">{accountEmail}</p>
-                  )}
-                  {nextPaymentDate && (
-                    <p className="premiumNextPayment">
-                      次回請求日: {new Date(nextPaymentDate).toLocaleDateString('ja-JP')}
-                    </p>
-                  )}
-                  <button
-                    type="button"
-                    className="premiumMyPageBtn"
-                    onClick={openMyPage}
-                  >
-                    マイページを開く
-                  </button>
-                </div>
-
-                <div className="premiumFeatureSection">
-                  <p className="premiumSectionLabel">サブスク特典</p>
-                  <ul className="premiumFeatureList">
-                    <li>カスタム通知ルール（科目別の締切通知タイミング）</li>
-                    <li>限定 Discord コミュニティ招待</li>
-                  </ul>
-                </div>
-
-                {notificationRulesSettings}
-
-                <button
-                  type="button"
-                  className="premiumLogoutBtn"
-                  onClick={() => void handleLogout()}
-                >
-                  ログアウト
-                </button>
-              </div>
-            </details>
-          )}
-          {BACKEND_ENABLED && !isSubscriber && (
-            <ProBanner apiBaseUrl={API_BASE_URL} onLogin={() => void handleAfterLogin()} />
-          )}
-          {!BACKEND_ENABLED && (
-            <details className="settings" open>
-              <summary>通知設定</summary>
-              <div className="premiumSettingsBody">
-                {notificationRulesSettings}
-              </div>
-            </details>
-          )}
+          <details className="settings" open>
+            <summary>通知設定</summary>
+            <div className="premiumSettingsBody">
+              {notificationRulesSettings}
+            </div>
+          </details>
 
           <div className="displaySettings">
             <span className="displaySettingsLabel">テーマ</span>
@@ -1646,6 +1506,10 @@ export default function App() {
             <div className="settingsMeta">
               対象: {selectedCourseCount}/{courses.length} コース
             </div>
+
+            <p className="courseSelectNote">
+              自動選択は時間割の科目コードと一致したLETUSコースのみが対象です。common module など一部の科目は自動で選ばれないことがあります。追跡したい科目が下に無い・OFFのままの場合は手動でONにしてください。
+            </p>
 
             <div className="courseBulkActions">
               <button
@@ -1743,45 +1607,6 @@ export default function App() {
               )}
             </div>
           </CollapsibleSection>
-
-          {(__DEV_TOOLS__ || __BETA__) && (
-            <details className="settings devPanel">
-              <summary>{__DEV_TOOLS__ ? '🛠 開発用: サブスク状態' : 'ベータ設定: サブスク状態'}</summary>
-              <div className="devPanelBody">
-                <span>現在: <strong>{isSubscriber ? '✅ サブスクライバー' : '❌ 非サブスクライバー'}</strong></span>
-                <div className="devPanelActions">
-                  <button
-                    type="button"
-                    onClick={async () => {
-                      await setBetaSubscriptionOverride('on')
-                      setIsSubscriber(true)
-                    }}
-                  >
-                    サブスクON（強制）
-                  </button>
-                  <button
-                    type="button"
-                    onClick={async () => {
-                      await setBetaSubscriptionOverride('off')
-                      setIsSubscriber(false)
-                    }}
-                  >
-                    サブスクOFF（強制）
-                  </button>
-                  <button
-                    type="button"
-                    onClick={async () => {
-                      await clearBetaSubscriptionOverride()
-                      const active = await isSubscriptionActive()
-                      setIsSubscriber(resolveSubscriber(active, null))
-                    }}
-                  >
-                    オーバーライド解除（実状態に戻す）
-                  </button>
-                </div>
-              </div>
-            </details>
-          )}
 
           <details className="settings">
             <summary>データ管理</summary>
