@@ -480,6 +480,7 @@ chrome.notifications.onClosed.addListener(async (notificationId) => {
 
 export async function scanAssignmentCandidatesInBackground(
   scanLevel: ScanLevel = 'standard',
+  pacer: Pacer = letusPacer,
 ): Promise<{ ok: boolean; reason?: string; detectedCount?: number; errorMessage?: string }> {
   if (isAssignmentScanning) return { ok: false, reason: 'already_running' }
 
@@ -514,7 +515,7 @@ export async function scanAssignmentCandidatesInBackground(
       async (course) => {
         let response: Response
         try {
-          await letusPacer.acquire()
+          await pacer.acquire()
           response = await fetch(course.url, { credentials: 'include' })
         } catch {
           return null
@@ -610,7 +611,7 @@ export async function scanAssignmentCandidatesInBackground(
 
 // ─── Deadline scan ────────────────────────────────────────────────────────────
 
-export async function scanDeadlinesInBackground(): Promise<{
+export async function scanDeadlinesInBackground(pacer: Pacer = letusPacer): Promise<{
   ok: boolean
   reason?: string
   detectedCount?: number
@@ -623,7 +624,7 @@ export async function scanDeadlinesInBackground(): Promise<{
 
   const courses = await getCourses()
   const enabledCourses = courses.filter((c) => c.enabled)
-  const loginStatus = await checkIsLoggedIn(enabledCourses)
+  const loginStatus = await checkIsLoggedIn(enabledCourses, pacer)
 
   if (loginStatus !== 'ok') {
     const errorMessage =
@@ -666,7 +667,7 @@ export async function scanDeadlinesInBackground(): Promise<{
       async (candidate) => {
         let response: Response
         try {
-          await letusPacer.acquire()
+          await pacer.acquire()
           response = await fetch(candidate.url, { credentials: 'include' })
         } catch {
           return null

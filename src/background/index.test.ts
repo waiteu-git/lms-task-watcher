@@ -10,6 +10,9 @@ import {
 } from './storageKeys'
 import { TABLE_MINIMAL } from '../core/timetable.fixtures'
 
+// 実時間の setTimeout を待たないよう、テストではペーシングを無効化する。
+const noopPacer = { acquire: async () => {} }
+
 const store: Record<string, unknown> = {}
 
 const notificationsCreate = vi.fn(
@@ -200,7 +203,7 @@ describe('upsertAssignments', () => {
 
 describe('checkIsLoggedIn', () => {
   it('有効なコースがない場合はokを返す', async () => {
-    const result = await checkIsLoggedIn([makeCourse({ enabled: false })])
+    const result = await checkIsLoggedIn([makeCourse({ enabled: false })], noopPacer)
     expect(result).toBe('ok')
   })
 
@@ -210,13 +213,13 @@ describe('checkIsLoggedIn', () => {
       url: 'https://letus.ed.tus.ac.jp/course/view.php?id=1',
       text: async () => '<html>コース内容...</html>',
     })))
-    const result = await checkIsLoggedIn([makeCourse()])
+    const result = await checkIsLoggedIn([makeCourse()], noopPacer)
     expect(result).toBe('ok')
   })
 
   it('レスポンスURLに/login/を含む場合はlogin_requiredを返す', async () => {
     vi.stubGlobal('fetch', vi.fn(async () => ({ ok: true, url: 'https://letus.ed.tus.ac.jp/login/index.php' })))
-    const result = await checkIsLoggedIn([makeCourse()])
+    const result = await checkIsLoggedIn([makeCourse()], noopPacer)
     expect(result).toBe('login_required')
   })
 
@@ -226,19 +229,19 @@ describe('checkIsLoggedIn', () => {
       url: 'https://letus.ed.tus.ac.jp/course/view.php?id=1',
       text: async () => '<span>あなたはログインしていません。(<a href="/login/index.php">ログイン</a>)</span>',
     })))
-    const result = await checkIsLoggedIn([makeCourse()])
+    const result = await checkIsLoggedIn([makeCourse()], noopPacer)
     expect(result).toBe('login_required')
   })
 
   it('fetchが例外を投げた場合はnetwork_errorを返す', async () => {
     vi.stubGlobal('fetch', vi.fn(async () => { throw new Error('Failed to fetch') }))
-    const result = await checkIsLoggedIn([makeCourse()])
+    const result = await checkIsLoggedIn([makeCourse()], noopPacer)
     expect(result).toBe('network_error')
   })
 
   it('response.okがfalseの場合はnetwork_errorを返す', async () => {
     vi.stubGlobal('fetch', vi.fn(async () => ({ ok: false, url: 'https://letus.ed.tus.ac.jp/course/view.php?id=1' })))
-    const result = await checkIsLoggedIn([makeCourse()])
+    const result = await checkIsLoggedIn([makeCourse()], noopPacer)
     expect(result).toBe('network_error')
   })
 })
@@ -258,7 +261,7 @@ describe('scanAssignmentCandidatesInBackground', () => {
       }
     }))
 
-    await scanAssignmentCandidatesInBackground('standard')
+    await scanAssignmentCandidatesInBackground('standard', noopPacer)
 
     expect(sawEmptyDuringScan).toBe(false)
   })
@@ -279,7 +282,7 @@ describe('scanAssignmentCandidatesInBackground', () => {
       return { ok: true, text: async () => '<a href="/mod/assign/view.php?id=99">新課題</a>' }
     }))
 
-    const result = await scanAssignmentCandidatesInBackground('standard')
+    const result = await scanAssignmentCandidatesInBackground('standard', noopPacer)
 
     expect(result.ok).toBe(true)
     const saved = store[ASSIGNMENT_CANDIDATES_KEY] as AssignmentCandidate[]
@@ -292,7 +295,7 @@ describe('scanAssignmentCandidatesInBackground', () => {
 
     vi.stubGlobal('fetch', vi.fn(async () => ({ ok: true, text: async () => '' })))
 
-    await scanAssignmentCandidatesInBackground('standard')
+    await scanAssignmentCandidatesInBackground('standard', noopPacer)
 
     const saved = store[ASSIGNMENT_CANDIDATES_KEY] as AssignmentCandidate[]
     expect(saved).toHaveLength(0)
@@ -314,7 +317,7 @@ describe('scanAssignmentCandidatesInBackground', () => {
       return { ok: true, text: async () => '<a href="/mod/assign/view.php?id=99">新課題</a>' }
     }))
 
-    const result = await scanAssignmentCandidatesInBackground('standard')
+    const result = await scanAssignmentCandidatesInBackground('standard', noopPacer)
 
     expect(result.ok).toBe(true)
     const saved = store[ASSIGNMENT_CANDIDATES_KEY] as AssignmentCandidate[]
@@ -331,7 +334,7 @@ describe('scanDeadlinesInBackground', () => {
 
     vi.stubGlobal('fetch', vi.fn(async () => ({ ok: true, url: 'https://letus.ed.tus.ac.jp/login/index.php' })))
 
-    const result = await scanDeadlinesInBackground()
+    const result = await scanDeadlinesInBackground(noopPacer)
 
     expect(result.ok).toBe(false)
     expect(result.reason).toBe('login_required')
@@ -349,7 +352,7 @@ describe('scanDeadlinesInBackground', () => {
 
     vi.stubGlobal('fetch', vi.fn(async () => { throw new Error('Failed to fetch') }))
 
-    const result = await scanDeadlinesInBackground()
+    const result = await scanDeadlinesInBackground(noopPacer)
 
     expect(result.ok).toBe(false)
     expect(result.reason).toBe('network_error')
@@ -375,7 +378,7 @@ describe('scanDeadlinesInBackground', () => {
       return { ok: true, url, text: async () => '' }
     }))
 
-    await scanDeadlinesInBackground()
+    await scanDeadlinesInBackground(noopPacer)
 
     expect(sawEmptyDuringScan).toBe(false)
   })
@@ -390,7 +393,7 @@ describe('scanDeadlinesInBackground', () => {
 
     vi.stubGlobal('fetch', vi.fn(async (url: string) => ({ ok: true, url, text: async () => '' })))
 
-    await scanDeadlinesInBackground()
+    await scanDeadlinesInBackground(noopPacer)
 
     const saved = store[ASSIGNMENTS_KEY] as Assignment[]
     expect(saved.some((a) => a.id === 'removed-candidate')).toBe(false)
@@ -411,7 +414,7 @@ describe('scanDeadlinesInBackground', () => {
       return { ok: true, url, text: async () => '' }
     }))
 
-    await scanDeadlinesInBackground()
+    await scanDeadlinesInBackground(noopPacer)
 
     const saved = store[ASSIGNMENTS_KEY] as Assignment[]
     const kept = saved.find((a) => a.id === 'cand-2')
@@ -435,7 +438,7 @@ describe('scanDeadlinesInBackground', () => {
       return { ok: true, url, text: async () => '' }
     }))
 
-    const result = await scanDeadlinesInBackground()
+    const result = await scanDeadlinesInBackground(noopPacer)
 
     expect(result.ok).toBe(true)
     const saved = store[ASSIGNMENTS_KEY] as Assignment[]
