@@ -174,6 +174,11 @@
   - [x] テストTZをAsia/Tokyoに固定（`vitest.setup.ts`、日時テストの非JSTランナー移植性）
   - [x] 品質: tsc -b緑・vite build成功・vitest 190/190緑（実src）。opus最終whole-branchレビュー=READY TO MERGE（Critical/Importantなし）
 
+- [x] **v1.2.1 バグ修正**（2026-07-10）
+  - [x] 科目ID（コース番号）に英字を含むコース（`9975A06`/`9960S01`/`9960E09` 等）が時間割からのコース自動選択に載らない不具合。旧 `\d{7}` 固定を共有モジュール `src/core/courseCode.ts`（`\d{4}[0-9A-Z]{3}`）へ集約し `timetable.ts`（セルのパース）・`timetableLink.ts`（LETUSコース名）を差し替え。litus `src/parsers/courseCode.ts` の双子。セル全文は要素間が連結される（`9973337`+`2.0単位`）ため、科目IDのdiv完全一致を主・境界なし走査をフォールバックにする
+  - [x] 課題提出後にLETUSページ上のバッジが「未提出」のまま更新されない不具合。真因＝content scriptが起動時のストレージ・スナップショットで一度だけ描画し `storage.onChanged` を購読していなかった（popup/dashboardは購読済み）。状態決定を純粋層 `src/core/badgeState.ts` に切り出し、`manualTaskWidget.ts` を差分再描画＋`storage.onChanged`／bfcache `pageshow` 購読に変更。課題ページ右下の表示も「登録済み」→ 実提出状態へ
+  - [x] content script が popup と実行時モジュールを共有すると Rollup が共有チャンクへ切り出し `content.js` に `import` 文が残る（classic scriptなので全機能が死ぬ）。vite.config.ts にビルド時ガードを追加
+
 - [x] **純粋ロジックのlitus逆流**（2026-07-08 判定: **不要**）
   - litus `src/assignments/buckets.ts`（within24h/tomorrow/thisWeek/…）が拡張の新`deadlineTier`（当日/今週）より高機能で先行＝逆流でもたらす改善なし
   - `selectCoursesByTimetable`（enable管理連動）・`resolveDisplayDay`（popup今日）は拡張固有で単体完結アーキのlitusに非マップ

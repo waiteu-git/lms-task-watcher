@@ -30,6 +30,10 @@ describe('extractCourseCodes', () => {
     expect(extractCourseCodes('9973337 基礎電気数学及び演習')).toEqual(['9973337'])
     expect(extractCourseCodes('統合 9973337 / 9973344')).toEqual(['9973337', '9973344'])
   })
+  it('英字を含む科目ID（9975A06 等）も抽出する', () => {
+    expect(extractCourseCodes('9975A06 機械航空宇宙力学1')).toEqual(['9975A06'])
+    expect(extractCourseCodes('統合 9960E09 / 9960S01')).toEqual(['9960E09', '9960S01'])
+  })
   it('7桁が無ければ空配列', () => {
     expect(extractCourseCodes('基礎電気数学及び演習')).toEqual([])
     expect(extractCourseCodes('99733370 号')).toEqual([]) // 8桁は取らない

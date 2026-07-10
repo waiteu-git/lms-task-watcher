@@ -28,6 +28,23 @@ export default defineConfig(({ mode }) => {
         writeFileSync(path, JSON.stringify(manifest, null, 2))
       },
     },
+    {
+      // content script は classic script として実行されるため import 文が残ると SyntaxError で全機能が死ぬ。
+      // popup/background と実行時モジュールを共有すると Rollup が共有チャンクへ切り出して import が残るため、
+      // ビルド時に検出して失敗させる。
+      name: 'assert-content-scripts-are-self-contained',
+      closeBundle() {
+        for (const file of ['content.js', 'classTimetable.js']) {
+          const code = readFileSync(resolve(__dirname, `${outDir}/${file}`), 'utf-8')
+          if (/(^|[;\s])import[\s{*"']/.test(code)) {
+            throw new Error(
+              `${file} に import 文が残っています。content script は自己完結が必須です。` +
+                `popup/background と共有される実行時モジュールを import していないか確認してください。`,
+            )
+          }
+        }
+      },
+    },
   ],
   build: {
     outDir,

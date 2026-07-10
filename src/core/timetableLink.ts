@@ -1,6 +1,7 @@
 import type { TimetableSlot, DayOfWeek } from './timetable'
 import type { Course, Assignment } from './types'
 import type { ManualAssignment } from './manualAssignment'
+import { extractCourseCodes, firstCourseCode } from './courseCode'
 import { deadlineTier, type DeadlineTier } from '../utils/date'
 import { isSubmittedAssignment } from '../utils/assignment'
 
@@ -15,16 +16,11 @@ export type AssignmentSlotInfo = {
   courseCode: string
 }
 
-/** LETUSコース名に埋め込まれた全7桁科目コードを抽出する（統合コースは複数）。 */
-export function extractCourseCodes(letusCourseName: string): string[] {
-  const matches = letusCourseName.match(/(?<!\d)\d{7}(?!\d)/g)
-  return matches ? Array.from(new Set(matches)) : []
-}
+/** LETUSコース名に埋め込まれた全科目コードを抽出する（統合コースは複数）。 */
+export { extractCourseCodes } from './courseCode'
 
-/** 先頭の7桁コード。無ければ null。 */
-export function extractCourseCode(letusCourseName: string): string | null {
-  return extractCourseCodes(letusCourseName)[0] ?? null
-}
+/** 先頭の科目コード。無ければ null。 */
+export const extractCourseCode = firstCourseCode
 
 /** 既定表示学期。取得済みがあれば capturedAt 最新、無ければ日付（4–9月=前期）。 */
 export function resolveSemester(now: Date, captured: SemesterCapture[]): Semester {
@@ -71,7 +67,7 @@ export function linkAssignmentsToSlots(
   const codeToSlot: Record<string, AssignmentSlotInfo> = {}
   for (const s of slots) {
     for (const c of s.classes) {
-      // 7桁コードの無いセル(courseCode='')は突合キーにならない。空文字で全て衝突するのを防ぐ。
+      // 科目コードの無いセル(courseCode='')は突合キーにならない。空文字で全て衝突するのを防ぐ。
       if (!c.courseCode) continue
       if (!(c.courseCode in codeToSlot)) {
         codeToSlot[c.courseCode] = {

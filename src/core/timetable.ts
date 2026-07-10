@@ -1,4 +1,5 @@
 import { parse, type HTMLElement } from 'node-html-parser'
+import { firstCourseCodeLoose, isCourseCode } from './courseCode'
 
 export type TimetableClass = {
   courseCode: string
@@ -24,8 +25,7 @@ export function parseClassCell(cellHtml: string): TimetableClass | null {
   const name = nameEl.text.trim()
   if (!name) return null
 
-  const codeMatch = cell.text.match(/\d{7}/)
-  const courseCode = codeMatch ? codeMatch[0] : ''
+  const courseCode = extractCourseCode(cell)
 
   const roomEl = cell.querySelector('span')
   const room = roomEl ? roomEl.text.trim() : ''
@@ -48,6 +48,16 @@ export function parseClassCell(cellHtml: string): TimetableClass | null {
   return { courseCode, name, teachers, room, isRemote, credits, badges }
 }
 
+/**
+ * 科目IDは単独のdivに入る。まず完全一致で拾い、見つからない場合のみセル全文から拾う。
+ * セル全文は要素間が連結される（`9973337` + `2.0単位`）ため境界チェックはできない。
+ */
+function extractCourseCode(cell: HTMLElement): string {
+  const codeDiv = cell.querySelectorAll('div').find((d: HTMLElement) => isCourseCode(d.text.trim()))
+  if (codeDiv) return codeDiv.text.trim()
+  return firstCourseCodeLoose(cell.text) ?? ''
+}
+
 function extractTeachers(cell: HTMLElement, name: string, courseCode: string): string[] {
   const divs = cell.querySelectorAll('div')
   for (const d of divs) {
@@ -61,7 +71,7 @@ function extractTeachers(cell: HTMLElement, name: string, courseCode: string): s
     if (!t) continue
     if (t === name) continue
     if (t === courseCode) continue
-    if (/^\d{7}$/.test(t)) continue
+    if (isCourseCode(t)) continue
     if (/単位/.test(t)) continue
     if (t.includes('ui-button')) continue
     return t.split('／').map((x) => x.trim()).filter((x) => x.length > 0)
