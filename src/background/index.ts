@@ -15,8 +15,10 @@ import {
   LAST_REFRESH_AT_KEY,
   NOTIFIED_DEADLINE_KEYS_KEY,
   NOTIFICATION_TARGETS_KEY,
+  TERMS_CONSENT_KEY,
   WELCOME_GUIDE_SHOWN_KEY,
 } from './storageKeys'
+import { isConsented } from '../legal/termsConsent'
 import type { AssignmentScanStatus, DeadlineScanStatus } from '../core/scanStatus'
 import { getManualAssignments } from '../core/manualAssignment'
 import { getAuthToken, isSubscriptionActive } from '../core/auth'
@@ -889,7 +891,10 @@ export async function checkIsLoggedIn(
   }
 }
 
-async function runAutoScan(): Promise<void> {
+export async function runAutoScan(): Promise<void> {
+  // 規約に同意していない利用者のデータは一切扱わない。
+  if (!(await isConsented())) return
+
   const courses = await getCourses()
   const enabledCourses = courses.filter((c) => c.enabled)
 
@@ -915,11 +920,22 @@ async function runAutoScan(): Promise<void> {
   await checkDeadlineWarningNotifications()
 }
 
+/** 未同意のあいだ拡張アイコンに "!" を出し、同意で消す。通知は使わない。 */
+export async function updateConsentBadge(): Promise<void> {
+  const consented = await isConsented()
+  await chrome.action.setBadgeText({ text: consented ? '' : '!' })
+  if (!consented) {
+    await chrome.action.setBadgeBackgroundColor({ color: '#d93025' })
+  }
+}
+
 export async function handleInstalled(details: chrome.runtime.InstalledDetails): Promise<void> {
   chrome.alarms.create(ALARM_NAME, {
     delayInMinutes: ALARM_PERIOD_MINUTES,
     periodInMinutes: ALARM_PERIOD_MINUTES,
   })
+
+  await updateConsentBadge()
 
   if (details.reason === 'install') {
     await chrome.storage.local.set({ [WELCOME_GUIDE_SHOWN_KEY]: true })
@@ -957,6 +973,12 @@ chrome.runtime.onStartup.addListener(() => {
   })
 })
 
+chrome.storage.local.onChanged.addListener((changes) => {
+  if (TERMS_CONSENT_KEY in changes) {
+    void updateConsentBadge()
+  }
+})
+
 chrome.alarms.onAlarm.addListener((alarm) => {
   if (alarm.name !== ALARM_NAME) return
 
@@ -976,15 +998,11 @@ chrome.storage.onChanged.addListener((changes, area) => {
 
 // ─── Message handler ──────────────────────────────────────────────────────────
 
-chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
-  console.log('[LETUS Task Watcher] received message', message)
-
-  if (message?.type === 'OPEN_DASHBOARD') {
-    void chrome.tabs.create({ url: chrome.runtime.getURL('index.html#dashboard') })
-    return
-  }
-
-  if (message?.type === 'UPSERT_COURSES') {
+function handleCollectingMessage(
+  message: { type: string; [k: string]: unknown },
+  sendResponse: (response: unknown) => void,
+): void {
+  if (message.type === 'UPSERT_COURSES') {
     const courses = (message.courses ?? []) as Course[]
     sendResponse({ ok: true, count: courses.length })
     upsertCourses(courses)
@@ -993,13 +1011,13 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
       .catch((error) => {
         console.error('[LETUS Task Watcher] upsertCourses failed', error)
       })
-    return false
+    return
   }
 
-  if (message?.type === 'START_ASSIGNMENT_SCAN') {
+  if (message.type === 'START_ASSIGNMENT_SCAN') {
     if (isAssignmentScanning) {
       sendResponse({ ok: false, reason: 'already_running' })
-      return false
+      return
     }
     const scanLevel = (message.scanLevel ?? 'standard') as ScanLevel
     void (async () => {
@@ -1018,19 +1036,43 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
         console.error('[LETUS Task Watcher] assignment scan failed', error)
       })
     })()
-    return true
+    return
   }
 
-  if (message?.type === 'START_DEADLINE_SCAN') {
+  if (message.type === 'START_DEADLINE_SCAN') {
     if (isDeadlineScanning) {
       sendResponse({ ok: false, reason: 'already_running' })
-      return false
+      return
     }
     sendResponse({ ok: true, reason: 'started' })
     scanDeadlinesInBackground().catch((error) => {
       console.error('[LETUS Task Watcher] deadline scan failed', error)
     })
-    return false
+    return
+  }
+}
+
+chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
+  console.log('[LETUS Task Watcher] received message', message)
+
+  if (message?.type === 'OPEN_DASHBOARD') {
+    void chrome.tabs.create({ url: chrome.runtime.getURL('index.html#dashboard') })
+    return
+  }
+
+  // 収集を伴うメッセージは、規約同意まで一切受け付けない。
+  // popup の自動 refresh は React の useEffect であり画面ゲートでは止まらないため、
+  // ここが実効的な防波堤になる。
+  const COLLECTING_MESSAGES = ['UPSERT_COURSES', 'START_ASSIGNMENT_SCAN', 'START_DEADLINE_SCAN']
+  if (COLLECTING_MESSAGES.includes(message?.type)) {
+    void isConsented().then((consented) => {
+      if (!consented) {
+        sendResponse({ ok: false, reason: 'consent_required' })
+      } else {
+        handleCollectingMessage(message, sendResponse)
+      }
+    })
+    return true
   }
 
   return false

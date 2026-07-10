@@ -7,190 +7,441 @@
   <link rel="icon" type="image/svg+xml" href="favicon.svg" />
   <link rel="icon" type="image/png" sizes="32x32" href="icons/icon-32.png" />
   <style>
+    :root {
+      --bg:        #f4f4f5;
+      --card:      #ffffff;
+      --text:      #1a1a1a;
+      --muted:     #6b7280;
+      --faint:     #9ca3af;
+      --border:    #e5e7eb;
+      --hairline:  #f3f4f6;
+      --accent:    #7c3aed;
+      --accent-ink:#6d28d9;
+      --accent-soft-bg:    #ede9fe;
+      --accent-soft-border:#ddd6fe;
+      --demo-bg:   #f3f4f6;
+      --chip-bg:   #ffffff;
+      --note-bg:   #faf9fc;
+      --shadow:    0 1px 3px rgba(17,24,39,.08), 0 8px 30px rgba(17,24,39,.06);
+      --hero-tint: linear-gradient(135deg, #f5f3ff 0%, #ffffff 60%);
+      /* Litus (green) */
+      --li-bg:     #ecfdf5;
+      --li-border: #a7f3d0;
+      --li-head:   #065f46;
+      --li-text:   #047857;
+      --li-link:   #0f9e75;
+      --li-chip-bg:#d1fae5;
+    }
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --bg:        #0f172a;
+        --card:      #1e293b;
+        --text:      #f1f5f9;
+        --muted:     #94a3b8;
+        --faint:     #64748b;
+        --border:    #334155;
+        --hairline:  #273449;
+        --accent:    #a78bfa;
+        --accent-ink:#c4b5fd;
+        --accent-soft-bg:    #2e1065;
+        --accent-soft-border:#4c1d95;
+        --demo-bg:   #0f172a;
+        --chip-bg:   #1e293b;
+        --note-bg:   #172033;
+        --shadow:    0 1px 3px rgba(0,0,0,.4), 0 12px 40px rgba(0,0,0,.35);
+        --hero-tint: linear-gradient(135deg, #241b45 0%, #1e293b 60%);
+        --li-bg:     rgba(16,185,129,.10);
+        --li-border: #166534;
+        --li-head:   #6ee7b7;
+        --li-text:   #a7f3d0;
+        --li-link:   #34d399;
+        --li-chip-bg:rgba(16,185,129,.20);
+      }
+    }
+
     * { box-sizing: border-box; margin: 0; padding: 0; }
+    html { -webkit-text-size-adjust: 100%; }
     body {
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-      background: #f5f5f5;
-      color: #1a1a1a;
-      padding: 40px 16px;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Hiragino Sans', 'Noto Sans JP', Meiryo, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      padding: 40px 16px 56px;
+      line-height: 1.7;
+      -webkit-font-smoothing: antialiased;
     }
     .container {
-      max-width: 640px;
+      max-width: 760px;
       margin: 0 auto;
-      background: #ffffff;
-      border-radius: 12px;
-      padding: 40px;
-      box-shadow: 0 1px 4px rgba(0,0,0,0.1);
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      box-shadow: var(--shadow);
+      overflow: hidden;
     }
-    .eyebrow {
-      font-size: 12px;
-      font-weight: 600;
-      color: #7c3aed;
-      letter-spacing: 0.08em;
-      text-transform: uppercase;
-      margin-bottom: 8px;
-    }
-    h1 { font-size: 24px; font-weight: 700; margin-bottom: 4px; }
-    .subtitle { font-size: 14px; color: #6b7280; margin-bottom: 32px; }
-    h2 {
-      font-size: 15px;
-      font-weight: 700;
-      color: #374151;
-      margin: 32px 0 12px;
-      padding-bottom: 8px;
-      border-bottom: 1px solid #e5e7eb;
-    }
-    p { font-size: 14px; line-height: 1.7; margin-bottom: 10px; }
+    a { color: var(--accent); }
+    a:hover { color: var(--accent-ink); }
 
-    /* ── 固定手順のイラスト ── */
+    /* ── Hero ── */
+    .hero {
+      background: var(--hero-tint);
+      padding: 36px 40px 32px;
+      border-bottom: 1px solid var(--border);
+    }
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 20px;
+    }
+    .logo {
+      width: 34px; height: 34px;
+      border-radius: 9px;
+      background: var(--accent);
+      display: flex; align-items: center; justify-content: center;
+      flex-shrink: 0;
+      box-shadow: 0 2px 8px rgba(124,58,237,.35);
+    }
+    .logo svg { width: 20px; height: 20px; display: block; }
+    .brand-name { font-size: 13px; font-weight: 700; letter-spacing: .01em; }
+    .brand-name small { display: block; font-weight: 500; color: var(--muted); font-size: 11px; letter-spacing: .04em; }
+    .eyebrow {
+      display: inline-block;
+      font-size: 11px;
+      font-weight: 700;
+      color: var(--accent);
+      letter-spacing: .12em;
+      text-transform: uppercase;
+      margin-bottom: 10px;
+    }
+    h1 {
+      font-size: 27px;
+      font-weight: 800;
+      letter-spacing: -.01em;
+      line-height: 1.3;
+      margin-bottom: 10px;
+      text-wrap: balance;
+    }
+    .subtitle { font-size: 15px; color: var(--muted); max-width: 48ch; text-wrap: pretty; }
+    .setup-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      margin-top: 18px;
+      background: var(--accent-soft-bg);
+      color: var(--accent-ink);
+      border: 1px solid var(--accent-soft-border);
+      border-radius: 99px;
+      padding: 6px 14px;
+      font-size: 12.5px;
+      font-weight: 700;
+      white-space: nowrap;
+    }
+    .setup-pill .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--accent); }
+
+    /* ── Body sections ── */
+    .body { padding: 12px 40px 36px; }
+    section { padding: 24px 0; border-bottom: 1px solid var(--hairline); }
+    section:last-of-type { border-bottom: none; }
+
+    .sec-head { display: flex; align-items: flex-start; gap: 14px; margin-bottom: 14px; }
+    .sec-num {
+      width: 30px; height: 30px;
+      flex-shrink: 0;
+      border-radius: 50%;
+      background: var(--accent);
+      color: #fff;
+      font-size: 15px;
+      font-weight: 800;
+      display: flex; align-items: center; justify-content: center;
+      margin-top: 1px;
+    }
+    .sec-head h2 { font-size: 18px; font-weight: 800; line-height: 1.35; letter-spacing: -.01em; }
+    .sec-head p { font-size: 13.5px; color: var(--muted); margin-top: 3px; }
+    .sec-indent { padding-left: 44px; }
+
+    p.lead { font-size: 14.5px; }
+
+    /* ── Toolbar demo ── */
     .toolbar-demo {
       display: flex;
       align-items: center;
       gap: 8px;
-      background: #f3f4f6;
-      border: 1px solid #e5e7eb;
-      border-radius: 10px;
-      padding: 10px 14px;
-      margin: 12px 0;
-      font-size: 13px;
-      color: #6b7280;
+      background: var(--demo-bg);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 10px 12px;
+      margin: 14px 0 4px;
     }
+    .toolbar-demo .dots { display: flex; gap: 5px; flex-shrink: 0; }
+    .toolbar-demo .dots i { width: 9px; height: 9px; border-radius: 50%; background: var(--border); display: block; }
     .toolbar-demo .addr {
       flex: 1;
-      background: #ffffff;
+      min-width: 0;
+      background: var(--chip-bg);
       border-radius: 99px;
-      padding: 6px 14px;
-      border: 1px solid #e5e7eb;
+      padding: 7px 14px;
+      border: 1px solid var(--border);
       font-size: 12px;
+      color: var(--muted);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
     }
     .toolbar-demo .puzzle {
       font-size: 18px;
-      animation: pulse 1.6s ease-in-out infinite;
+      line-height: 1;
+      flex-shrink: 0;
+      display: inline-flex;
+      width: 30px; height: 30px;
+      align-items: center; justify-content: center;
+      border-radius: 8px;
+      background: var(--accent-soft-bg);
+      border: 1px solid var(--accent-soft-border);
+      animation: pulse 1.8s ease-in-out infinite;
     }
     @keyframes pulse {
-      0%, 100% { transform: scale(1); }
-      50% { transform: scale(1.25); }
+      0%, 100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(124,58,237,.30); }
+      50%      { transform: scale(1.08); box-shadow: 0 0 0 6px rgba(124,58,237,0); }
     }
-    ol.steps { margin: 0 0 8px 0; padding-left: 0; list-style: none; counter-reset: step; }
+    .toolbar-demo .kebab { color: var(--faint); font-size: 16px; flex-shrink: 0; padding: 0 2px; }
+
+    /* ── Numbered steps ── */
+    ol.steps { list-style: none; counter-reset: step; margin: 12px 0 0; }
     ol.steps li {
       font-size: 14px;
-      line-height: 1.7;
-      padding: 8px 0 8px 40px;
+      line-height: 1.65;
+      padding: 10px 0 10px 40px;
       position: relative;
       counter-increment: step;
-      border-bottom: 1px solid #f3f4f6;
+      border-bottom: 1px solid var(--hairline);
     }
+    ol.steps li:last-child { border-bottom: none; }
     ol.steps li::before {
       content: counter(step);
       position: absolute;
-      left: 0;
-      top: 8px;
-      width: 26px;
-      height: 26px;
+      left: 0; top: 9px;
+      width: 26px; height: 26px;
       border-radius: 50%;
-      background: #ede9fe;
-      color: #7c3aed;
-      font-weight: 700;
+      background: var(--accent-soft-bg);
+      color: var(--accent);
+      font-weight: 800;
       font-size: 13px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
+      display: flex; align-items: center; justify-content: center;
     }
+    strong { font-weight: 700; }
+
     .note {
-      font-size: 12px;
-      color: #6b7280;
-      background: #fafafa;
-      border: 1px solid #f3f4f6;
-      border-radius: 8px;
-      padding: 10px 12px;
-      margin-top: 8px;
-    }
-    .btn {
-      display: inline-block;
-      background: #7c3aed;
-      color: #ffffff;
-      font-size: 14px;
-      font-weight: 600;
-      padding: 10px 20px;
-      border-radius: 8px;
-      text-decoration: none;
-      margin: 8px 8px 8px 0;
-    }
-    .btn.secondary {
-      background: #ffffff;
-      color: #7c3aed;
-      border: 1px solid #ddd6fe;
-    }
-    .litus {
-      background: #ecfdf5;
-      border: 1px solid #a7f3d0;
+      font-size: 12.5px;
+      color: var(--muted);
+      background: var(--note-bg);
+      border: 1px solid var(--border);
       border-radius: 10px;
-      padding: 16px;
-      margin-top: 32px;
+      padding: 11px 14px;
+      margin-top: 14px;
+      line-height: 1.6;
     }
-    .litus h2 { border: none; margin: 0 0 8px; padding: 0; color: #065f46; }
-    .litus p { font-size: 13px; color: #065f46; margin-bottom: 0; }
-    .litus a { color: #0f9e75; font-weight: 600; }
+    .note b { color: var(--text); font-weight: 700; }
+
+    /* ── Buttons ── */
+    .btn-row { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 18px; }
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background: var(--accent);
+      color: #fff;
+      font-size: 13.5px;
+      font-weight: 700;
+      padding: 10px 18px;
+      border-radius: 10px;
+      text-decoration: none;
+      transition: transform .1s ease, filter .1s ease;
+    }
+    .btn:hover { filter: brightness(1.06); color: #fff; }
+    .btn:active { transform: translateY(1px); }
+    .btn.secondary {
+      background: transparent;
+      color: var(--accent);
+      border: 1px solid var(--accent-soft-border);
+    }
+    .btn.secondary:hover { background: var(--accent-soft-bg); color: var(--accent-ink); }
+
+    /* ── Litus card ── */
+    .litus {
+      margin: 30px 40px;
+      background: var(--li-bg);
+      border: 1px solid var(--li-border);
+      border-radius: 14px;
+      padding: 20px;
+    }
+    .litus .li-top { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
+    .litus .li-chip {
+      font-size: 10.5px; font-weight: 800; letter-spacing: .06em;
+      text-transform: uppercase;
+      color: var(--li-head);
+      background: var(--li-chip-bg);
+      border-radius: 99px;
+      padding: 3px 9px;
+    }
+    .litus h3 { font-size: 16px; font-weight: 800; color: var(--li-head); }
+    .litus p { font-size: 13.5px; color: var(--li-text); line-height: 1.65; }
+    .litus a { color: var(--li-link); font-weight: 700; text-decoration: none; }
+    .litus a:hover { text-decoration: underline; }
+
+    /* ── Footer ── */
     .footer {
-      margin-top: 32px;
-      padding-top: 16px;
-      border-top: 1px solid #e5e7eb;
+      margin: 0 40px;
+      padding: 22px 0 6px;
+      border-top: 1px solid var(--border);
       font-size: 13px;
-      color: #6b7280;
+      color: var(--muted);
+      text-align: center;
     }
-    .footer a { color: #7c3aed; }
+    .footer a { font-weight: 700; text-decoration: none; }
+    .footer a:hover { text-decoration: underline; }
+
+    @media (max-width: 520px) {
+      body { padding: 20px 12px 40px; }
+      .hero { padding: 28px 22px 26px; }
+      .body { padding: 8px 22px 28px; }
+      .litus, .footer { margin-left: 22px; margin-right: 22px; }
+      h1 { font-size: 23px; }
+      .sec-indent { padding-left: 0; }
+    }
   </style>
 </head>
 <body>
   <div class="container">
-    <p class="eyebrow">Welcome</p>
-    <h1>LETUS Task Watcher へようこそ</h1>
-    <p class="subtitle">LETUSの課題期限を自動で集めて、締切前に通知します。まずは2分でセットアップしましょう。</p>
 
-    <h2>① ツールバーに固定しよう</h2>
-    <p>固定しておくと、ワンクリックで課題一覧を開けます。</p>
-    <div class="toolbar-demo">
-      <span class="addr">letus.ed.tus.ac.jp</span>
-      <span class="puzzle">🧩</span>
-      <span>⋯</span>
+    <!-- ── Hero ── -->
+    <header class="hero">
+      <div class="brand">
+        <span class="logo" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M8 3.5v3.2M16 3.5v3.2" stroke="#fff" stroke-width="2" stroke-linecap="round"/>
+            <rect x="4" y="5.5" width="16" height="15" rx="3" stroke="#fff" stroke-width="2"/>
+            <path d="M8.5 13.2l2.3 2.3 4.2-4.6" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+        </span>
+        <span class="brand-name">LETUS Task Watcher<small>東京理科大学の学生向け</small></span>
+      </div>
+      <span class="eyebrow">Welcome</span>
+      <h1>LETUS Task Watcher へようこそ</h1>
+      <p class="subtitle">LETUSの課題期限を自動で集めて、締切前に通知します。まずは2分でセットアップしましょう。</p>
+      <span class="setup-pill"><span class="dot"></span>セットアップは約2分</span>
+    </header>
+
+    <div class="body">
+
+      <p class="note">ご利用には<b>利用規約への同意</b>が必要です。同意いただくまで、課題の収集と通知は行いません。以下の手順に沿って進めれば同意できます。全文は<a href="https://lms.waiteu.dev/terms" target="_blank">利用規約</a>でご覧いただけます。</p>
+
+      <!-- ── ① 固定 ── -->
+      <section>
+        <div class="sec-head">
+          <span class="sec-num" aria-hidden="true">1</span>
+          <div>
+            <h2>ツールバーに固定しよう</h2>
+            <p>固定しておくと、ワンクリックで課題一覧を開けます。</p>
+          </div>
+        </div>
+        <div class="sec-indent">
+          <div class="toolbar-demo" aria-hidden="true">
+            <span class="dots"><i></i><i></i><i></i></span>
+            <span class="addr">letus.ed.tus.ac.jp</span>
+            <span class="puzzle">🧩</span>
+            <span class="kebab">⋮</span>
+          </div>
+
+          <div data-browser="chrome">
+            <ol class="steps">
+              <li>アドレスバー右の <strong>🧩 パズルピースのアイコン</strong>をクリックします。</li>
+              <li>一覧から <strong>「LETUS Task Watcher」</strong>を探します。</li>
+              <li>右側の <strong>📌 ピンのアイコン</strong>をクリックして固定します。</li>
+            </ol>
+          </div>
+          <div data-browser="edge">
+            <ol class="steps">
+              <li>アドレスバー右の <strong>🧩 拡張機能のアイコン</strong>をクリックします。</li>
+              <li>一覧から <strong>「LETUS Task Watcher」</strong>を探します。</li>
+              <li>右側の <strong>👁 目のアイコン</strong>をクリックして「ツールバーに表示」にします。</li>
+            </ol>
+          </div>
+
+          <p class="note">固定すると、ワンクリックで<b>今日の時間割</b>と<b>課題の締切</b>がひと目で確認できます。</p>
+        </div>
+      </section>
+
+      <!-- ── ② 同意 ── -->
+      <section>
+        <div class="sec-head">
+          <span class="sec-num" aria-hidden="true">2</span>
+          <div>
+            <h2>利用規約に同意しよう</h2>
+            <p>固定したアイコンから、あと少しで使い始められます。</p>
+          </div>
+        </div>
+        <div class="sec-indent">
+          <p class="lead">
+            ツールバーに固定した拡張機能のアイコンをクリックすると、利用規約が表示されます。内容をご確認のうえ<strong>「同意して始める」</strong>を押すと、利用を開始できます。
+            <strong>同意いただくまで、課題の収集と通知は行いません。</strong>
+            未同意のあいだは、アイコンに <strong>「!」</strong> のバッジが表示されます。
+            全文は<a href="https://lms.waiteu.dev/terms" target="_blank">利用規約</a>でご覧いただけます。
+          </p>
+        </div>
+      </section>
+
+      <!-- ── ③ 使い始め ── -->
+      <section>
+        <div class="sec-head">
+          <span class="sec-num" aria-hidden="true">3</span>
+          <div>
+            <h2>使い始めのステップ</h2>
+            <p>最初に一度だけ、この3つを開けば準備完了です。</p>
+          </div>
+        </div>
+        <div class="sec-indent">
+          <ol class="steps">
+            <li><strong>CLASSで時間割を取り込む</strong> — CLASSにログインし「履修 → 学生時間割表」を開くと、今学期の時間割を自動で取り込みます。</li>
+            <li><strong>LETUS を開く</strong> — コースページを開くと、コースを自動登録し、時間割にある科目を自動で追跡対象にします。</li>
+            <li><strong>「今すぐ更新」を押す</strong> — ポップアップの「今すぐ更新」で課題を取得。以降は自動でチェックします。</li>
+          </ol>
+          <div class="btn-row">
+            <a class="btn" href="https://class.admin.tus.ac.jp" target="_blank" rel="noopener">CLASS を開く →</a>
+            <a class="btn" href="https://letus.ed.tus.ac.jp" target="_blank" rel="noopener">LETUS を開く →</a>
+            <a class="btn secondary" href="index.html#dashboard" target="_blank" rel="noopener">ダッシュボードを開く</a>
+          </div>
+        </div>
+      </section>
+
+      <!-- ── ④ 待つだけ ── -->
+      <section>
+        <div class="sec-head">
+          <span class="sec-num" aria-hidden="true">4</span>
+          <div>
+            <h2>あとは通知を待つだけ</h2>
+          </div>
+        </div>
+        <div class="sec-indent">
+          <p class="lead">1日1回、自動で課題をチェックします。期限が近づくとデスクトップ通知でお知らせするので、締切をうっかり見逃す心配がありません。通知のタイミングは<strong>ダッシュボードから変更</strong>できます。</p>
+        </div>
+      </section>
+
     </div>
-    <div data-browser="chrome">
-      <ol class="steps">
-        <li>アドレスバー右の <strong>🧩 パズルピースアイコン</strong>をクリック</li>
-        <li>一覧から「LETUS Task Watcher」を探す</li>
-        <li>右側の <strong>📌 ピンアイコン</strong>をクリックして固定</li>
-      </ol>
-    </div>
-    <div data-browser="edge">
-      <ol class="steps">
-        <li>アドレスバー右の <strong>🧩 拡張機能アイコン</strong>をクリック</li>
-        <li>一覧から「LETUS Task Watcher」を探す</li>
-        <li>右側の <strong>👁 目のアイコン</strong>をクリックして「ツールバーに表示」</li>
-      </ol>
-    </div>
-    <p class="note">固定すると、ワンクリックで「今日の時間割」と課題の締切がひと目で確認できます。</p>
 
-    <h2>② 使い始めのステップ</h2>
-    <ol class="steps">
-      <li><strong>CLASSで時間割を取り込む</strong> — CLASSにログインし「履修 → 学生時間割表」を開くと、今学期の時間割を自動で取り込みます</li>
-      <li><strong>LETUS を開く</strong> — コースページを開くと、コースを自動登録し、時間割にある科目を自動で追跡対象にします</li>
-      <li><strong>今すぐ更新</strong> — ポップアップの「今すぐ更新」で課題を取得。以降は自動でチェックします</li>
-    </ol>
-    <a class="btn" href="https://class.admin.tus.ac.jp" target="_blank">CLASS を開く →</a>
-    <a class="btn" href="https://letus.ed.tus.ac.jp" target="_blank">LETUS を開く →</a>
-    <a class="btn secondary" href="index.html#dashboard" target="_blank">ダッシュボードを開く</a>
-
-    <h2>③ あとは通知を待つだけ</h2>
-    <p>1日1回自動で課題をチェックし、期限が近づくとデスクトップ通知でお知らせします。通知のタイミングはダッシュボードから変更できます。</p>
-
+    <!-- ── Litus card ── -->
     <div class="litus">
-      <h2>📱 モバイルアプリ「リタス（Litus）」開発中</h2>
-      <p>LETUSの課題も、CLASSの時間割も出席も、スマホひとつに。ブラウザを開かなくてもプッシュ通知を受け取れます。<a href="https://lms.waiteu.dev/app" target="_blank">事前登録はこちら →</a></p>
+      <div class="li-top">
+        <span class="li-chip">📱 開発中</span>
+        <h3>モバイルアプリ「リタス（Litus）」</h3>
+      </div>
+      <p>LETUSの課題も、CLASSの時間割・出席も、スマホひとつに。ブラウザを開かなくてもプッシュ通知で受け取れます。<a href="https://lms.waiteu.dev/app" target="_blank" rel="noopener">事前登録はこちら →</a></p>
     </div>
 
+    <!-- ── Footer ── -->
     <div class="footer">
-      アップデートで開かれた方へ: <a href="changelog.html">今回の更新内容はこちら</a>
+      アップデートで開かれた方へ：<a href="changelog.html">今回の更新内容はこちら →</a>
     </div>
+
   </div>
   <script src="welcome.js"></script>
 </body>

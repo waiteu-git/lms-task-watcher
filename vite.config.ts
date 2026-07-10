@@ -2,6 +2,7 @@ import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import { resolve } from 'path'
 import { readFileSync, writeFileSync } from 'fs'
+import { TERMS_VERSION } from './src/legal/termsVersion.ts'
 
 export default defineConfig(({ mode }) => {
   const isDev = mode === 'development'
@@ -13,6 +14,7 @@ export default defineConfig(({ mode }) => {
   define: {
     __DEV_TOOLS__: isDev,
     __BETA__: isBeta,
+    __TERMS_VERSION__: TERMS_VERSION,
   },
   plugins: [
     react(),
@@ -26,6 +28,23 @@ export default defineConfig(({ mode }) => {
           ? 'LETUS Task Watcher [開発版]'
           : 'LETUS Task Watcher [ベータ]'
         writeFileSync(path, JSON.stringify(manifest, null, 2))
+      },
+    },
+    {
+      // content script は classic script として実行されるため import 文が残ると SyntaxError で全機能が死ぬ。
+      // popup/background と実行時モジュールを共有すると Rollup が共有チャンクへ切り出して import が残るため、
+      // ビルド時に検出して失敗させる。
+      name: 'assert-content-scripts-are-self-contained',
+      closeBundle() {
+        for (const file of ['content.js', 'classTimetable.js']) {
+          const code = readFileSync(resolve(__dirname, `${outDir}/${file}`), 'utf-8')
+          if (/(^|[;\s])import[\s{*"']/.test(code)) {
+            throw new Error(
+              `${file} に import 文が残っています。content script は自己完結が必須です。` +
+                `popup/background と共有される実行時モジュールを import していないか確認してください。`,
+            )
+          }
+        }
       },
     },
   ],

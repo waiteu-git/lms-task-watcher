@@ -3,7 +3,7 @@ import type { Course, Assignment } from '../core/types'
 import type { ManualAssignment } from '../core/manualAssignment'
 import type { TimetableSlot, DayOfWeek } from '../core/timetable'
 import { parseTimetable } from '../core/timetable'
-import { applyOverrides, linkAssignmentsToSlots } from '../core/timetableLink'
+import { applyOverrides, linkAssignmentsToSlots, extractCourseCodes } from '../core/timetableLink'
 import { getTimetableCapture } from '../core/timetableStore'
 import { resolveViewSemester, loadCourseOverrides, resolveDisplayDay } from '../core/timetableView'
 import { academicYear } from '../core/syllabus'
@@ -45,6 +45,15 @@ export function TodayTimetable({ courses, assignments, manualAssignments, newCod
     [slots, day],
   )
 
+  const codeToUrl = useMemo(() => {
+    const m: Record<string, string> = {}
+    for (const c of courses) {
+      if (!c.url) continue
+      for (const code of extractCourseCodes(c.name)) if (!(code in m)) m[code] = c.url
+    }
+    return m
+  }, [courses])
+
   if (!loaded) return null
   if (rawHtml === null) {
     return (
@@ -68,7 +77,18 @@ export function TodayTimetable({ courses, assignments, manualAssignments, newCod
             return (
               <li key={`${s.day}:${s.period}`} className="todayTimetableRow">
                 <span className="todayPeriod">{s.period}</span>
-                <span className="todayName">{c.name}</span>
+                {codeToUrl[c.courseCode] ? (
+                  <button
+                    type="button"
+                    className="todayName todayNameLink"
+                    title="LETUSのコースを開く"
+                    onClick={() => chrome.tabs.create({ url: codeToUrl[c.courseCode] })}
+                  >
+                    {c.name}
+                  </button>
+                ) : (
+                  <span className="todayName">{c.name}</span>
+                )}
                 <span className="todayRoom">{c.room}</span>
                 {tier !== 'none' && (
                   <span

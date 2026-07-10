@@ -3,6 +3,7 @@ import { parseClassCell, parsePeriodTimes, parseTimetable } from './timetable'
 import {
   CELL_FILLED,
   CELL_REMOTE,
+  CELL_ALNUM_CODE,
   CELL_EMPTY,
   JIGEN_AREA_NODA,
   TABLE_MINIMAL,
@@ -29,6 +30,14 @@ describe('parseClassCell', () => {
     expect(c!.room).toBe('遠隔（オンライン）')
     expect(c!.isRemote).toBe(true)
     expect(c!.badges).toEqual([])
+  })
+
+  it('英字を含む科目ID（9975A06）を拾い、教員名に混入させない', () => {
+    const c = parseClassCell(CELL_ALNUM_CODE)
+    expect(c).not.toBeNull()
+    expect(c!.courseCode).toBe('9975A06')
+    expect(c!.name).toBe('機械航空宇宙力学1')
+    expect(c!.teachers).toEqual(['山本　誠'])
   })
 
   it('ui-button ノイズを混入させない', () => {

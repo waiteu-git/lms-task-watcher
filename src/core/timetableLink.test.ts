@@ -30,6 +30,10 @@ describe('extractCourseCodes', () => {
     expect(extractCourseCodes('9973337 基礎電気数学及び演習')).toEqual(['9973337'])
     expect(extractCourseCodes('統合 9973337 / 9973344')).toEqual(['9973337', '9973344'])
   })
+  it('英字を含む科目ID（9975A06 等）も抽出する', () => {
+    expect(extractCourseCodes('9975A06 機械航空宇宙力学1')).toEqual(['9975A06'])
+    expect(extractCourseCodes('統合 9960E09 / 9960S01')).toEqual(['9960E09', '9960S01'])
+  })
   it('7桁が無ければ空配列', () => {
     expect(extractCourseCodes('基礎電気数学及び演習')).toEqual([])
     expect(extractCourseCodes('99733370 号')).toEqual([]) // 8桁は取らない
@@ -85,7 +89,38 @@ describe('linkAssignmentsToSlots', () => {
     const courses = [course('c1', '9973337 基礎電気数学')]
     const assignments = [assignment('a1', 'c1'), assignment('a2', 'c1')]
     const { assignmentInfo } = linkAssignmentsToSlots(slots, courses, assignments)
-    expect(assignmentInfo['a1']).toEqual({ day: 'mon', period: 1, room: '445教室', isRemote: false, courseCode: '9973337' })
+    expect(assignmentInfo['a1']).toEqual({
+      day: 'mon', period: 1, room: '445教室', isRemote: false, courseCode: '9973337',
+      occurrences: [{ day: 'mon', period: 1 }],
+    })
+  })
+  it('同一コースが週複数コマなら occurrences に全コマを入れる', () => {
+    const slots = [slot('mon', 1, '9973337', '445教室'), slot('thu', 3, '9973337', '445教室')]
+    const courses = [course('c1', '9973337 基礎電気数学')]
+    const assignments = [assignment('a1', 'c1')]
+    const { assignmentInfo } = linkAssignmentsToSlots(slots, courses, assignments)
+    expect(assignmentInfo['a1'].occurrences).toEqual([
+      { day: 'mon', period: 1 }, { day: 'thu', period: 3 },
+    ])
+  })
+  it('連続コマ(同日同コード複数)も occurrences に全て入れ、代表は先頭コマ', () => {
+    const slots = [slot('tue', 3, '9973344', '444教室'), slot('tue', 4, '9973344', '444教室')]
+    const courses = [course('c1', '9973344 物理学実験')]
+    const assignments = [assignment('a1', 'c1')]
+    const { assignmentInfo } = linkAssignmentsToSlots(slots, courses, assignments)
+    expect(assignmentInfo['a1'].period).toBe(3)
+    expect(assignmentInfo['a1'].occurrences).toEqual([
+      { day: 'tue', period: 3 }, { day: 'tue', period: 4 },
+    ])
+  })
+  it('統合コースは全コードのコマを occurrences に集約する', () => {
+    const slots = [slot('mon', 1, '9973337', '445教室'), slot('tue', 4, '9973344', '444教室')]
+    const courses = [course('c1', '統合 9973337 / 9973344')]
+    const assignments = [assignment('a1', 'c1')]
+    const { assignmentInfo } = linkAssignmentsToSlots(slots, courses, assignments)
+    expect(assignmentInfo['a1'].occurrences).toEqual([
+      { day: 'mon', period: 1 }, { day: 'tue', period: 4 },
+    ])
   })
   it('コード抽出できないコースの課題は紐づかない', () => {
     const slots = [slot('mon', 1, '9973337', '445教室')]

@@ -5,6 +5,7 @@ import {
   ASSIGNMENTS_KEY,
   COURSES_KEY,
   DEADLINE_SCAN_STATUS_KEY,
+  TERMS_CONSENT_KEY,
   WELCOME_GUIDE_SHOWN_KEY,
 } from './storageKeys'
 import { TABLE_MINIMAL } from '../core/timetable.fixtures'
@@ -29,6 +30,7 @@ vi.stubGlobal('chrome', {
       set: vi.fn(async (obj: Record<string, unknown>) => {
         Object.assign(store, obj)
       }),
+      onChanged: { addListener: vi.fn() },
     },
     onChanged: { addListener: vi.fn() },
   },
@@ -41,6 +43,10 @@ vi.stubGlobal('chrome', {
     create: vi.fn(),
     get: vi.fn(),
     onAlarm: { addListener: vi.fn() },
+  },
+  action: {
+    setBadgeText: vi.fn(),
+    setBadgeBackgroundColor: vi.fn(),
   },
   runtime: {
     onInstalled: { addListener: vi.fn() },
@@ -126,6 +132,7 @@ beforeEach(() => {
         set: vi.fn(async (obj: Record<string, unknown>) => {
           Object.assign(store, obj)
         }),
+        onChanged: { addListener: vi.fn() },
       },
       onChanged: { addListener: vi.fn() },
     },
@@ -138,6 +145,10 @@ beforeEach(() => {
       create: vi.fn(),
       get: vi.fn(),
       onAlarm: { addListener: vi.fn() },
+    },
+    action: {
+      setBadgeText: vi.fn(),
+      setBadgeBackgroundColor: vi.fn(),
     },
     runtime: {
       onInstalled: { addListener: vi.fn() },
@@ -483,5 +494,68 @@ describe('applyAutoSelect', () => {
     await applyAutoSelect(new Date('2026-07-08T10:00:00+09:00'))
     const saved = store[COURSES_KEY] as Course[]
     expect(saved[0].enabled).toBe(false)
+  })
+})
+
+describe('未同意時の収集ガード', () => {
+  beforeEach(() => {
+    vi.resetModules()
+  })
+
+  it('未同意なら runAutoScan は何も収集せずに return する', async () => {
+    // storage は termsConsent 未設定を返す
+    const getSpy = vi.fn().mockResolvedValue({})
+    vi.stubGlobal('chrome', {
+      ...globalThis.chrome,
+      storage: { ...globalThis.chrome.storage, local: { ...globalThis.chrome.storage.local, get: getSpy } },
+    })
+    const mod = await import('./index')
+    const fetchSpy = vi.spyOn(globalThis, 'fetch')
+
+    await mod.runAutoScan()
+
+    expect(fetchSpy).not.toHaveBeenCalled()
+    // 同意ガードで止まった証拠：COURSES_KEY では呼ばれない
+    // （TERMS_CONSENT_KEY での同意チェックだけで終わる）
+    expect(getSpy).not.toHaveBeenCalledWith(COURSES_KEY)
+  })
+
+  it('同意済みなら runAutoScan はコース取得まで進む', async () => {
+    const getSpy = vi.fn().mockResolvedValue({
+      [TERMS_CONSENT_KEY]: { version: 1, acceptedAt: '2026-07-10T00:00:00.000Z' },
+      [COURSES_KEY]: [],
+    })
+    vi.stubGlobal('chrome', {
+      ...globalThis.chrome,
+      storage: { ...globalThis.chrome.storage, local: { ...globalThis.chrome.storage.local, get: getSpy } },
+    })
+    const mod = await import('./index')
+
+    await mod.runAutoScan()
+
+    // 同意ガードを通過して getCourses() まで到達したことを確認
+    // enabledCourses が空なので scan本体は実行されないが、COURSES_KEY で呼ばれたことが証拠
+    expect(getSpy).toHaveBeenCalledWith(COURSES_KEY)
+  })
+
+  it('updateConsentBadge は未同意なら "!" を、同意済みなら "" を設定する', async () => {
+    const setBadgeText = vi.fn().mockResolvedValue(undefined)
+    const setBadgeBackgroundColor = vi.fn().mockResolvedValue(undefined)
+    const getSpy = vi.fn().mockResolvedValue({})
+    vi.stubGlobal('chrome', {
+      ...globalThis.chrome,
+      action: { setBadgeText, setBadgeBackgroundColor },
+      storage: { ...globalThis.chrome.storage, local: { ...globalThis.chrome.storage.local, get: getSpy } },
+    })
+    const mod = await import('./index')
+
+    await mod.updateConsentBadge()
+    expect(setBadgeText).toHaveBeenCalledWith({ text: '!' })
+
+    getSpy.mockResolvedValue({
+      [TERMS_CONSENT_KEY]: { version: 1, acceptedAt: '2026-07-10T00:00:00.000Z' },
+    })
+    await mod.updateConsentBadge()
+    expect(setBadgeText).toHaveBeenLastCalledWith({ text: '' })
   })
 })

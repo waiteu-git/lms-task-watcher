@@ -20,8 +20,30 @@ Copyright (c) 2026 waiteu. All rights reserved.
 3. 本ソフトウェアの全部または一部を商用利用すること
 4. 上記の許可される行為の範囲を超えて本ソフトウェアを利用すること
 
-本ソフトウェアは現状有姿で提供され、著作権者はいかなる保証も行わず、
-本ソフトウェアの使用に起因する損害について一切の責任を負いません。
+■ 不正利用の禁止
+本ソフトウェアのコード、技術または知見を用いて、次の行為を行うことを
+禁止する。
+1. 大学のシステム（LETUS・CLASS を含む）に過度な負荷をかけること
+2. スクレイピングを乱用すること、および収集間隔の改変等によりこれを
+   容易にすること
+3. 自動化ツールその他、大学の規程・利用規約・法令に違反する用途へ
+   転用すること
+
+■ 自己責任・免責
+本ソフトウェアは現状有姿で提供され、著作権者は、明示黙示を問わず、
+商品性、特定目的への適合性および非侵害を含むいかなる保証も行わない。
+著作権者は、本ソフトウェアの使用または使用不能に起因して生じた
+直接損害、間接損害、特別損害、結果的損害、逸失利益その他一切の
+損害について、その可能性を知らされていた場合であっても、責任を
+負わない。本ソフトウェアの利用に伴う一切の責任は利用者が負う。
+
+■ 違反時の自動終了
+利用者が本ライセンスのいずれかの条項に違反した場合、本ライセンスに
+基づき付与された許可は、通知を要することなく自動的に終了する。
+
+■ 準拠法・管轄
+本ライセンスは日本法に準拠する。本ライセンスに関する紛争については、
+東京地方裁判所を第一審の専属的合意管轄裁判所とする。
 
 ■ 個別許諾
 本ライセンスの複製・改変・再配布の禁止条項にかかわらず、GitHub ユーザー
@@ -48,9 +70,30 @@ PROHIBITED (without prior written permission from the copyright holder):
 3. Any commercial use of this software, in whole or in part.
 4. Any use of this software beyond the permissions granted above.
 
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND. IN NO EVENT
-SHALL THE COPYRIGHT HOLDER BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY ARISING FROM THE USE OF THE SOFTWARE.
+PROHIBITED USES:
+Using the code, techniques, or knowledge derived from this software to:
+1. Impose excessive load on university systems (including LETUS and CLASS);
+2. Abuse scraping, or facilitate such abuse by modifying collection intervals;
+3. Repurpose it for automation tools or any use that violates university
+   regulations, terms of service, or applicable law.
+
+DISCLAIMER:
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+COPYRIGHT HOLDER BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
+CONSEQUENTIAL DAMAGES OR LOSS OF PROFITS ARISING FROM THE USE OR INABILITY
+TO USE THE SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGES.
+THE USER BEARS ALL RESPONSIBILITY FOR THEIR USE OF THE SOFTWARE.
+
+TERMINATION:
+Any breach of the terms of this license automatically terminates the
+permissions granted hereunder, without notice.
+
+GOVERNING LAW:
+This license is governed by the laws of Japan. The Tokyo District Court shall
+have exclusive jurisdiction as the court of first instance for any dispute
+arising out of or in connection with this license.
 
 INDIVIDUAL GRANT:
 Notwithstanding the restrictions on reproduction, modification, and

@@ -1,16 +1,11 @@
-type Course = { id: string; name: string; url: string; enabled: boolean; lmsType: 'unknown' | 'letus' | 'moodle' | 'manaba' | 'webclass' | 'generic'; createdAt: string; updatedAt: string }
-type Assignment = { id: string; courseId: string; courseName: string; title: string; url: string; deadline: string | null; deadlineText: string; sourceText: string; submissionStatus: 'unknown' | 'not_submitted' | 'submitted' | 'completed'; lifecycleStatus: 'active' | 'new' | 'changed' | 'before_start' | 'submitted' | 'passed' | 'missing' | 'archived'; detectedAt: string; firstSeenAt: string; lastSeenAt: string; lastCheckedAt: string }
-type ManualAssignment = {
-  id: string
-  courseId: string
-  courseName: string
-  title: string
-  letusUrl: string | null
-  deadline: string
-  memo: string
-  submitted: boolean
-  createdAt: string
-}
+import type { Assignment, Course } from '../core/types'
+import type { ManualAssignment } from '../core/manualAssignment'
+import {
+  computeBadgeState,
+  isSameBadgeState,
+  normalizeAssignmentUrl,
+  type BadgeState,
+} from '../core/badgeState'
 
 function escapeHtml(str: string): string {
   return str
@@ -254,10 +249,6 @@ function buildWidgetInto(
   })
 }
 
-function normalizeAssignmentUrl(url: string): string {
-  return url.split('#')[0]
-}
-
 const BADGE_TARGET_MODULE_TYPES = ['assign', 'resource', 'folder', 'url', 'page', 'forum', 'quiz']
 
 function findAssignmentLinks(): HTMLAnchorElement[] {
@@ -309,12 +300,52 @@ async function toggleManualSubmitted(id: string): Promise<void> {
   await chrome.storage.local.set({ manualAssignments: updated })
 }
 
-function isScannedSubmitted(assignment: Assignment): boolean {
-  return (
-    assignment.lifecycleStatus === 'submitted' ||
-    assignment.submissionStatus === 'submitted' ||
-    assignment.submissionStatus === 'completed'
-  )
+/** 描画済みバッジ。ストレージ更新時にDOMを作り直さず中身だけ差し替えるために保持する。 */
+type BadgeEntry = { link: HTMLAnchorElement; url: string; badge: HTMLSpanElement; state: BadgeState | null }
+
+const badgeEntries: BadgeEntry[] = []
+
+function applyBadgeState(
+  entry: BadgeEntry,
+  state: BadgeState,
+  courses: Course[],
+  currentCourseId?: string,
+): void {
+  if (entry.state && isSameBadgeState(entry.state, state)) return
+  entry.state = state
+
+  const badge = entry.badge
+  // click ハンドラは状態ごとに異なるため、ノードを差し替えて過去のリスナを捨てる。
+  const fresh = badge.cloneNode(false) as HTMLSpanElement
+  badge.replaceWith(fresh)
+  entry.badge = fresh
+
+  if (state.kind === 'scanned') {
+    const icon = state.submitted ? '✓' : '！'
+    fresh.className = `badge ${state.submitted ? 'submitted' : ''}`
+    fresh.textContent = state.deadline ? `${formatDeadlineShort(state.deadline)} ${icon}` : icon
+    return
+  }
+
+  if (state.kind === 'manual') {
+    fresh.className = `badge clickable ${state.submitted ? 'submitted' : ''}`
+    fresh.textContent = `${formatDeadlineShort(state.deadline)} ${state.submitted ? '✓' : '！'}`
+    fresh.addEventListener('click', async (event) => {
+      event.preventDefault()
+      event.stopPropagation()
+      await toggleManualSubmitted(state.id)
+      // 保存後の storage.onChanged で再描画されるため、ここでDOMは触らない。
+    })
+    return
+  }
+
+  fresh.className = 'badge unadded clickable'
+  fresh.textContent = '+'
+  fresh.addEventListener('click', (event) => {
+    event.preventDefault()
+    event.stopPropagation()
+    openQuickAddForm(courses, entry.link.textContent ?? '', entry.url, currentCourseId)
+  })
 }
 
 function buildCourseBadges(
@@ -323,9 +354,7 @@ function buildCourseBadges(
   manualAssignments: ManualAssignment[],
   currentCourseId?: string,
 ): void {
-  const links = findAssignmentLinks()
-
-  for (const link of links) {
+  for (const link of findAssignmentLinks()) {
     let url: string
     try {
       url = normalizeAssignmentUrl(new URL(link.href, location.href).toString())
@@ -336,46 +365,13 @@ function buildCourseBadges(
     if (link.dataset.letusTaskWatcherBadge === 'true') continue
     link.dataset.letusTaskWatcherBadge = 'true'
 
-    const scanned = assignments.find(
-      (a) => a.url && normalizeAssignmentUrl(a.url) === url,
-    )
-    const manual = manualAssignments.find(
-      (a) => a.letusUrl && normalizeAssignmentUrl(a.letusUrl) === url,
-    )
-
     const { host, shadow } = createBadgeHost()
     const badge = document.createElement('span')
-
-    if (scanned) {
-      const submitted = isScannedSubmitted(scanned)
-      const icon = submitted ? '✓' : '！'
-      badge.className = `badge ${submitted ? 'submitted' : ''}`
-      badge.textContent = scanned.deadline
-        ? `${formatDeadlineShort(scanned.deadline)} ${icon}`
-        : icon
-    } else if (manual) {
-      let currentSubmitted = manual.submitted
-      badge.className = `badge clickable ${currentSubmitted ? 'submitted' : ''}`
-      badge.textContent = `${formatDeadlineShort(manual.deadline)} ${currentSubmitted ? '✓' : '！'}`
-      badge.addEventListener('click', async (event) => {
-        event.preventDefault()
-        event.stopPropagation()
-        await toggleManualSubmitted(manual.id)
-        currentSubmitted = !currentSubmitted
-        badge.classList.toggle('submitted', currentSubmitted)
-        badge.textContent = `${formatDeadlineShort(manual.deadline)} ${currentSubmitted ? '✓' : '！'}`
-      })
-    } else {
-      badge.className = 'badge unadded clickable'
-      badge.textContent = '+'
-      badge.addEventListener('click', (event) => {
-        event.preventDefault()
-        event.stopPropagation()
-        openQuickAddForm(courses, link.textContent ?? '', url, currentCourseId)
-      })
-    }
-
     shadow.appendChild(badge)
+
+    const entry: BadgeEntry = { link, url, badge, state: null }
+    badgeEntries.push(entry)
+    applyBadgeState(entry, computeBadgeState(url, assignments, manualAssignments), courses, currentCourseId)
 
     const row = (link.closest('li, tr') ?? link.parentElement) as HTMLElement | null
     if (row) {
@@ -393,6 +389,23 @@ function buildCourseBadges(
   }
 }
 
+/** 描画済みバッジを最新のストレージ内容で塗り直す。 */
+function refreshCourseBadges(
+  courses: Course[],
+  assignments: Assignment[],
+  manualAssignments: ManualAssignment[],
+  currentCourseId?: string,
+): void {
+  for (const entry of badgeEntries) {
+    applyBadgeState(entry, computeBadgeState(entry.url, assignments, manualAssignments), courses, currentCourseId)
+  }
+}
+
+function findCurrentCourseId(courses: Course[]): string | undefined {
+  const currentUrl = normalizeAssignmentUrl(location.href)
+  return courses.find((c) => normalizeAssignmentUrl(c.url) === currentUrl)?.id
+}
+
 export async function initManualTaskWidget(): Promise<void> {
   if (!isCoursePage() && !isAssignmentPage()) return
 
@@ -405,35 +418,69 @@ export async function initManualTaskWidget(): Promise<void> {
   if (courses.length === 0) return
 
   if (isCoursePage()) {
-    const currentUrl = normalizeAssignmentUrl(location.href)
-    const currentCourseId = courses.find(
-      (c) => normalizeAssignmentUrl(c.url) === currentUrl,
-    )?.id
-
+    const currentCourseId = findCurrentCourseId(courses)
     buildCourseBadges(courses, assignments, manualAssignments, currentCourseId)
     if (!document.getElementById('letus-task-watcher-widget')) {
       buildWidget(courses, currentCourseId)
     }
+    watchStorage()
     return
   }
 
   if (document.getElementById('letus-task-watcher-widget')) return
 
-  const currentUrl = location.href.split('#')[0]
-  const matchedAssignment = assignments.find((a) => {
-    if (!a.url) return false
-    const assignmentUrl = a.url.split('#')[0]
-    return assignmentUrl === currentUrl
-  })
-
-  if (matchedAssignment) {
-    buildScannedIndicator(matchedAssignment)
+  const state = computeBadgeState(location.href, assignments, manualAssignments)
+  if (state.kind === 'scanned') {
+    buildScannedIndicator(state)
+    watchStorage()
   } else {
     buildWidget(courses)
   }
 }
 
-function buildScannedIndicator(assignment: Assignment): void {
+/**
+ * バックグラウンドのスキャンが提出状態を更新しても、描画済みのLETUSページは古いままだった
+ * （popup/dashboard は開き直し＋onChanged 購読で更新される）。ストレージ更新を購読して塗り直す。
+ * bfcache（戻る）復帰では content script が再実行されないため pageshow でも取り直す。
+ */
+let storageWatched = false
+function watchStorage(): void {
+  if (storageWatched) return
+  storageWatched = true
+
+  chrome.storage.local.onChanged.addListener((changes) => {
+    if (!('assignments' in changes || 'manualAssignments' in changes || 'courses' in changes)) return
+    void repaint()
+  })
+  window.addEventListener('pageshow', (event) => {
+    if (event.persisted) void repaint()
+  })
+}
+
+async function repaint(): Promise<void> {
+  const [courses, assignments, manualAssignments] = await Promise.all([
+    getCourses(),
+    getAssignments(),
+    getManualAssignments(),
+  ])
+
+  if (isCoursePage()) {
+    const currentCourseId = findCurrentCourseId(courses)
+    // 遅延描画で後から現れたリンクも拾う
+    buildCourseBadges(courses, assignments, manualAssignments, currentCourseId)
+    refreshCourseBadges(courses, assignments, manualAssignments, currentCourseId)
+    return
+  }
+
+  const state = computeBadgeState(location.href, assignments, manualAssignments)
+  if (state.kind === 'scanned') updateScannedIndicator(state)
+}
+
+type ScannedBadgeState = Extract<BadgeState, { kind: 'scanned' }>
+
+let indicatorEl: HTMLDivElement | null = null
+
+function buildScannedIndicator(state: ScannedBadgeState): void {
   const host = document.createElement('div')
   host.id = 'letus-task-watcher-widget'
   host.style.cssText = 'position:fixed;bottom:16px;right:16px;z-index:2147483647;'
@@ -446,34 +493,47 @@ function buildScannedIndicator(assignment: Assignment): void {
     :host { all: initial; font-family: sans-serif; font-size: 13px; }
     .indicator {
       display: flex; align-items: center; gap: 8px;
-      background: #f0fdf4; border: 1px solid #86efac;
+      background: #fffbeb; border: 1px solid #fcd34d;
       border-radius: 10px; padding: 8px 12px; cursor: pointer;
     }
-    .icon { color: #16a34a; font-size: 16px; }
+    .indicator.submitted { background: #f0fdf4; border-color: #86efac; }
+    .icon { color: #d97706; font-size: 16px; }
+    .indicator.submitted .icon { color: #16a34a; }
     .label { font-size: 12px; }
-    .title { font-weight: 600; color: #15803d; }
-    .deadline { color: #16a34a; opacity: .85; }
+    .title { font-weight: 600; color: #b45309; }
+    .indicator.submitted .title { color: #15803d; }
+    .deadline { color: #b45309; opacity: .85; }
+    .indicator.submitted .deadline { color: #16a34a; opacity: .85; }
   `
   shadow.appendChild(style)
 
-  const deadlineText = assignment.deadline
-    ? formatDeadlineShort(assignment.deadline)
-    : '締切未取得'
-
   const el = document.createElement('div')
-  el.className = 'indicator'
   el.title = 'ダッシュボードで確認'
   el.innerHTML = `
-    <span class="icon">✓</span>
+    <span class="icon"></span>
     <div class="label">
-      <div class="title">登録済み</div>
-      <div class="deadline">締切 ${deadlineText}</div>
+      <div class="title"></div>
+      <div class="deadline"></div>
     </div>
   `
   el.addEventListener('click', () => {
     chrome.runtime.sendMessage({ type: 'OPEN_DASHBOARD' })
   })
   shadow.appendChild(el)
+
+  indicatorEl = el
+  updateScannedIndicator(state)
+}
+
+function updateScannedIndicator(state: ScannedBadgeState): void {
+  const el = indicatorEl
+  if (!el) return
+
+  el.className = `indicator ${state.submitted ? 'submitted' : ''}`
+  el.querySelector('.icon')!.textContent = state.submitted ? '✓' : '！'
+  el.querySelector('.title')!.textContent = state.submitted ? '提出済み' : '未提出'
+  el.querySelector('.deadline')!.textContent =
+    `締切 ${state.deadline ? formatDeadlineShort(state.deadline) : '未取得'}`
 }
 
 function formatDeadlineShort(isoString: string): string {

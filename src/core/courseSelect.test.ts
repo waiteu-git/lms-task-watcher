@@ -14,6 +14,11 @@ describe('selectCoursesByTimetable', () => {
     expect(out[0].enabled).toBe(true)
     expect(out[0].updatedAt).toBe(NOW)
   })
+  it('科目IDに英字を含むコースも自動ONする', () => {
+    const courses = [course({ id: 'a', name: '9975A06 機械航空宇宙力学1', enabled: false })]
+    const out = selectCoursesByTimetable(courses, new Set(['9975A06']), NOW)
+    expect(out[0].enabled).toBe(true)
+  })
   it('統合コースは片方一致でON', () => {
     const courses = [course({ id: 'a', name: '統合 1111111 / 9973337', enabled: false })]
     const out = selectCoursesByTimetable(courses, new Set(['9973337']), NOW)

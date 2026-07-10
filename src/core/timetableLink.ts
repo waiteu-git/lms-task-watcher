@@ -1,6 +1,7 @@
 import type { TimetableSlot, DayOfWeek } from './timetable'
 import type { Course, Assignment } from './types'
 import type { ManualAssignment } from './manualAssignment'
+import { extractCourseCodes, firstCourseCode } from './courseCode'
 import { deadlineTier, type DeadlineTier } from '../utils/date'
 import { isSubmittedAssignment } from '../utils/assignment'
 
@@ -13,18 +14,15 @@ export type AssignmentSlotInfo = {
   room: string
   isRemote: boolean
   courseCode: string
+  /** この課題のコースが時間割で占める全コマ（曜日+時限）。週複数回・連続コマ・統合コース対応。重複排除・順序安定。 */
+  occurrences: { day: DayOfWeek; period: number }[]
 }
 
-/** LETUSコース名に埋め込まれた全7桁科目コードを抽出する（統合コースは複数）。 */
-export function extractCourseCodes(letusCourseName: string): string[] {
-  const matches = letusCourseName.match(/(?<!\d)\d{7}(?!\d)/g)
-  return matches ? Array.from(new Set(matches)) : []
-}
+/** LETUSコース名に埋め込まれた全科目コードを抽出する（統合コースは複数）。 */
+export { extractCourseCodes } from './courseCode'
 
-/** 先頭の7桁コード。無ければ null。 */
-export function extractCourseCode(letusCourseName: string): string | null {
-  return extractCourseCodes(letusCourseName)[0] ?? null
-}
+/** 先頭の科目コード。無ければ null。 */
+export const extractCourseCode = firstCourseCode
 
 /** 既定表示学期。取得済みがあれば capturedAt 最新、無ければ日付（4–9月=前期）。 */
 export function resolveSemester(now: Date, captured: SemesterCapture[]): Semester {
@@ -68,16 +66,18 @@ export function linkAssignmentsToSlots(
     if (codes.length > 0) courseIdToCodes[c.id] = codes
   }
 
-  const codeToSlot: Record<string, AssignmentSlotInfo> = {}
+  // 科目コード → 代表コマ（先頭一致）。room/シラバス表示や後方互換の day/period に使う。
+  const codeToRep: Record<string, Omit<AssignmentSlotInfo, 'occurrences'>> = {}
+  // 科目コード → 占有する全コマ。週複数回・連続コマを取りこぼさない。
+  const codeToOccurrences: Record<string, { day: DayOfWeek; period: number }[]> = {}
   for (const s of slots) {
     for (const c of s.classes) {
-      // 7桁コードの無いセル(courseCode='')は突合キーにならない。空文字で全て衝突するのを防ぐ。
+      // 科目コードの無いセル(courseCode='')は突合キーにならない。空文字で全て衝突するのを防ぐ。
       if (!c.courseCode) continue
-      if (!(c.courseCode in codeToSlot)) {
-        codeToSlot[c.courseCode] = {
-          day: s.day, period: s.period, room: c.room, isRemote: c.isRemote, courseCode: c.courseCode,
-        }
+      codeToRep[c.courseCode] ??= {
+        day: s.day, period: s.period, room: c.room, isRemote: c.isRemote, courseCode: c.courseCode,
       }
+      ;(codeToOccurrences[c.courseCode] ??= []).push({ day: s.day, period: s.period })
     }
   }
 
@@ -101,9 +101,21 @@ export function linkAssignmentsToSlots(
       const tier = deadlineTier(a.deadline, now)
       if (tier !== 'none') for (const code of codes) bump(code, tier)
     }
-    // チップは時間割に存在する先頭一致コマに付ける
-    const matched = codes.find((code) => code in codeToSlot)
-    if (matched) assignmentInfo[a.id] = codeToSlot[matched]
+    // 代表は先頭一致コマ。occurrences には一致した全コード×全コマを重複排除して集約する。
+    const matchedCodes = codes.filter((code) => code in codeToRep)
+    if (matchedCodes.length > 0) {
+      const seen = new Set<string>()
+      const occurrences: { day: DayOfWeek; period: number }[] = []
+      for (const code of matchedCodes) {
+        for (const o of codeToOccurrences[code]) {
+          const k = `${o.day}:${o.period}`
+          if (seen.has(k)) continue
+          seen.add(k)
+          occurrences.push(o)
+        }
+      }
+      assignmentInfo[a.id] = { ...codeToRep[matchedCodes[0]], occurrences }
+    }
   }
 
   for (const m of manualAssignments) {

@@ -19,6 +19,17 @@ export const CELL_REMOTE = `
   <div><div class="noTextIconLine alignRight"><button class="ui-button"><span class="ui-button-text ui-c">ui-button</span></button></div></div>
 </div>`
 
+/** 科目IDに英字を含むコース（例: 機械航空宇宙力学1 = 9975A06）。 */
+export const CELL_ALNUM_CODE = `
+<div class="jugyo-info jugyo-normal ">
+  <div class="fontB">機械航空宇宙力学1</div>
+  <div class="">山本　誠</div>
+  <div class=""><span>野：K404教室</span></div>
+  <div class="">9975A06</div>
+  <div class="taniSu">2.0単位</div>
+  <div><div class="noTextIconLine alignRight"><button class="ui-button"><span class="ui-button-text ui-c">ui-button</span></button></div></div>
+</div>`
+
 export const CELL_EMPTY = `<div class="jugyo-info jugyo-normal noClass"></div>`
 
 export const JIGEN_AREA_NODA = `野田（1限 08:50～10:20／2限 10:30～12:00／3限 13:00～14:30／4限 14:40～16:10／5限 16:20～17:50／6限 18:10～19:40／7限 19:50～21:20）`
