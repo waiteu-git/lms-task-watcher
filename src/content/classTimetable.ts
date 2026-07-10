@@ -3,12 +3,12 @@
 // （Rollup共有チャンク化で import 文が出力され classic content script が壊れるのを避ける）。
 // 同じ理由で ../legal/termsConsent も import しない。isConsented のロジックはインライン化している
 // （実測済み: import すると background と共有チャンク化され、出力に import 文が残ってビルドガードに落ちる）。
-// TERMS_VERSION を改定する際は src/legal/termsVersion.ts と両方を更新すること。
+// TERMS_VERSION は vite.config.ts の define で src/legal/termsVersion.ts から
+// ビルド時に注入される（__TERMS_VERSION__）。ここに数値リテラルを書き戻さないこと。
 
 console.log('[LETUS Task Watcher] CLASS timetable content script loaded')
 
 const TERMS_CONSENT_KEY = 'termsConsent'
-const TERMS_VERSION = 1
 
 function hasValidConsent(stored: unknown, version: number): boolean {
   if (typeof stored !== 'object' || stored === null) return false
@@ -24,7 +24,7 @@ function hasValidConsent(stored: unknown, version: number): boolean {
 async function isConsented(): Promise<boolean> {
   try {
     const result = (await chrome.storage.local.get(TERMS_CONSENT_KEY)) as { termsConsent?: unknown }
-    return hasValidConsent(result.termsConsent, TERMS_VERSION)
+    return hasValidConsent(result.termsConsent, __TERMS_VERSION__)
   } catch (err) {
     console.warn('[LETUS Task Watcher] failed to read consent:', err)
     return false
@@ -90,12 +90,16 @@ function capture(): void {
 }
 
 // 規約未同意のあいだは observer を張らず、capture も行わない。
-void isConsented().then((consented) => {
-  if (!consented) {
-    console.log('[LETUS Task Watcher] terms not accepted; CLASS timetable capture is inactive')
-    return
-  }
-  const observer = new MutationObserver(() => capture())
-  observer.observe(document.documentElement, { childList: true, subtree: true })
-  capture()
-})
+void isConsented()
+  .then((consented) => {
+    if (!consented) {
+      console.log('[LETUS Task Watcher] terms not accepted; CLASS timetable capture is inactive')
+      return
+    }
+    const observer = new MutationObserver(() => capture())
+    observer.observe(document.documentElement, { childList: true, subtree: true })
+    capture()
+  })
+  .catch((err) => {
+    console.warn('[LETUS Task Watcher] consent check failed; CLASS timetable capture is inactive:', err)
+  })

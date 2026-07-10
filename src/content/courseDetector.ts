@@ -8,9 +8,9 @@ console.log('[LETUS Task Watcher] content script loaded')
 // Rollup が共有チャンクへ切り出し、出力に import 文が残って classic content script が
 // SyntaxError で壊れる（実測済み。ビルド時のガードプラグインが検出して失敗する）。
 // ロジック自体は src/legal/termsConsent.ts / termsVersion.ts と同じ内容を保つこと。
-// TERMS_VERSION を改定する際は src/legal/termsVersion.ts と両方を更新すること。
+// TERMS_VERSION は vite.config.ts の define で src/legal/termsVersion.ts から
+// ビルド時に注入される（__TERMS_VERSION__）。ここに数値リテラルを書き戻さないこと。
 const TERMS_CONSENT_KEY = 'termsConsent'
-const TERMS_VERSION = 1
 
 function hasValidConsent(stored: unknown, version: number): boolean {
   if (typeof stored !== 'object' || stored === null) return false
@@ -26,7 +26,7 @@ function hasValidConsent(stored: unknown, version: number): boolean {
 async function isConsented(): Promise<boolean> {
   try {
     const result = (await chrome.storage.local.get(TERMS_CONSENT_KEY)) as { termsConsent?: unknown }
-    return hasValidConsent(result.termsConsent, TERMS_VERSION)
+    return hasValidConsent(result.termsConsent, __TERMS_VERSION__)
   } catch (err) {
     console.warn('[LETUS Task Watcher] failed to read consent:', err)
     return false
@@ -121,10 +121,14 @@ function run(): void {
 }
 
 // 規約未同意のあいだは、コース検出も DOM 注入も行わない。
-void isConsented().then((consented) => {
-  if (!consented) {
-    console.log('[LETUS Task Watcher] terms not accepted; content script is inactive')
-    return
-  }
-  run()
-})
+void isConsented()
+  .then((consented) => {
+    if (!consented) {
+      console.log('[LETUS Task Watcher] terms not accepted; content script is inactive')
+      return
+    }
+    run()
+  })
+  .catch((err) => {
+    console.warn('[LETUS Task Watcher] consent check failed; content script is inactive:', err)
+  })

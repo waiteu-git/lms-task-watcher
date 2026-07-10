@@ -2,6 +2,7 @@ import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import { resolve } from 'path'
 import { readFileSync, writeFileSync } from 'fs'
+import { TERMS_VERSION } from './src/legal/termsVersion.ts'
 
 export default defineConfig(({ mode }) => {
   const isDev = mode === 'development'
@@ -13,6 +14,7 @@ export default defineConfig(({ mode }) => {
   define: {
     __DEV_TOOLS__: isDev,
     __BETA__: isBeta,
+    __TERMS_VERSION__: TERMS_VERSION,
   },
   plugins: [
     react(),
