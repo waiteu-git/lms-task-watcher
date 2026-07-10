@@ -8,6 +8,8 @@ LETUS Task Watcher is a Chrome extension that helps students at Tokyo University
 
 **All data stays on your device. The extension does not operate any server and never transmits your data to us or any third party.**
 
+Use of this extension is subject to the [Terms of Use](https://lms.waiteu.dev/terms). The extension does not collect any data until you accept the terms.
+
 ## Data the Extension Accesses
 
 When you open a page or start a scan, the extension reads the following pages using your existing browser session (cookies). It never asks for or handles your username or password.
