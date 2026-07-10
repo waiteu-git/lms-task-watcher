@@ -3,6 +3,36 @@ import { initManualTaskWidget } from './manualTaskWidget'
 
 console.log('[LETUS Task Watcher] content script loaded')
 
+// isConsented のロジックをインライン化している。
+// ../legal/termsConsent を import すると、background からも import されている関係で
+// Rollup が共有チャンクへ切り出し、出力に import 文が残って classic content script が
+// SyntaxError で壊れる（実測済み。ビルド時のガードプラグインが検出して失敗する）。
+// ロジック自体は src/legal/termsConsent.ts / termsVersion.ts と同じ内容を保つこと。
+// TERMS_VERSION を改定する際は src/legal/termsVersion.ts と両方を更新すること。
+const TERMS_CONSENT_KEY = 'termsConsent'
+const TERMS_VERSION = 1
+
+function hasValidConsent(stored: unknown, version: number): boolean {
+  if (typeof stored !== 'object' || stored === null) return false
+  if (Array.isArray(stored)) return false
+  if (!Object.hasOwn(stored, 'version')) return false
+  if (!Object.hasOwn(stored, 'acceptedAt')) return false
+  const c = stored as { version?: unknown; acceptedAt?: unknown }
+  if (typeof c.version !== 'number') return false
+  if (typeof c.acceptedAt !== 'string' || c.acceptedAt === '') return false
+  return c.version === version
+}
+
+async function isConsented(): Promise<boolean> {
+  try {
+    const result = (await chrome.storage.local.get(TERMS_CONSENT_KEY)) as { termsConsent?: unknown }
+    return hasValidConsent(result.termsConsent, TERMS_VERSION)
+  } catch (err) {
+    console.warn('[LETUS Task Watcher] failed to read consent:', err)
+    return false
+  }
+}
+
 function createCourseId(url: string): string {
   return btoa(unescape(encodeURIComponent(url)))
     .replaceAll('=', '')
@@ -90,4 +120,11 @@ function run(): void {
   void initManualTaskWidget()
 }
 
-run()
+// 規約未同意のあいだは、コース検出も DOM 注入も行わない。
+void isConsented().then((consented) => {
+  if (!consented) {
+    console.log('[LETUS Task Watcher] terms not accepted; content script is inactive')
+    return
+  }
+  run()
+})

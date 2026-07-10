@@ -1,8 +1,35 @@
 // CLASS学生時間割表(Kmd008)を passive に取り込む dumb grabber。
 // パースはしない（node-html-parserを含めない）。timetableStoreも import しない
 // （Rollup共有チャンク化で import 文が出力され classic content script が壊れるのを避ける）。
+// 同じ理由で ../legal/termsConsent も import しない。isConsented のロジックはインライン化している
+// （実測済み: import すると background と共有チャンク化され、出力に import 文が残ってビルドガードに落ちる）。
+// TERMS_VERSION を改定する際は src/legal/termsVersion.ts と両方を更新すること。
 
 console.log('[LETUS Task Watcher] CLASS timetable content script loaded')
+
+const TERMS_CONSENT_KEY = 'termsConsent'
+const TERMS_VERSION = 1
+
+function hasValidConsent(stored: unknown, version: number): boolean {
+  if (typeof stored !== 'object' || stored === null) return false
+  if (Array.isArray(stored)) return false
+  if (!Object.hasOwn(stored, 'version')) return false
+  if (!Object.hasOwn(stored, 'acceptedAt')) return false
+  const c = stored as { version?: unknown; acceptedAt?: unknown }
+  if (typeof c.version !== 'number') return false
+  if (typeof c.acceptedAt !== 'string' || c.acceptedAt === '') return false
+  return c.version === version
+}
+
+async function isConsented(): Promise<boolean> {
+  try {
+    const result = (await chrome.storage.local.get(TERMS_CONSENT_KEY)) as { termsConsent?: unknown }
+    return hasValidConsent(result.termsConsent, TERMS_VERSION)
+  } catch (err) {
+    console.warn('[LETUS Task Watcher] failed to read consent:', err)
+    return false
+  }
+}
 
 function detectSemester(): 'zenki' | 'kouki' | null {
   const sel = document.querySelector<HTMLSelectElement>('select[name*="gakki"], select[id*="gakki"]')
@@ -62,6 +89,13 @@ function capture(): void {
   })
 }
 
-const observer = new MutationObserver(() => capture())
-observer.observe(document.documentElement, { childList: true, subtree: true })
-capture()
+// 規約未同意のあいだは observer を張らず、capture も行わない。
+void isConsented().then((consented) => {
+  if (!consented) {
+    console.log('[LETUS Task Watcher] terms not accepted; CLASS timetable capture is inactive')
+    return
+  }
+  const observer = new MutationObserver(() => capture())
+  observer.observe(document.documentElement, { childList: true, subtree: true })
+  capture()
+})
