@@ -32,8 +32,16 @@ import { getCourseSignature, saveCourseSignature, addUnreadUpdates } from './cou
 import { getCapturedCourseCodes } from '../core/timetableView'
 import { selectCoursesByTimetable } from '../core/courseSelect'
 import { academicYear } from '../core/syllabus'
+import { createPacer, LETUS_MIN_REQUEST_GAP_MS, type Pacer } from '../core/pacer'
 
 console.log('[LETUS Task Watcher] background service worker loaded')
+
+/**
+ * LETUS への全リクエストが通るゲート。課題スキャンと締切スキャンで共有するため、
+ * 連続して走るときも境目でバーストしない。同時実行数(3/5)はソケット上限として残り、
+ * 実効レートはこのペーサーが決める。
+ */
+const letusPacer = createPacer(LETUS_MIN_REQUEST_GAP_MS)
 
 const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL as string) ?? ''
 
@@ -506,6 +514,7 @@ export async function scanAssignmentCandidatesInBackground(
       async (course) => {
         let response: Response
         try {
+          await letusPacer.acquire()
           response = await fetch(course.url, { credentials: 'include' })
         } catch {
           return null
@@ -657,6 +666,7 @@ export async function scanDeadlinesInBackground(): Promise<{
       async (candidate) => {
         let response: Response
         try {
+          await letusPacer.acquire()
           response = await fetch(candidate.url, { credentials: 'include' })
         } catch {
           return null
@@ -871,10 +881,12 @@ function isNotLoggedInPageContent(html: string): boolean {
 
 export async function checkIsLoggedIn(
   courses: Course[],
+  pacer: Pacer = letusPacer,
 ): Promise<'ok' | 'login_required' | 'network_error'> {
   const course = courses.find((c) => c.enabled)
   if (!course) return 'ok'
   try {
+    await pacer.acquire()
     const response = await fetch(course.url, {
       credentials: 'include',
       redirect: 'manual',
