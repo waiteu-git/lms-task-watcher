@@ -9,7 +9,8 @@
     "build:dev": "tsc -b && vite build --mode development",
     "build:beta": "tsc -b && vite build --mode beta",
     "lint": "eslint .",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "gen:terms": "node scripts/gen-terms.mjs"
   },
   "dependencies": {
     "node-html-parser": "^7.0.1",
