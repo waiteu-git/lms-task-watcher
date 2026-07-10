@@ -59,10 +59,12 @@ type TermsConsent = { version: number; acceptedAt: string }  // acceptedAt は I
 LTW のスキャンは alarm 駆動であり、popup を一度も開かなくても LETUS / CLASS へのアクセスが走る。popup のゲートだけでは同意が形骸化するため、以下の 3 点すべてを塞ぐ。
 
 1. **`src/background/index.ts` の `runAutoScan()`** — 冒頭で未同意なら即 `return`。alarm 駆動のスキャンを止める。
-2. **同ファイルの `UPSERT_COURSES` メッセージハンドラ** — 未同意なら拒否。content script 側のガードをすり抜けた場合（古い content script が残存している等）の防波堤。
+2. **同ファイルの `chrome.runtime.onMessage` ハンドラ** — 収集系メッセージ **`UPSERT_COURSES` / `START_ASSIGNMENT_SCAN` / `START_DEADLINE_SCAN`** を未同意なら拒否する。ここが決定的な防波堤である。`START_*` は popup の `src/App.tsx:466` の自動 refresh から送られるが、この `useEffect` は React の hooks であり **画面を早期 return でゲートしても実行される**。したがって画面側のゲートだけでは popup を開いた時点で収集が走ってしまう。`UPSERT_COURSES` については、古い content script が残存してガードをすり抜けた場合の防波堤も兼ねる。`OPEN_DASHBOARD` は収集を伴わないので拒否しない。
 3. **content script 2 本**
-   - `src/content/courseDetector.ts` の `run()` — 未同意なら no-op
+   - `src/content/courseDetector.ts` の `run()` — 未同意なら no-op。`initManualTaskWidget()` による LETUS ページへの DOM 注入も行わない
    - `src/content/classTimetable.ts` — 未同意なら `capture()` を呼ばず、`MutationObserver` も**登録しない**
+
+あわせて `src/App.tsx` の自動 refresh（`hasAutoRefreshCheckedRef` を用いる `useEffect`）も、同意判定が済むまで実行しないようガードする。これは無駄な `START_*` 送信を防ぐためであり、実効的な停止はフック 2 が担う。
 
 `src/App.tsx` は未同意なら `TermsConsentScreen` を全面表示する。`App.tsx` は popup とダッシュボードを `isDashboard` で切り替えているが、**ゲートはこの分岐より前**に置き、popup / ダッシュボードの双方を塞ぐ。画面順序は **規約同意 → オンボーディング → 通常画面**（`onboardingCompleted` は現状のまま残す）。litus の「規約→オンボ→ログイン」と同じ並び。
 
@@ -127,7 +129,7 @@ v1.2.1 には既に `ea131ed`（英字入り科目 ID のコース自動選択�
 ## テスト方針
 
 1. **`hasValidConsent` の純ロジック** — 未設定 / 版不一致 / 版一致 / 壊れた値
-2. **収集 3 フックが未同意で発火しないこと** — `runAutoScan` が即 return、`UPSERT_COURSES` が拒否、content script 2 本が no-op（`MutationObserver` を登録しない）
+2. **収集 3 フックが未同意で発火しないこと** — `runAutoScan` が即 return、収集系メッセージ 3 種（`UPSERT_COURSES` / `START_ASSIGNMENT_SCAN` / `START_DEADLINE_SCAN`）が拒否され `OPEN_DASHBOARD` は通ること、content script 2 本が no-op（`MutationObserver` を登録しない）
 3. **`gen-terms` 生成物の一致** — 再生成して `src/legal/termsBody.ts` と `landing/terms.html` に差分が出ないこと
 
 既存の `pnpm vitest run src` に載せる。typecheck（`tsc -b`）も通す。
