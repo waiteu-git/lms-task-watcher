@@ -515,12 +515,15 @@ describe('未同意時の収集ガード', () => {
     await mod.runAutoScan()
 
     expect(fetchSpy).not.toHaveBeenCalled()
+    // 同意ガードで止まった証拠：COURSES_KEY では呼ばれない
+    // （TERMS_CONSENT_KEY での同意チェックだけで終わる）
+    expect(getSpy).not.toHaveBeenCalledWith(COURSES_KEY)
   })
 
   it('同意済みなら runAutoScan はコース取得まで進む', async () => {
     const getSpy = vi.fn().mockResolvedValue({
       [TERMS_CONSENT_KEY]: { version: 1, acceptedAt: '2026-07-10T00:00:00.000Z' },
-      courses: [],
+      [COURSES_KEY]: [],
     })
     vi.stubGlobal('chrome', {
       ...globalThis.chrome,
@@ -530,8 +533,9 @@ describe('未同意時の収集ガード', () => {
 
     await mod.runAutoScan()
 
-    // enabledCourses が空なので早期 return するが、同意判定を越えて courses を読んだことを確認
-    expect(getSpy).toHaveBeenCalled()
+    // 同意ガードを通過して getCourses() まで到達したことを確認
+    // enabledCourses が空なので scan本体は実行されないが、COURSES_KEY で呼ばれたことが証拠
+    expect(getSpy).toHaveBeenCalledWith(COURSES_KEY)
   })
 
   it('updateConsentBadge は未同意なら "!" を、同意済みなら "" を設定する', async () => {
