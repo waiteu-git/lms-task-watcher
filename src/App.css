@@ -1317,7 +1317,6 @@ button.slotChip { font-family: inherit; cursor: pointer; line-height: 1.3; }
   flex-direction: column;
   gap: 12px;
   padding: 16px;
-  height: 100%;
   box-sizing: border-box;
 }
 
@@ -1333,8 +1332,7 @@ button.slotChip { font-family: inherit; cursor: pointer; line-height: 1.3; }
 }
 
 .termsConsentBody {
-  flex: 1;
-  min-height: 0;
+  max-height: 320px;
   overflow-y: auto;
   margin: 0;
   padding: 12px;
@@ -1346,6 +1344,17 @@ button.slotChip { font-family: inherit; cursor: pointer; line-height: 1.3; }
   line-height: 1.7;
   white-space: pre-wrap;
   word-wrap: break-word;
+}
+
+.termsConsentError {
+  margin: 0;
+  padding: 10px 12px;
+  border-radius: 8px;
+  background: var(--danger-bg);
+  border: 1px solid var(--danger-border);
+  color: var(--danger);
+  font-size: 12px;
+  font-weight: 700;
 }
 
 .termsConsentAccept {

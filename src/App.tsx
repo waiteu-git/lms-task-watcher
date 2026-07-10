@@ -524,6 +524,9 @@ export default function App() {
       setMessage('前回更新から2時間以上経過したため、自動更新します。')
       await updateNow()
     })()
+    // updateNow を依存に含めると useCallback の再生成のたびに実行され得るが、
+    // hasAutoRefreshCheckedRef のガードにより本体は consentState==='ok' になった最初の1回しか走らないため意図的に外す
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [consentState])
 
   const selectedCourseCount = useMemo(() => {
@@ -1077,15 +1080,16 @@ export default function App() {
   )
 
   if (consentState === 'loading') {
-    return <main className="app popup" />
+    return <main className={`app ${isDashboard ? 'dashboard' : 'popup'}`} />
   }
 
   if (consentState === 'needed') {
     return (
       <main className={`app ${isDashboard ? 'dashboard' : 'popup'}`}>
         <TermsConsentScreen
-          onAccept={() => {
-            void saveConsent().then(() => setConsentState('ok'))
+          onAccept={async () => {
+            await saveConsent()
+            setConsentState('ok')
           }}
         />
       </main>
