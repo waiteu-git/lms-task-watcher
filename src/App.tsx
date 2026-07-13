@@ -59,6 +59,7 @@ import {
   sortByDeadline,
 } from './utils/assignment'
 import { createNotification, normalizeUpdateError } from './utils/notification'
+import { classifyScanStartResponse, type ScanStartResponse } from './utils/scanResponse'
 import { AssignmentCard } from './components/AssignmentCard'
 import { CollapsibleSection, Section } from './components/Section'
 import {
@@ -389,18 +390,15 @@ export default function App() {
       const scanResponse = await chrome.runtime.sendMessage({
         type: 'START_ASSIGNMENT_SCAN',
         scanLevel: 'standard',
-      }) as { ok: boolean; reason: string }
+      }) as ScanStartResponse
 
-      if (!scanResponse.ok) {
-        if (scanResponse.reason === 'not_logged_in') {
-          setMessage('LETUSにログインしてからもう一度試してください。')
-          return
-        }
-        if (scanResponse.reason === 'network_error') {
-          setMessage('LETUSへの通信に失敗しました。ネットワーク接続を確認してください。')
-          return
-        }
-        throw new Error(scanResponse.reason)
+      const scanOutcome = classifyScanStartResponse(scanResponse)
+      if (scanOutcome.kind === 'abort') {
+        setMessage(scanOutcome.message)
+        return
+      }
+      if (scanOutcome.kind === 'error') {
+        throw new Error(scanOutcome.reason)
       }
 
       await waitForAssignmentScanToFinish(refreshAll)

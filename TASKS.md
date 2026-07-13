@@ -179,6 +179,10 @@
   - [x] 課題提出後にLETUSページ上のバッジが「未提出」のまま更新されない不具合。真因＝content scriptが起動時のストレージ・スナップショットで一度だけ描画し `storage.onChanged` を購読していなかった（popup/dashboardは購読済み）。状態決定を純粋層 `src/core/badgeState.ts` に切り出し、`manualTaskWidget.ts` を差分再描画＋`storage.onChanged`／bfcache `pageshow` 購読に変更。課題ページ右下の表示も「登録済み」→ 実提出状態へ
   - [x] content script が popup と実行時モジュールを共有すると Rollup が共有チャンクへ切り出し `content.js` に `import` 文が残る（classic scriptなので全機能が死ぬ）。vite.config.ts にビルド時ガードを追加
 
+- [x] **`already_running` を無害な状態として扱う**（2026-07-13・実機検証で発見）
+  - ポップアップ／ダッシュボードは開くたびに自動更新をトリガーするため、ポップアップ→ダッシュボードのように併用すると2つ目の `START_ASSIGNMENT_SCAN` に background が `already_running` を返す。旧 `updateNow` は `not_logged_in`／`network_error` のみ早期returnし、それ以外を `throw` していたため、無害なこのレースが catch に落ちて **①`console.error` で chrome://extensions のエラー欄を汚す ②「更新中にエラーが発生しました」の偽通知を出す** 二次被害を招いていた（機能破壊はなし）
+  - 応答分類を純粋層 `src/utils/scanResponse.ts`（`classifyScanStartResponse` → proceed/abort/error）に切り出し、`already_running` を `not_logged_in`／`network_error` と同格の abort（案内メッセージのみ・throwなし）に。想定外 reason だけ error（従来どおり throw＋通知）にフォールバック。`App.tsx` の inline 分岐を差し替え
+
 - [x] **純粋ロジックのlitus逆流**（2026-07-08 判定: **不要**）
   - litus `src/assignments/buckets.ts`（within24h/tomorrow/thisWeek/…）が拡張の新`deadlineTier`（当日/今週）より高機能で先行＝逆流でもたらす改善なし
   - `selectCoursesByTimetable`（enable管理連動）・`resolveDisplayDay`（popup今日）は拡張固有で単体完結アーキのlitusに非マップ
