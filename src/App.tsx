@@ -113,6 +113,7 @@ export default function App() {
   const [assignments, setAssignments] = useState<Assignment[]>([])
   const [courses, setCourses] = useState<Course[]>([])
   const [assignmentSlotMap, setAssignmentSlotMap] = useState<Record<string, AssignmentSlotInfo>>({})
+  const [hasTimetable, setHasTimetable] = useState(false)
   const [newBadgeCodes, setNewBadgeCodes] = useState<string[]>([])
   const [syllabusTarget, setSyllabusTarget] = useState<{ year: number; code: string; name: string } | null>(null)
   const openSyllabus: OpenSyllabus = (year, code, name) => setSyllabusTarget({ year, code, name })
@@ -146,6 +147,7 @@ export default function App() {
       const year = academicYear(now)
       const semester = await resolveViewSemester(year, now)
       const cap = await getTimetableCapture(year, semester)
+      setHasTimetable(cap !== null)
       if (!cap) {
         setAssignmentSlotMap({})
         return
@@ -1165,7 +1167,7 @@ export default function App() {
       )}
 
       {!isDashboard && showOnboarding && (
-        <OnboardingBanner courses={courses} lastRefreshAt={lastRefreshAt} />
+        <OnboardingBanner courses={courses} lastRefreshAt={lastRefreshAt} hasTimetable={hasTimetable} />
       )}
 
       {!isDashboard && (
