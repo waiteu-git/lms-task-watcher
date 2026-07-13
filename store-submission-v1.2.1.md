@@ -3,6 +3,13 @@
 アップロード用パッケージ: **`letus-task-watcher-1.2.1.zip`**（`dist/` を zip 化して作成。ファイル数・サイズは提出直前に実測すること）
 manifest version: **1.2.1**（**bump なし** — v1.2.0 のバグ修正版として提出済みだった 1.2.1 の番号をそのまま使う） ／ manifest v3 ／ 決済・外部サーバー通信なし（ローカル完結）
 
+> **2026-07-13 更新（再提出準備）**: 取り下げ後の develop 土台に、実機検証で見つかった修正を追加で同梱した（`bbfacd6..8e8067b`・全て develop マージ＆push 済み・255/255テスト緑）。
+> - **`already_running` の偽エラー修正**: ポップアップ/ダッシュボード併用時に background が返す `already_running` を無害な状態として扱い、`console.error`（chrome://extensions のエラー欄汚染）と「更新中にエラーが発生しました」の偽通知を止めた。**ユーザーが実機で「no error」を確認済み**。
+> - **オンボーディング改善**: ポップアップの初回チュートリアル先頭に「時間割（CLASS 学生時間割表）を取り込む」ステップを追加（4段化）。
+> - **テスト整備**: 規約v2昇格で腐っていた consent テスト fixture を修正（`vitest` 全緑を回復）。
+> - **提出パッケージ**: 最新 develop から `letus-task-watcher-1.2.1.zip` を再作成（**forward-slash パスで再固め**＝Windows Compress-Archive の backslash 問題を回避。旧 `lms-task-watcher-v1.2.1.zip` は 7/11 の古いビルドなので `.bak` に退避済み・アップロード禁止）。
+> - **規約/プライバシー URL は公開済み**: `/terms`（版2）・`/privacy` とも 200 を確認済み。
+
 このリリースは**独立した2つの変更**を同梱する。
 
 1. **サブスク・認証UIとバックエンド連携の撤去**（`5176d98`） — `api.waiteu.dev` 凍結に伴い、拡張から関連コード一式を削除。`host_permissions` から `https://api.waiteu.dev/*` を削除。**通信先は LETUS と CLASS のみになり、外部送信はゼロ**。
@@ -22,8 +29,8 @@ v1.2.1 の機能修正（`ea131ed`、リスク抑制着手前から存在）も�
 - [x] `dist/manifest.json` の `host_permissions` は `letus.ed.tus.ac.jp` と `class.admin.tus.ac.jp` の2つのみ（**api.waiteu.dev は削除済み・新規ホストの追加なし**）
 - [x] `pnpm gen:terms` 再実行後も差分なし（規約の生成物が正典と一致）
 - [x] **`landing/terms.html` を `https://lms.waiteu.dev/terms` として公開**（2026-07-11 完了。develop マージ＋push で Cloudflare Pages が反映。`curl` で 200・`<title>利用規約 — LETUS Task Watcher</title>` を確認）
-- [ ] プライバシーポリシーを公開URLでホスト（v1.2.0から継続。まだ未対応なら本リリースと合わせて対応）
-- [ ] スクリーンショットを1枚以上用意（1280×800、v1.2.0の素材を流用可・`store-assets/`参照）
+- [x] **プライバシーポリシーを公開URLでホスト**（2026-07-13確認: `https://lms.waiteu.dev/privacy` が拡張のポリシー本文で200・「端末内完結／外部送信なし」を明記。canonical も `/privacy`）
+- [ ] スクリーンショットを1枚以上用意（1280×800、v1.2.0の素材 `store-assets/store-shot1〜3.png`・`images/screenshots-1280x800-editable/` を流用可。同意画面・オンボーディング変更があるため撮り直し推奨だが必須ではない）
 
 ### 挙動変更の明示（審査説明に必ず記載する）
 
