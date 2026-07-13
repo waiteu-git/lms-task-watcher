@@ -9,6 +9,7 @@ import {
   WELCOME_GUIDE_SHOWN_KEY,
 } from './storageKeys'
 import { TABLE_MINIMAL } from '../core/timetable.fixtures'
+import { TERMS_VERSION } from '../legal/termsVersion'
 
 // 実時間の setTimeout を待たないよう、テストではペーシングを無効化する。
 const noopPacer = { acquire: async () => {} }
@@ -525,7 +526,7 @@ describe('未同意時の収集ガード', () => {
 
   it('同意済みなら runAutoScan はコース取得まで進む', async () => {
     const getSpy = vi.fn().mockResolvedValue({
-      [TERMS_CONSENT_KEY]: { version: 1, acceptedAt: '2026-07-10T00:00:00.000Z' },
+      [TERMS_CONSENT_KEY]: { version: TERMS_VERSION, acceptedAt: '2026-07-10T00:00:00.000Z' },
       [COURSES_KEY]: [],
     })
     vi.stubGlobal('chrome', {
@@ -556,7 +557,7 @@ describe('未同意時の収集ガード', () => {
     expect(setBadgeText).toHaveBeenCalledWith({ text: '!' })
 
     getSpy.mockResolvedValue({
-      [TERMS_CONSENT_KEY]: { version: 1, acceptedAt: '2026-07-10T00:00:00.000Z' },
+      [TERMS_CONSENT_KEY]: { version: TERMS_VERSION, acceptedAt: '2026-07-10T00:00:00.000Z' },
     })
     await mod.updateConsentBadge()
     expect(setBadgeText).toHaveBeenLastCalledWith({ text: '' })
