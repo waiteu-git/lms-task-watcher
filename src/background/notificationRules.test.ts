@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest'
 import {
   DEFAULT_THRESHOLDS,
   resolveThresholds,
+  shouldNotifyCourseUpdate,
   pickThresholdToNotify,
   type NotificationRules,
 } from './notificationRules'
@@ -16,20 +17,34 @@ const rules: NotificationRules = {
 }
 
 describe('resolveThresholds', () => {
-  it('サブスク非activeなら常にデフォルト', () => {
-    expect(resolveThresholds(rules, 'course-early', false)).toEqual(DEFAULT_THRESHOLDS)
+  it('ルール無しならデフォルト', () => {
+    expect(resolveThresholds(null, 'course-x')).toEqual(DEFAULT_THRESHOLDS)
   })
-  it('activeでルール無しならデフォルト', () => {
-    expect(resolveThresholds(null, 'course-x', true)).toEqual(DEFAULT_THRESHOLDS)
+  it('上書きありならその値', () => {
+    expect(resolveThresholds(rules, 'course-early')).toEqual([24, 48, 72])
   })
-  it('activeで上書きありならその値', () => {
-    expect(resolveThresholds(rules, 'course-early', true)).toEqual([24, 48, 72])
+  it('ミュートならnull（＝通知しない）', () => {
+    expect(resolveThresholds(rules, 'course-muted')).toBeNull()
   })
-  it('activeでミュートならnull', () => {
-    expect(resolveThresholds(rules, 'course-muted', true)).toBeNull()
+  it('当該コースに上書き無しならdefaultThresholds', () => {
+    expect(resolveThresholds(rules, 'course-none')).toEqual([1, 3, 24])
   })
-  it('activeで当該コースに上書き無しならdefaultThresholds', () => {
-    expect(resolveThresholds(rules, 'course-none', true)).toEqual([1, 3, 24])
+})
+
+describe('shouldNotifyCourseUpdate', () => {
+  it('全体トグルoffなら常にfalse', () => {
+    expect(shouldNotifyCourseUpdate(rules, 'course-none', false)).toBe(false)
+    expect(shouldNotifyCourseUpdate(null, 'course-none', false)).toBe(false)
+  })
+  it('ミュート済みコースはfalse', () => {
+    expect(shouldNotifyCourseUpdate(rules, 'course-muted', true)).toBe(false)
+  })
+  it('通常コース（未ミュート・トグルon）はtrue', () => {
+    expect(shouldNotifyCourseUpdate(rules, 'course-none', true)).toBe(true)
+    expect(shouldNotifyCourseUpdate(rules, 'course-early', true)).toBe(true)
+  })
+  it('ルール無し（rules=null）でもトグルonならtrue', () => {
+    expect(shouldNotifyCourseUpdate(null, 'course-x', true)).toBe(true)
   })
 })
 

@@ -19,10 +19,7 @@ import {
   LAST_STALE_NOTIFICATION_AT_KEY,
   NOTIFIED_DEADLINE_KEYS_KEY,
   OLD_PASSED_DAYS,
-  ONE_DAY_MS,
-  ONE_HOUR_MS,
   STALE_NOTIFICATION_INTERVAL_MS,
-  THREE_HOURS_MS,
 } from './constants'
 import {
   getAssignmentScanStatus,
@@ -60,11 +57,15 @@ import {
 } from './utils/assignment'
 import { createNotification, normalizeUpdateError } from './utils/notification'
 import { classifyScanStartResponse, type ScanStartResponse } from './utils/scanResponse'
+import { computeDeadlineNotifications, type DeadlineTarget } from './core/deadlineNotify'
+import { resolveEffectiveTheme } from './core/theme'
 import { AssignmentCard } from './components/AssignmentCard'
 import { CollapsibleSection, Section } from './components/Section'
 import {
   getTheme,
   saveTheme,
+  getCourseUpdateNotifyEnabled,
+  saveCourseUpdateNotifyEnabled,
   getNotificationRules,
   saveNotificationRules,
   syncToServer,
@@ -131,6 +132,7 @@ export default function App() {
   const [manualAssignments, setManualAssignments] = useState<ManualAssignment[]>([])
   const [isUpdating, setIsUpdating] = useState(false)
   const [theme, setTheme] = useState('default')
+  const [courseUpdateNotifyEnabled, setCourseUpdateNotifyEnabled] = useState(true)
   const [notificationRules, setNotificationRules] = useState<NotificationRules>({
     version: 1,
     defaultThresholds: DEFAULT_THRESHOLDS,
@@ -208,89 +210,60 @@ export default function App() {
     sourceManualAssignments: ManualAssignment[],
   ) {
     const ignoredSet = new Set(sourceIgnoredIds)
-    const notifiedKeys = await getNotifiedDeadlineKeys()
-    const notifiedSet = new Set(notifiedKeys)
-    const nextNotifiedKeys = new Set(notifiedKeys)
-    let changed = false
+    // ルールは state ではなく保存値から読む（クロージャで state に依存させず、常に最新を反映）。
+    const [notifiedKeys, rules] = await Promise.all([
+      getNotifiedDeadlineKeys(),
+      getNotificationRules(),
+    ])
 
-    const visibleTargets = sourceAssignments
-      .filter((assignment) => {
-        return (
-          !ignoredSet.has(assignment.id) &&
-          isAssignmentVisibleByCourse(assignment, sourceCourses) &&
-          assignment.deadline &&
-          !isSubmittedAssignment(assignment) &&
-          assignment.lifecycleStatus !== 'passed'
-        )
-      })
-      .sort(sortByDeadline)
+    const visibleTargets = sourceAssignments.filter(
+      (assignment) =>
+        !ignoredSet.has(assignment.id) &&
+        isAssignmentVisibleByCourse(assignment, sourceCourses) &&
+        assignment.deadline &&
+        !isSubmittedAssignment(assignment) &&
+        assignment.lifecycleStatus !== 'passed',
+    )
 
     const manualTargets = sourceManualAssignments.filter(
       (assignment) => !assignment.submitted && assignment.deadline,
     )
 
-    type NotifyTarget = { id: string; title: string; courseName: string; deadline: string; url?: string }
-
-    const allTargets: NotifyTarget[] = [
+    const targets: DeadlineTarget[] = [
       ...visibleTargets
         .filter((a): a is Assignment & { deadline: string } => a.deadline !== null)
-        .map((a) => ({ id: a.id, title: a.title, courseName: a.courseName, deadline: a.deadline, url: a.url })),
-      ...manualTargets.map((a) => ({ id: a.id, title: a.title, courseName: a.courseName, deadline: a.deadline, url: a.letusUrl ?? undefined })),
+        .map((a) => ({
+          id: a.id,
+          courseId: a.courseId,
+          title: a.title,
+          courseName: a.courseName,
+          deadline: a.deadline,
+          url: a.url,
+        })),
+      ...manualTargets.map((a) => ({
+        id: a.id,
+        courseId: a.courseId,
+        title: a.title,
+        courseName: a.courseName,
+        deadline: a.deadline,
+        url: a.letusUrl ?? undefined,
+      })),
     ]
 
-    for (const target of allTargets) {
-      const diff = new Date(target.deadline).getTime() - Date.now()
+    const notifications = computeDeadlineNotifications(
+      targets,
+      rules,
+      new Set(notifiedKeys),
+      Date.now(),
+    )
+    if (notifications.length === 0) return
 
-      if (diff <= 0) {
-        continue
-      }
-
-      const oneHourKey = `${target.id}:1h`
-      const threeHourKey = `${target.id}:3h`
-      const oneDayKey = `${target.id}:24h`
-
-      if (diff <= ONE_HOUR_MS && !notifiedSet.has(oneHourKey)) {
-        createNotification(
-          `letus-task-watcher-deadline-1h-${target.id}`,
-          '締切まで1時間以内',
-          `${target.title}\n${target.courseName}`,
-          target.url,
-        )
-
-        nextNotifiedKeys.add(oneHourKey)
-        changed = true
-        continue
-      }
-
-      if (diff <= THREE_HOURS_MS && !notifiedSet.has(threeHourKey)) {
-        createNotification(
-          `letus-task-watcher-deadline-3h-${target.id}`,
-          '締切まで3時間以内',
-          `${target.title}\n${target.courseName}`,
-          target.url,
-        )
-
-        nextNotifiedKeys.add(threeHourKey)
-        changed = true
-        continue
-      }
-
-      if (diff <= ONE_DAY_MS && !notifiedSet.has(oneDayKey)) {
-        createNotification(
-          `letus-task-watcher-deadline-24h-${target.id}`,
-          '締切まで24時間以内',
-          `${target.title}\n${target.courseName}`,
-          target.url,
-        )
-
-        nextNotifiedKeys.add(oneDayKey)
-        changed = true
-      }
+    const nextNotifiedKeys = new Set(notifiedKeys)
+    for (const n of notifications) {
+      createNotification(n.notificationId, n.title, n.message, n.url)
+      nextNotifiedKeys.add(n.notifyKey)
     }
-
-    if (changed) {
-      await saveNotifiedDeadlineKeys(Array.from(nextNotifiedKeys))
-    }
+    await saveNotifiedDeadlineKeys(Array.from(nextNotifiedKeys))
   }
 
   useEffect(() => {
@@ -301,13 +274,28 @@ export default function App() {
   useEffect(() => {
     void (async () => {
       const savedTheme = await getTheme()
-      setTheme(savedTheme)
-      document.documentElement.setAttribute('data-theme', savedTheme)
+      setTheme(savedTheme) // data-theme の適用は theme を依存にした別 effect が担当
 
       const savedRules = await getNotificationRules()
       if (savedRules) setNotificationRules(savedRules)
+
+      setCourseUpdateNotifyEnabled(await getCourseUpdateNotifyEnabled())
     })()
   }, [])
+
+  // テーマの適用: theme が 'auto' の間は OS の prefers-color-scheme に追従し、
+  // 明示指定(light/dark)なら固定。theme が変わるたび実効テーマを data-theme に張る。
+  useEffect(() => {
+    const mql = window.matchMedia('(prefers-color-scheme: dark)')
+    const apply = () => {
+      document.documentElement.setAttribute('data-theme', resolveEffectiveTheme(theme, mql.matches))
+    }
+    apply()
+    if (theme === 'auto') {
+      mql.addEventListener('change', apply)
+      return () => mql.removeEventListener('change', apply)
+    }
+  }, [theme])
 
   useEffect(() => {
     void isConsented().then((consented) => {
@@ -1004,9 +992,30 @@ export default function App() {
     void chrome.tabs.create({ url: FEEDBACK_FORM_URL })
   }
 
+  async function toggleCourseUpdateNotify() {
+    const next = !courseUpdateNotifyEnabled
+    setCourseUpdateNotifyEnabled(next)
+    await saveCourseUpdateNotifyEnabled(next)
+  }
+
   // 通知タイミング設定（ローカル保存の実機能）。
   const notificationRulesSettings = (
     <>
+      <div className="notificationRulesSection">
+        <p className="premiumSectionLabel">コース内容の更新通知</p>
+        <p className="notificationHint">
+          登録コースに新しい教材・課題が増えたときに通知します。下の「コース別」でミュートしたコースは通知しません。
+        </p>
+        <label className="muteToggle">
+          <input
+            type="checkbox"
+            checked={courseUpdateNotifyEnabled}
+            onChange={() => void toggleCourseUpdateNotify()}
+          />
+          <span>コース更新を通知する</span>
+        </label>
+      </div>
+
       <div className="notificationRulesSection">
         <p className="premiumSectionLabel">通知タイミング（全体）</p>
         <p className="notificationHint">
@@ -1510,34 +1519,9 @@ export default function App() {
             ))}
           </CollapsibleSection>
 
-          <details className="settings" open>
-            <summary>通知設定</summary>
-            <div className="premiumSettingsBody">
-              {notificationRulesSettings}
-            </div>
-          </details>
+          <h2 className="settingsHeading">設定</h2>
 
-          <div className="displaySettings">
-            <span className="displaySettingsLabel">テーマ</span>
-            <div className="themeSelector">
-              {(['default', 'dark'] as const).map((t) => (
-                <button
-                  key={t}
-                  type="button"
-                  className={`themeBtn ${theme === t ? 'active' : ''}`}
-                  onClick={() => {
-                    setTheme(t)
-                    document.documentElement.setAttribute('data-theme', t)
-                    void saveTheme(t)
-                  }}
-                >
-                  {t === 'default' ? '標準' : 'ダーク'}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          <details className="settings" open>
+          <details className="settings">
             <summary>対象コースの選択</summary>
 
             <div className="settingsMeta">
@@ -1584,6 +1568,32 @@ export default function App() {
               )}
             </div>
           </details>
+
+          <details className="settings">
+            <summary>通知設定</summary>
+            <div className="premiumSettingsBody">
+              {notificationRulesSettings}
+            </div>
+          </details>
+
+          <div className="displaySettings">
+            <span className="displaySettingsLabel">テーマ</span>
+            <div className="themeSelector">
+              {(['auto', 'default', 'dark'] as const).map((t) => (
+                <button
+                  key={t}
+                  type="button"
+                  className={`themeBtn ${theme === t ? 'active' : ''}`}
+                  onClick={() => {
+                    setTheme(t)
+                    void saveTheme(t)
+                  }}
+                >
+                  {t === 'auto' ? '自動' : t === 'default' ? 'ライト' : 'ダーク'}
+                </button>
+              ))}
+            </div>
+          </div>
 
           <CollapsibleSection
             title="非表示にした課題"
