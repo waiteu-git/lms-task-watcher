@@ -744,6 +744,7 @@ button.slotChip { font-family: inherit; cursor: pointer; line-height: 1.3; }
 }
 .timetableSyllabus:hover,
 .timetableEditRoom:hover { color: var(--accent); }
+.timetableCapturedAt { font-size: 11.5px; color: var(--faint); margin: -4px 0 10px; }
 .timetableEmpty {
   font-size: 12.5px;
   color: var(--muted);

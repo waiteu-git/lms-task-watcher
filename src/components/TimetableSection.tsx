@@ -9,6 +9,7 @@ import { resolveSemester, applyOverrides, linkAssignmentsToSlots, extractCourseC
 import { loadCourseOverrides } from '../core/timetableView'
 import { SyllabusContext } from '../core/syllabusContext'
 import { buildSyllabusUrl, academicYear } from '../core/syllabus'
+import { formatDateTime } from '../utils/date'
 
 const DAYS: DayOfWeek[] = ['mon', 'tue', 'wed', 'thu', 'fri']
 const DAY_LABELS: Record<DayOfWeek, string> = { mon: '月', tue: '火', wed: '水', thu: '木', fri: '金', sat: '土' }
@@ -24,6 +25,7 @@ export function TimetableSection({ courses, assignments, manualAssignments, newC
   const [semester, setSemester] = useState<Semester | null>(null)
   const [captured, setCaptured] = useState<Semester[]>([])
   const [rawHtml, setRawHtml] = useState<string | null>(null)
+  const [capturedAt, setCapturedAt] = useState<string | null>(null)
   const [overrides, setOverrides] = useState<Record<string, { room?: string }>>({})
   const [open, setOpen] = useState(true)
 
@@ -42,6 +44,7 @@ export function TimetableSection({ courses, assignments, manualAssignments, newC
     void (async () => {
       const cap = await getTimetableCapture(year, semester)
       setRawHtml(cap?.rawTableHtml ?? null)
+      setCapturedAt(cap?.capturedAt ?? null)
       setOverrides(await loadCourseOverrides(year, semester, courses))
     })()
   }, [semester, year, courses])
@@ -110,6 +113,10 @@ export function TimetableSection({ courses, assignments, manualAssignments, newC
           ))}
         </div>
       </div>
+
+      {rawHtml !== null && capturedAt && (
+        <p className="timetableCapturedAt">最終取込 {formatDateTime(capturedAt)}</p>
+      )}
 
       {open && (
         rawHtml === null ? (
