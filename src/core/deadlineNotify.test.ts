@@ -69,7 +69,9 @@ describe('computeDeadlineNotifications', () => {
     expect(out).toEqual([])
   })
 
-  it('courseId 無し（手動課題）は default しきい値で発火・ミュート非適用', () => {
+  // 手動課題は呼び出し側（App/background）が courseId を渡さない契約。たとえ紐付けた
+  // コースがミュートされていても、courseId 無しなら override 非適用＝default で通知される。
+  it('courseId 無し（手動課題）は default しきい値で発火・コースミュートの影響を受けない', () => {
     const out = computeDeadlineNotifications(
       [{ id: 'man1', title: '手動', courseName: '手動講義', deadline: at(2) }],
       rules,
@@ -78,6 +80,16 @@ describe('computeDeadlineNotifications', () => {
     )
     expect(out).toHaveLength(1)
     expect(out[0].notifyKey).toBe('man1:3h')
+  })
+
+  it('参考: courseId を渡すとそのコースの override（ミュート）が効く＝手動課題で courseId を渡してはいけない理由', () => {
+    const withCourseId = computeDeadlineNotifications(
+      [{ id: 'man1', courseId: 'c-muted', title: '手動', courseName: '手動講義', deadline: at(0.5) }],
+      rules,
+      new Set(),
+      NOW,
+    )
+    expect(withCourseId).toEqual([]) // ミュートされ黙って消える（＝call側で courseId を渡さない）
   })
 
   it('rules=null でも default で発火', () => {

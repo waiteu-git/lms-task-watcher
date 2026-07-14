@@ -15,7 +15,7 @@
 
 - `resolveThresholds(rules, courseId)` から `subscriptionActive` 引数・ゲートを撤去。muted→null、override→その値、なし→`defaultThresholds`。
 - 新規純粋層 `src/core/deadlineNotify.ts`：`computeDeadlineNotifications(targets, rules, notifiedKeys, now)`。各 target（`{id, courseId, title, courseName, deadline, url}`）について diff>0 かつ `resolveThresholds` が非null なら `pickThresholdToNotify` で発火分を決定し、`{id, title, message, url, notifyKey, thresholdHours}` の配列を返す。純粋・副作用なし。
-- background `checkDeadlineWarningNotifications` と App(ポップアップ) `checkDeadlineWarningNotifications` の**両方**をこの共有関数に載せ替える。App 側の targets に `courseId` を持たせる（手動課題は courseId なし＝override 非適用＝`defaultThresholds`）。既定（override無し）の挙動は 1/3/24h のまま不変。
+- background `checkDeadlineWarningNotifications` と App(ポップアップ) `checkDeadlineWarningNotifications` の**両方**をこの共有関数に載せ替える。スキャン課題は `courseId` を持たせコース別ルールを適用。**手動課題は `ManualAssignment.courseId` が実在の追跡コースID（追加フォームが `courses` から選ばせる）なので、コース側ミュート/しきい値の巻き添えで通知が黙って消えないよう、呼び出し側で courseId を渡さない**（＝常に `defaultThresholds`・ミュート非適用）。※初版は「手動課題は courseId なし」と誤認していた点をレビューで是正。既定（override無し）の挙動は 1/3/24h のまま不変。
 - 新規純粋層 `shouldNotifyCourseUpdate(rules, courseId, globalEnabled)`：`globalEnabled===false` または当該コースが muted なら false。`notifyCourseUpdate` 発火前に判定し、false なら **Chrome通知はスキップ／`addUnreadUpdates`（NEWバッジ・履歴）は維持**。
 - コース更新通知の全体トグル `courseUpdateNotifyEnabled`（既定 true）を `premium.ts` に get/save 追加。background の課題スキャン内でロードして `shouldNotifyCourseUpdate` に渡す。
 

@@ -240,9 +240,10 @@ export default function App() {
           deadline: a.deadline,
           url: a.url,
         })),
+      // 手動課題はユーザーが明示的に追加したリマインダー。コース側のミュート/しきい値の
+      // 影響を受けて通知が黙って消えることのないよう courseId は渡さない（＝常に既定しきい値）。
       ...manualTargets.map((a) => ({
         id: a.id,
-        courseId: a.courseId,
         title: a.title,
         courseName: a.courseName,
         deadline: a.deadline,
