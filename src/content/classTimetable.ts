@@ -84,8 +84,9 @@ function capture(): void {
   const year = detectYear()
   const key = `timetable:${year}:${semester}`
   const value = { rawTableHtml: html, jigenText: findJigenText(), capturedAt: new Date().toISOString() }
+  const semesterLabel = semester === 'zenki' ? '前期' : '後期'
   void chrome.storage.local.set({ [key]: value }).then(() => {
-    showToast('時間割を取り込みました')
+    showToast(`${year}年度${semesterLabel}の時間割を取り込みました`)
   })
 }
 
