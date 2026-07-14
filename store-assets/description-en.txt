@@ -1,51 +1,62 @@
-⚠️ This extension is not affiliated with Tokyo University of Science.
+LETUS Task Watcher is a Chrome extension that helps you never miss an assignment deadline on LETUS, the LMS of Tokyo University of Science.
 
-Never miss a LETUS assignment deadline.
+— What it does —
 
-Automatically scans all your enrolled courses on LETUS — the LMS used at Tokyo University of Science — and keeps you on top of every due date with browser notifications and a clean popup view.
+・Automatically visits the assignment pages of your registered courses and collects due dates
+・Reminds you with browser notifications 24 hours, 3 hours, and 1 hour before each deadline
+・Refreshes your data automatically once a day
+・Lists every deadline in the popup and dashboard, highlighting urgency by color (due today = red / due this week = orange)
+・Automatically imports your timetable from the CLASS course-registration system and shows it as a grid, linking timetable courses to LETUS courses
+・Automatically adds courses in your timetable to the tracked list (your manual ON/OFF choices are respected)
+・Shows syllabus content inside the extension so you can check class details and grading at a glance
+・Notifies you when course content (announcements, materials, etc.) is updated
+・Assignment memos, priority settings, and a dark theme — all free
+・Freely choose and manage which courses to track
 
-■ Key Features
+— How to use —
 
-[Auto Scan]
-Stay up to date without lifting a finger. While you're logged into LETUS, the extension periodically fetches assignments from all your enrolled courses automatically.
+1. Log in to LETUS as usual
+2. Click the extension icon to open the popup
+3. Select the courses you want to track in the dashboard
+4. Press "Update now" to fetch your assignments
+5. Assignments are sorted automatically by nearest deadline
 
-[Deadline List by Period]
-Click the toolbar icon to see all upcoming deadlines grouped by "This Week," "Next Week," and "Later." A summary badge shows counts at a glance.
+— New in this version (v1.2.1) —
 
-[Browser Notifications]
-Get reminded before a deadline hits — even when you're working in another tab.
+・On first launch you are asked to accept the Terms of Use. Until you accept, the extension collects no information whatsoever
+・Subscription and login features have been removed. The extension now communicates only with LETUS and CLASS, and never sends anything to any external server
+・The initial setup guide has been improved: it walks you through importing your CLASS "Student Timetable," then selecting courses and updating
+・Bug fixes: course codes containing letters (e.g. 9975A06) were not auto-selected from the timetable, and the submission-status badge on LETUS pages did not update after you submitted an assignment — both are now fixed
 
-[Open Assignments Directly]
-Click any assignment card to open the corresponding LETUS page in a new tab instantly.
+— New in v1.2.0 —
 
-[Hide & Restore]
-Clean up your list by hiding assignments you've already submitted or don't need to track. Restore them anytime.
+・All features — assignment memos, priority settings, and dark theme — are now free
+・Automatically imports your timetable from the CLASS system and shows it as a grid, linking timetable courses to LETUS courses
+・Displays syllabus content inside the extension, so you can check class details and grading without opening LETUS or CLASS
+・Notifies you when course content (announcements, materials, etc.) is updated
+・Adds a persistent "Today's timetable" to the popup, highlights deadlines by urgency color (due today = red / this week = orange), and marks updated courses with a "NEW" badge
+・Automatically adds courses in your timetable to the tracked courses (respecting, and never overwriting, your manual ON/OFF choices)
+・Shows a welcome guide introducing the main features on install and update
 
-[Dashboard View]
-Need the full picture? Open the dashboard for a wide-screen view of all assignments across every course.
+— Privacy —
 
-■ How to Use
+・Collects no information until you accept the Terms of Use
+・Never reads or stores your login credentials
+・Communicates only with LETUS and CLASS. It has no server of its own and never sends any information externally
+・All data is stored inside your browser (chrome.storage.local)
+・Does not access your grades
+・You can delete stored data anytime from the dashboard
 
-1. Install the extension
-2. Log in to LETUS (letus.ed.tus.ac.jp)
-3. Click the toolbar icon to open the popup
-4. Press "Scan" to fetch your assignments
-5. After that, scans run automatically on a schedule
+— Permissions —
 
-■ Target Users
+・storage: to save assignment data and settings inside your browser
+・notifications: to notify you of deadlines and course-content updates
+・alarms: to run periodic automatic updates
+・https://letus.ed.tus.ac.jp/*: to fetch assignment pages using your logged-in session
+・https://class.admin.tus.ac.jp/*: to fetch the timetable and syllabus from the CLASS system
 
-Students enrolled at Tokyo University of Science who use LETUS.
-
-■ Privacy
-
-· Assignment data is stored locally on your device only
-· No assignment data is sent to external servers
-· The extension only activates on letus.ed.tus.ac.jp
-
-■ Disclaimer
-
-This extension is an independent student-built tool and is not affiliated with Tokyo University of Science. No official support is provided.
+This extension is independently developed by a student and is not affiliated with Tokyo University of Science, LETUS, or CLASS.
 
 ---
 Search terms (7):
-LETUS / Tokyo University of Science / assignment tracker / Moodle / deadline reminder / university LMS / TUS
+LETUS / Tokyo University of Science / assignment tracker / deadline reminder / CLASS timetable / syllabus / university LMS
