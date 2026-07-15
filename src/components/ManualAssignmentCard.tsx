@@ -29,6 +29,9 @@ export function ManualAssignmentCard({
   const [courseId, setCourseId] = useState(assignment.courseId)
   const [memo, setMemo] = useState(assignment.memo)
   const [submitted, setSubmitted] = useState(assignment.submitted)
+  // 編集フォームを開いた時点の submitted。assignment prop は開いている間に
+  // storage.onChanged 経由の再取得で変わりうるため、その時点値と比較できるよう別途保持する。
+  const [editInitialSubmitted, setEditInitialSubmitted] = useState(assignment.submitted)
   const [error, setError] = useState('')
 
   function openAssignmentPage() {
@@ -55,6 +58,7 @@ export function ManualAssignmentCard({
     setCourseId(assignment.courseId)
     setMemo(assignment.memo)
     setSubmitted(assignment.submitted)
+    setEditInitialSubmitted(assignment.submitted)
     setError('')
     setEditing(true)
   }
@@ -71,7 +75,9 @@ export function ManualAssignmentCard({
       courseId,
       courseName,
       memo: memo.trim(),
-      submitted,
+      // ユーザーが実際にチェックを変更した場合のみ submitted を含める。
+      // 含めない限り、保存側は既存値（並行して外部で変わった可能性がある値）を維持する。
+      ...(submitted !== editInitialSubmitted ? { submitted } : {}),
     })
     setEditing(false)
   }

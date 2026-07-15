@@ -249,6 +249,10 @@ function openManualEditForm(assignment: ManualAssignment, courses: Course[]): vo
   ;(shadow.getElementById('me-deadline') as HTMLInputElement).value = toLocalInputValue(assignment.deadline)
   ;(shadow.getElementById('me-course') as HTMLSelectElement).value = assignment.courseId
   ;(shadow.getElementById('me-submitted') as HTMLInputElement).checked = assignment.submitted
+  // フォームを開いた時点の値。保存時にチェックボックスがこの値と一致していれば
+  // 「ユーザーは触っていない」と判断し、submitted をパッチから除外する
+  // （他画面での並行変更を保存時に巻き戻さないため）。
+  const initialSubmitted = assignment.submitted
 
   const close = () => host.remove()
   panel.querySelector('.x')!.addEventListener('click', close)
@@ -274,7 +278,8 @@ function openManualEditForm(assignment: ManualAssignment, courses: Course[]): vo
       courseId,
       courseName,
       memo,
-      submitted,
+      // ユーザーが実際にチェックを変更した場合のみ submitted を含める。
+      ...(submitted !== initialSubmitted ? { submitted } : {}),
     })
     close()
     // 保存後の storage.onChanged でバッジは再描画される。
