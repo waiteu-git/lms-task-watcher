@@ -66,6 +66,21 @@ function toLocalInputValue(iso: string): string {
   return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}T${p(d.getHours())}:${p(d.getMinutes())}`
 }
 
+// 締切を変更したら、その課題の通知済みキー（`${id}:${hours}h`）を剥がし、
+// 新しい締切に対して締切通知を再アームする（延長時に再通知が抑制されないように）。
+async function rearmDeadlineNotifications(url: string): Promise<void> {
+  const target = normalizeAssignmentUrl(url)
+  const r = await chrome.storage.local.get(['assignments', 'notifiedDeadlineKeys']) as {
+    assignments?: Assignment[]
+    notifiedDeadlineKeys?: string[]
+  }
+  const assignment = (r.assignments ?? []).find((a) => a.url && normalizeAssignmentUrl(a.url) === target)
+  if (!assignment) return
+  const keys = r.notifiedDeadlineKeys ?? []
+  const next = keys.filter((k) => !k.startsWith(`${assignment.id}:`))
+  if (next.length !== keys.length) await chrome.storage.local.set({ notifiedDeadlineKeys: next })
+}
+
 // プレミアムのメモ・優先度機能（src/core/premium.ts）と同じストレージ形式。
 // content scriptは自己完結が必須のためロジックをインライン化している。
 async function seedAssignmentMemo(assignmentId: string, memo: string): Promise<void> {
@@ -167,10 +182,12 @@ function openDeadlineEditor(url: string, currentDeadline: string | null): void {
     const v = input.value
     if (!v) { shadow.getElementById('err')!.textContent = '日時を入力してください。'; return }
     await setDeadlineOverride(url, new Date(v).toISOString())
+    await rearmDeadlineNotifications(url)
     close()
   })
   panel.querySelector('.clear')!.addEventListener('click', async () => {
     await clearDeadlineOverride(url)
+    await rearmDeadlineNotifications(url)
     close()
   })
 }

@@ -79,7 +79,7 @@ import {
   toggleManualAssignmentSubmitted,
   type ManualAssignment,
 } from './core/manualAssignment'
-import { MANUAL_ASSIGNMENTS_KEY } from './background/storageKeys'
+import { DEADLINE_OVERRIDES_KEY, MANUAL_ASSIGNMENTS_KEY } from './background/storageKeys'
 import { AssignmentMemo } from './components/AssignmentMemo'
 import { ManualAssignmentCard } from './components/ManualAssignmentCard'
 import { TimetableSection } from './components/TimetableSection'
@@ -889,6 +889,7 @@ export default function App() {
       DEADLINE_SCAN_STATUS_KEY,
       LAST_REFRESH_AT_KEY,
       NOTIFIED_DEADLINE_KEYS_KEY,
+      DEADLINE_OVERRIDES_KEY,
     ])
 
     setAssignments([])
@@ -921,6 +922,7 @@ export default function App() {
       IGNORED_ASSIGNMENT_IDS_KEY,
       NOTIFIED_DEADLINE_KEYS_KEY,
       MANUAL_ASSIGNMENTS_KEY,
+      DEADLINE_OVERRIDES_KEY,
     ])
 
     setAssignments([])
