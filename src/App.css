@@ -1382,3 +1382,45 @@ button.slotChip { font-family: inherit; cursor: pointer; line-height: 1.3; }
 .termsConsentAccept:hover {
   background: #178360;
 }
+
+.manualEditBtn {
+  border: 1px solid #d1d5db;
+  background: #fff;
+  color: #374151;
+  border-radius: 6px;
+  padding: 4px 10px;
+  font-size: 12px;
+  cursor: pointer;
+}
+.manualEditBtn:hover { background: #f9fafb; }
+.manualEditForm { display: flex; flex-direction: column; gap: 6px; }
+.manualEditInput {
+  width: 100%;
+  box-sizing: border-box;
+  font-size: 12px;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  padding: 6px 8px;
+}
+.manualEditForm textarea.manualEditInput { resize: none; height: 44px; }
+.manualEditCheck { display: flex; align-items: center; gap: 6px; font-size: 12px; }
+.manualEditError { color: #dc2626; font-size: 11px; }
+.manualEditActions { display: flex; gap: 6px; margin-top: 4px; }
+.manualEditActions .manualDeleteBtn { margin-right: auto; }
+.manualEditCancel {
+  border: 1px solid #d1d5db;
+  background: #fff;
+  border-radius: 6px;
+  padding: 4px 10px;
+  font-size: 12px;
+  cursor: pointer;
+}
+.manualEditSave {
+  background: #2563eb;
+  color: #fff;
+  border: none;
+  border-radius: 6px;
+  padding: 4px 12px;
+  font-size: 12px;
+  cursor: pointer;
+}

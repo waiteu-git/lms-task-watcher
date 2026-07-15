@@ -77,7 +77,9 @@ import {
   addManualAssignment,
   deleteManualAssignment,
   toggleManualAssignmentSubmitted,
+  updateManualAssignment,
   type ManualAssignment,
+  type ManualAssignmentPatch,
 } from './core/manualAssignment'
 import { DEADLINE_OVERRIDES_KEY, MANUAL_ASSIGNMENTS_KEY } from './background/storageKeys'
 import { AssignmentMemo } from './components/AssignmentMemo'
@@ -870,6 +872,13 @@ export default function App() {
     )
   }
 
+  async function handleUpdateManualAssignment(id: string, patch: ManualAssignmentPatch) {
+    await updateManualAssignment(id, patch)
+    setManualAssignments((prev) =>
+      prev.map((a) => (a.id === id ? { ...a, ...patch } : a)),
+    )
+  }
+
   async function undoLastDeletedManualAssignment() {
     if (!lastDeletedManualAssignment) {
       return
@@ -1188,6 +1197,8 @@ export default function App() {
                   <ManualAssignmentCard
                     assignment={item.assignment}
                     onToggleSubmitted={(id) => void handleToggleManualSubmitted(id)}
+                    courses={courses}
+                    onUpdate={(id, patch) => void handleUpdateManualAssignment(id, patch)}
                     onDelete={(id) => void handleDeleteManualAssignment(id)}
                   />
                 </div>
@@ -1216,6 +1227,8 @@ export default function App() {
                       <ManualAssignmentCard
                         assignment={item.assignment}
                         onToggleSubmitted={(id) => void handleToggleManualSubmitted(id)}
+                        courses={courses}
+                        onUpdate={(id, patch) => void handleUpdateManualAssignment(id, patch)}
                         onDelete={(id) => void handleDeleteManualAssignment(id)}
                       />
                     </div>
@@ -1312,6 +1325,8 @@ export default function App() {
                   <ManualAssignmentCard
                     assignment={item.assignment}
                     onToggleSubmitted={(id) => void handleToggleManualSubmitted(id)}
+                    courses={courses}
+                    onUpdate={(id, patch) => void handleUpdateManualAssignment(id, patch)}
                     onDelete={(id) => void handleDeleteManualAssignment(id)}
                   />
                   <AssignmentMemo assignmentId={item.assignment.id} apiBaseUrl={API_BASE_URL} />
@@ -1340,6 +1355,8 @@ export default function App() {
                   <ManualAssignmentCard
                     assignment={item.assignment}
                     onToggleSubmitted={(id) => void handleToggleManualSubmitted(id)}
+                    courses={courses}
+                    onUpdate={(id, patch) => void handleUpdateManualAssignment(id, patch)}
                     onDelete={(id) => void handleDeleteManualAssignment(id)}
                   />
                   <AssignmentMemo assignmentId={item.assignment.id} apiBaseUrl={API_BASE_URL} />
@@ -1368,6 +1385,8 @@ export default function App() {
                   <ManualAssignmentCard
                     assignment={item.assignment}
                     onToggleSubmitted={(id) => void handleToggleManualSubmitted(id)}
+                    courses={courses}
+                    onUpdate={(id, patch) => void handleUpdateManualAssignment(id, patch)}
                     onDelete={(id) => void handleDeleteManualAssignment(id)}
                   />
                   <AssignmentMemo assignmentId={item.assignment.id} apiBaseUrl={API_BASE_URL} />
@@ -1396,6 +1415,8 @@ export default function App() {
                   <ManualAssignmentCard
                     assignment={item.assignment}
                     onToggleSubmitted={(id) => void handleToggleManualSubmitted(id)}
+                    courses={courses}
+                    onUpdate={(id, patch) => void handleUpdateManualAssignment(id, patch)}
                     onDelete={(id) => void handleDeleteManualAssignment(id)}
                   />
                   <AssignmentMemo assignmentId={item.assignment.id} apiBaseUrl={API_BASE_URL} />
@@ -1437,6 +1458,8 @@ export default function App() {
                   key={item.assignment.id}
                   assignment={item.assignment}
                   onToggleSubmitted={(id) => void handleToggleManualSubmitted(id)}
+                  courses={courses}
+                  onUpdate={(id, patch) => void handleUpdateManualAssignment(id, patch)}
                   onDelete={(id) => void handleDeleteManualAssignment(id)}
                 />
               ),
