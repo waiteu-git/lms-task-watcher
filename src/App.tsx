@@ -30,7 +30,7 @@ import {
   getNotifiedDeadlineKeys,
   initialAssignmentScanStatus,
   initialDeadlineScanStatus,
-  rearmDeadlineNotifications,
+  rearmDeadlineNotificationsForId,
   saveIgnoredAssignmentIds,
   saveLastStaleNotificationAt,
   saveNotifiedDeadlineKeys,
@@ -882,7 +882,7 @@ export default function App() {
     // 締切が実際に変わった場合のみ通知済みキーを剥がす（タイトル/メモ/コース/提出状態
     // だけの編集では、既に発火済みのしきい値通知を再度出す必要はないため触らない）。
     if (patch.deadline !== undefined && previous && patch.deadline !== previous.deadline) {
-      await rearmDeadlineNotifications(id)
+      await rearmDeadlineNotificationsForId(id)
     }
   }
 
