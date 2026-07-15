@@ -17,6 +17,7 @@ import {
   NOTIFICATION_TARGETS_KEY,
   TERMS_CONSENT_KEY,
   WELCOME_GUIDE_SHOWN_KEY,
+  TIMETABLE_IMPORT_NOTIFIED_KEY,
 } from './storageKeys'
 import { isConsented } from '../legal/termsConsent'
 import type { AssignmentScanStatus, DeadlineScanStatus } from '../core/scanStatus'
@@ -28,6 +29,7 @@ import { resolveThresholds, pickThresholdToNotify } from './notificationRules'
 import { normalizeText, stripTags, decodeHtmlEntities } from '../core/htmlText'
 import { extractLinksFromHtml } from '../core/letusLinks'
 import { computeCourseUpdate } from '../core/courseUpdates'
+import { pickFirstImportNotification, buildFirstImportNotification } from '../core/timetableImportNotify'
 import { getCourseSignature, saveCourseSignature, addUnreadUpdates } from './courseUpdatesStore'
 import { getCapturedCourseCodes } from '../core/timetableView'
 import { selectCoursesByTimetable } from '../core/courseSelect'
@@ -957,6 +959,11 @@ export async function handleInstalled(details: chrome.runtime.InstalledDetails):
   }
 
   if (details.reason === 'update') {
+    const allKeys = await chrome.storage.local.get(null)
+    if (Object.keys(allKeys).some((k) => k.startsWith('timetable:'))) {
+      await chrome.storage.local.set({ [TIMETABLE_IMPORT_NOTIFIED_KEY]: true })
+    }
+
     const result = await chrome.storage.local.get(WELCOME_GUIDE_SHOWN_KEY) as {
       welcomeGuideShown?: boolean
     }
@@ -1000,11 +1007,35 @@ chrome.alarms.onAlarm.addListener((alarm) => {
   })
 })
 
+/** 初回の時間割取込時にだけ1回OS通知する。フラグは取込前に立てて再入を防ぐ。
+ * 通知idは固定なので万一の二重発火でも可視通知は1つ。クリックはダッシュボードへ。 */
+async function maybeNotifyFirstTimetableImport(setKeys: string[]): Promise<void> {
+  const stored = (await chrome.storage.local.get(TIMETABLE_IMPORT_NOTIFIED_KEY)) as {
+    timetableImportNotified?: boolean
+  }
+  const pick = pickFirstImportNotification(setKeys, stored.timetableImportNotified === true)
+  if (!pick) return
+  await chrome.storage.local.set({ [TIMETABLE_IMPORT_NOTIFIED_KEY]: true })
+  const { title, message } = buildFirstImportNotification(pick.year, pick.semester)
+  await createNotification({
+    id: 'timetable-imported',
+    title,
+    message,
+    url: `${chrome.runtime.getURL('index.html')}#dashboard`,
+  })
+}
+
 chrome.storage.onChanged.addListener((changes, area) => {
   if (area !== 'local') return
-  if (Object.keys(changes).some((k) => k.startsWith('timetable:'))) {
+  const setTimetableKeys = Object.keys(changes).filter(
+    (k) => k.startsWith('timetable:') && changes[k].newValue !== undefined,
+  )
+  if (setTimetableKeys.length > 0) {
     applyAutoSelect().catch((error) => {
       console.error('[LETUS Task Watcher] auto select failed', error)
+    })
+    maybeNotifyFirstTimetableImport(setTimetableKeys).catch((error) => {
+      console.error('[LETUS Task Watcher] timetable import notify failed', error)
     })
   }
 })
