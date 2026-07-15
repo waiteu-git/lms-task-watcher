@@ -231,6 +231,7 @@ function openManualEditForm(assignment: ManualAssignment, courses: Course[]): vo
     <div class="field"><input id="me-deadline" type="datetime-local" /></div>
     <div class="field">
       <select id="me-course">
+        <option value="">コースを選択</option>
         ${courses.map((c) => `<option value="${escapeHtml(c.id)}" data-name="${escapeHtml(c.name)}">${escapeHtml(c.name)}</option>`).join('')}
       </select>
     </div>
