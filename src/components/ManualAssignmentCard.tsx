@@ -80,7 +80,7 @@ export function ManualAssignmentCard({
 
   if (editing) {
     return (
-      <article className="manualCard manualCardEditing">
+      <article className="manualCard">
         <div className="manualEditForm" onClick={stop}>
           <input
             className="manualEditInput"
@@ -121,7 +121,12 @@ export function ManualAssignmentCard({
           </label>
           {error && <div className="manualEditError">{error}</div>}
           <div className="manualEditActions">
-            <button type="button" className="manualDeleteBtn" onClick={() => onDelete(assignment.id)}>
+            <button
+              type="button"
+              className="manualDeleteBtn"
+              onClick={(e) => { stop(e); onDelete(assignment.id) }}
+              aria-label={`${assignment.title}を削除`}
+            >
               削除
             </button>
             <button type="button" className="manualEditCancel" onClick={() => setEditing(false)}>

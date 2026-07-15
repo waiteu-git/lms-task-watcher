@@ -1384,39 +1384,42 @@ button.slotChip { font-family: inherit; cursor: pointer; line-height: 1.3; }
 }
 
 .manualEditBtn {
-  border: 1px solid #d1d5db;
-  background: #fff;
-  color: #374151;
+  border: 1px solid var(--border);
+  background: var(--card);
+  color: var(--muted);
   border-radius: 6px;
   padding: 4px 10px;
   font-size: 12px;
   cursor: pointer;
 }
-.manualEditBtn:hover { background: #f9fafb; }
+.manualEditBtn:hover { filter: brightness(0.98); }
 .manualEditForm { display: flex; flex-direction: column; gap: 6px; }
 .manualEditInput {
   width: 100%;
   box-sizing: border-box;
   font-size: 12px;
-  border: 1px solid #d1d5db;
+  border: 1px solid var(--border);
   border-radius: 6px;
   padding: 6px 8px;
+  background: var(--note-bg);
+  color: var(--text);
 }
 .manualEditForm textarea.manualEditInput { resize: none; height: 44px; }
 .manualEditCheck { display: flex; align-items: center; gap: 6px; font-size: 12px; }
-.manualEditError { color: #dc2626; font-size: 11px; }
+.manualEditError { color: var(--danger); font-size: 11px; }
 .manualEditActions { display: flex; gap: 6px; margin-top: 4px; }
 .manualEditActions .manualDeleteBtn { margin-right: auto; }
 .manualEditCancel {
-  border: 1px solid #d1d5db;
-  background: #fff;
+  border: 1px solid var(--border);
+  background: var(--card);
+  color: var(--text);
   border-radius: 6px;
   padding: 4px 10px;
   font-size: 12px;
   cursor: pointer;
 }
 .manualEditSave {
-  background: #2563eb;
+  background: var(--accent);
   color: #fff;
   border: none;
   border-radius: 6px;
