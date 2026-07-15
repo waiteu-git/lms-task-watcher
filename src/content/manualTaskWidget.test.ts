@@ -106,4 +106,48 @@ describe('LETUSページのバッジ', () => {
     await chrome.write({ assignments: [] })
     expect(badgeText(roots)).toBe('+')
   })
+
+  it('手動課題バッジは ✎ を表示し、クリックで編集フォームが開いて更新できる', async () => {
+    const roots = captureShadowRoots()
+    installChromeStub({
+      courses: [{ id: 'c1', name: '9973337 電気数学', url: 'https://letus.ed.tus.ac.jp/course/view.php?id=1', enabled: true, lmsType: 'letus', createdAt: '', updatedAt: '' }],
+      assignments: [],
+      manualAssignments: [{
+        id: 'm1', courseId: 'c1', courseName: '9973337 電気数学', title: '手動レポート',
+        letusUrl: ASSIGNMENT_URL, deadline: '2026-07-20T14:00:00.000Z', memo: '', submitted: false,
+        createdAt: '2026-07-10T00:00:00.000Z',
+      }],
+    })
+
+    const { initManualTaskWidget } = await import('./manualTaskWidget')
+    await initManualTaskWidget()
+
+    // バッジに鉛筆マーク
+    expect(badgeText(roots)).toContain('✎')
+
+    // バッジをクリック → 編集フォームが開く（handler が async のため flush する）
+    const badge = roots.flatMap((r) => Array.from(r.querySelectorAll('.badge')))[0] as HTMLElement
+    badge.click()
+    await new Promise((r) => setTimeout(r, 0))
+    await new Promise((r) => setTimeout(r, 0))
+
+    const titleInput = roots
+      .map((r) => r.getElementById('me-title') as HTMLInputElement | null)
+      .find(Boolean) as HTMLInputElement
+    expect(titleInput.value).toBe('手動レポート')
+
+    // 課題名を変更して「更新」
+    titleInput.value = '手動レポート（改）'
+    const updateBtn = roots
+      .flatMap((r) => Array.from(r.querySelectorAll('.update')))
+      .find(Boolean) as HTMLButtonElement
+    updateBtn.click()
+    await new Promise((r) => setTimeout(r, 0))
+    await new Promise((r) => setTimeout(r, 0))
+
+    const { manualAssignments } = (await globalThis.chrome.storage.local.get(
+      'manualAssignments',
+    )) as { manualAssignments: Array<{ id: string; title: string }> }
+    expect(manualAssignments.find((x) => x.id === 'm1')?.title).toBe('手動レポート（改）')
+  })
 })
