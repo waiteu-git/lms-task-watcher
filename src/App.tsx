@@ -56,6 +56,7 @@ import {
 import { createNotification, normalizeUpdateError } from './utils/notification'
 import { classifyScanStartResponse, type ScanStartResponse } from './utils/scanResponse'
 import { computeDeadlineNotifications, type DeadlineTarget } from './core/deadlineNotify'
+import { applyDeadlineOverrides, getDeadlineOverrides } from './core/deadlineOverride'
 import { resolveEffectiveTheme } from './core/theme'
 import { AssignmentCard } from './components/AssignmentCard'
 import { CollapsibleSection, Section } from './components/Section'
@@ -182,6 +183,7 @@ export default function App() {
       savedDeadlineScanStatus,
       savedLastRefreshAt,
       savedManualAssignments,
+      overrides,
     ] = await Promise.all([
       getAssignments(),
       getCourses(),
@@ -190,9 +192,10 @@ export default function App() {
       getDeadlineScanStatus(),
       getLastRefreshAt(),
       getManualAssignments(),
+      getDeadlineOverrides(),
     ])
 
-    setAssignments(savedAssignments)
+    setAssignments(applyDeadlineOverrides(savedAssignments, overrides))
     setCourses(savedCourses)
     setIgnoredAssignmentIds(savedIgnoredAssignmentIds)
     setAssignmentScanStatus(savedAssignmentScanStatus)
@@ -346,9 +349,10 @@ export default function App() {
       const savedCourses = await getCourses()
       const savedIgnoredIds = await getIgnoredAssignmentIds()
       const savedManualAssignments = await getManualAssignments()
+      const overrides = await getDeadlineOverrides()
 
       await checkDeadlineWarningNotifications(
-        savedAssignments,
+        applyDeadlineOverrides(savedAssignments, overrides),
         savedCourses,
         savedIgnoredIds,
         savedManualAssignments,
