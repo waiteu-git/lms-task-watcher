@@ -27,6 +27,7 @@ import { getNotificationRules, getCourseUpdateNotifyEnabled } from '../core/prem
 import { extractDeadlineText, parseDeadline, parseDeadlineFromTitle } from './deadlineParser'
 import { shouldNotifyCourseUpdate } from './notificationRules'
 import { computeDeadlineNotifications, type DeadlineTarget } from '../core/deadlineNotify'
+import { applyDeadlineOverrides, getDeadlineOverrides } from '../core/deadlineOverride'
 import { normalizeText, stripTags, decodeHtmlEntities } from '../core/htmlText'
 import { extractLinksFromHtml } from '../core/letusLinks'
 import { computeCourseUpdate } from '../core/courseUpdates'
@@ -779,7 +780,7 @@ export async function scanDeadlinesInBackground(pacer: Pacer = letusPacer): Prom
     const detectedCount = finalAssignments.filter((a) => a.deadline !== null).length
 
     await saveAssignments(finalAssignments)
-    await notifyDeadlineSummary(finalAssignments)
+    await notifyDeadlineSummary(applyDeadlineOverrides(finalAssignments, await getDeadlineOverrides()))
     await saveDeadlineScanStatus({
       state: 'completed',
       startedAt,
@@ -832,13 +833,15 @@ async function saveLastRefreshAt(value: string): Promise<void> {
 // ─── Deadline warning notifications (rule-based thresholds) ─────────────────
 
 async function checkDeadlineWarningNotifications(): Promise<void> {
-  const [assignments, ignoredIds, notifiedKeys, manualAssignments, rules] = await Promise.all([
+  const [rawAssignments, ignoredIds, notifiedKeys, manualAssignments, rules, overrides] = await Promise.all([
     getAssignments(),
     getIgnoredAssignmentIds(),
     getNotifiedDeadlineKeys(),
     getManualAssignments(),
     getNotificationRules(),
+    getDeadlineOverrides(),
   ])
+  const assignments = applyDeadlineOverrides(rawAssignments, overrides)
 
   const ignoredSet = new Set(ignoredIds)
 
