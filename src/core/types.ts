@@ -44,7 +44,7 @@ export type Assignment = {
   url: string
   deadline: string | null
   deadlineText: string
-  deadlineSource: 'field' | 'title' | null
+  deadlineSource: 'field' | 'title' | 'user' | null
   sourceText: string
   submissionStatus: AssignmentSubmissionStatus
   lifecycleStatus: AssignmentLifecycleStatus
