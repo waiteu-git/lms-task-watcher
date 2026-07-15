@@ -23,9 +23,10 @@ import { isConsented } from '../legal/termsConsent'
 import type { AssignmentScanStatus, DeadlineScanStatus } from '../core/scanStatus'
 import { getManualAssignments } from '../core/manualAssignment'
 import { getAuthToken, isSubscriptionActive } from '../core/auth'
-import { getNotificationRules } from '../core/premium'
+import { getNotificationRules, getCourseUpdateNotifyEnabled } from '../core/premium'
 import { extractDeadlineText, parseDeadline, parseDeadlineFromTitle } from './deadlineParser'
-import { resolveThresholds, pickThresholdToNotify } from './notificationRules'
+import { shouldNotifyCourseUpdate } from './notificationRules'
+import { computeDeadlineNotifications, type DeadlineTarget } from '../core/deadlineNotify'
 import { normalizeText, stripTags, decodeHtmlEntities } from '../core/htmlText'
 import { extractLinksFromHtml } from '../core/letusLinks'
 import { computeCourseUpdate } from '../core/courseUpdates'
@@ -499,6 +500,12 @@ export async function scanAssignmentCandidatesInBackground(
     }
   }
 
+  // コース更新通知の可否判定に使う（ミュート済み or 全体OFF なら通知だけ抑制）。
+  const [notifyRules, courseUpdateNotifyEnabled] = await Promise.all([
+    getNotificationRules(),
+    getCourseUpdateNotifyEnabled(),
+  ])
+
   await saveAssignmentScanStatus({
     state: 'running',
     startedAt,
@@ -534,7 +541,9 @@ export async function scanAssignmentCandidatesInBackground(
             await saveCourseSignature(course.id, upd.signature)
             if (upd.added.length > 0) {
               await addUnreadUpdates(course.id, upd.added)
-              await notifyCourseUpdate(course, upd.added.length)
+              if (shouldNotifyCourseUpdate(notifyRules, course.id, courseUpdateNotifyEnabled)) {
+                await notifyCourseUpdate(course, upd.added.length)
+              }
             }
           }
         } catch {
@@ -789,20 +798,15 @@ async function saveLastRefreshAt(value: string): Promise<void> {
 // ─── Deadline warning notifications (rule-based thresholds) ─────────────────
 
 async function checkDeadlineWarningNotifications(): Promise<void> {
-  const [assignments, ignoredIds, notifiedKeys, manualAssignments, rules, subscriptionActive] =
-    await Promise.all([
-      getAssignments(),
-      getIgnoredAssignmentIds(),
-      getNotifiedDeadlineKeys(),
-      getManualAssignments(),
-      getNotificationRules(),
-      isSubscriptionActive(),
-    ])
+  const [assignments, ignoredIds, notifiedKeys, manualAssignments, rules] = await Promise.all([
+    getAssignments(),
+    getIgnoredAssignmentIds(),
+    getNotifiedDeadlineKeys(),
+    getManualAssignments(),
+    getNotificationRules(),
+  ])
 
   const ignoredSet = new Set(ignoredIds)
-  const notifiedSet = new Set(notifiedKeys)
-  const nextNotifiedKeys = new Set(notifiedKeys)
-  let changed = false
 
   const scanTargets = assignments.filter(
     (a) =>
@@ -816,16 +820,7 @@ async function checkDeadlineWarningNotifications(): Promise<void> {
 
   const manualTargets = manualAssignments.filter((a) => !a.submitted)
 
-  type NotifyTarget = {
-    id: string
-    courseId: string
-    title: string
-    courseName: string
-    deadline: string
-    url?: string
-  }
-
-  const allTargets: NotifyTarget[] = [
+  const targets: DeadlineTarget[] = [
     ...scanTargets
       .filter((a): a is Assignment & { deadline: string } => a.deadline !== null)
       .map((a) => ({
@@ -836,9 +831,10 @@ async function checkDeadlineWarningNotifications(): Promise<void> {
         deadline: a.deadline,
         url: a.url,
       })),
+    // 手動課題はユーザーが明示的に追加したリマインダー。コース側のミュート/しきい値の
+    // 影響を受けて通知が黙って消えることのないよう courseId は渡さない（＝常に既定しきい値）。
     ...manualTargets.map((a) => ({
       id: a.id,
-      courseId: a.courseId,
       title: a.title,
       courseName: a.courseName,
       deadline: a.deadline,
@@ -846,29 +842,15 @@ async function checkDeadlineWarningNotifications(): Promise<void> {
     })),
   ]
 
-  for (const target of allTargets) {
-    const diff = new Date(target.deadline).getTime() - Date.now()
-    if (diff <= 0) continue
+  const notifications = computeDeadlineNotifications(targets, rules, new Set(notifiedKeys), Date.now())
+  if (notifications.length === 0) return
 
-    const thresholds = resolveThresholds(rules, target.courseId, subscriptionActive)
-    if (thresholds === null) continue // ミュート
-
-    const pick = pickThresholdToNotify(diff, thresholds, target.id, notifiedSet)
-    if (!pick) continue
-
-    await createNotification({
-      id: `task-watcher-deadline-${pick.thresholdHours}h-${target.id}`,
-      title: `締切まで${pick.thresholdHours}時間以内`,
-      message: `${target.title}\n${target.courseName}`,
-      url: target.url,
-    })
-    nextNotifiedKeys.add(pick.notifyKey)
-    changed = true
+  const nextNotifiedKeys = new Set(notifiedKeys)
+  for (const n of notifications) {
+    await createNotification({ id: n.notificationId, title: n.title, message: n.message, url: n.url })
+    nextNotifiedKeys.add(n.notifyKey)
   }
-
-  if (changed) {
-    await saveNotifiedDeadlineKeys(Array.from(nextNotifiedKeys))
-  }
+  await saveNotifiedDeadlineKeys(Array.from(nextNotifiedKeys))
 }
 
 // ─── Alarm-based auto scan ────────────────────────────────────────────────────

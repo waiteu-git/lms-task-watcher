@@ -70,8 +70,8 @@ describe('getAllMemos', () => {
 })
 
 describe('getTheme / saveTheme', () => {
-  it('未保存はdefaultを返す', async () => {
-    expect(await getTheme()).toBe('default')
+  it('未保存はauto（OS追従）を返す', async () => {
+    expect(await getTheme()).toBe('auto')
   })
 
   it('保存したテーマを返す', async () => {
@@ -145,7 +145,7 @@ describe('syncToServer', () => {
       expect.objectContaining({
         method: 'POST',
         body: JSON.stringify({
-          theme: 'default',
+          theme: 'auto',
           notificationRules: rules,
           notificationRulesUpdatedAt: '2026-07-04T12:00:00.000Z',
         }),
@@ -164,7 +164,7 @@ describe('syncToServer', () => {
       'https://example.com/api/user/settings',
       expect.objectContaining({
         method: 'POST',
-        body: JSON.stringify({ theme: 'default' }),
+        body: JSON.stringify({ theme: 'auto' }),
       }),
     )
   })

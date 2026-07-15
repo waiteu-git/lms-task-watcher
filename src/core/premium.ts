@@ -4,6 +4,7 @@ import type { NotificationRules } from '../background/notificationRules'
 const ASSIGNMENT_MEMOS_KEY = 'assignmentMemos'
 const ASSIGNMENT_MEMOS_SYNCED_AT_KEY = 'assignmentMemosSyncedAt'
 const THEME_KEY = 'theme'
+const COURSE_UPDATE_NOTIFY_ENABLED_KEY = 'courseUpdateNotifyEnabled'
 const NOTIFICATION_RULES_KEY = 'notificationRules'
 const NOTIFICATION_RULES_UPDATED_AT_KEY = 'notificationRulesUpdatedAt'
 
@@ -35,11 +36,24 @@ export async function saveMemo(assignmentId: string, memo: AssignmentMemo): Prom
 
 export async function getTheme(): Promise<string> {
   const result = (await chrome.storage.local.get(THEME_KEY)) as { theme?: string }
-  return result.theme ?? 'default'
+  // 既定は 'auto'（OS追従）。明示的に保存された値（default/dark/auto）はそのまま維持。
+  return result.theme ?? 'auto'
 }
 
 export async function saveTheme(theme: string): Promise<void> {
   await chrome.storage.local.set({ [THEME_KEY]: theme })
+}
+
+// コース内容の更新通知（Chrome通知）の全体ON/OFF。既定は ON。
+export async function getCourseUpdateNotifyEnabled(): Promise<boolean> {
+  const result = (await chrome.storage.local.get(COURSE_UPDATE_NOTIFY_ENABLED_KEY)) as {
+    courseUpdateNotifyEnabled?: boolean
+  }
+  return result.courseUpdateNotifyEnabled !== false
+}
+
+export async function saveCourseUpdateNotifyEnabled(enabled: boolean): Promise<void> {
+  await chrome.storage.local.set({ [COURSE_UPDATE_NOTIFY_ENABLED_KEY]: enabled })
 }
 
 export async function getNotificationRules(): Promise<NotificationRules | null> {
