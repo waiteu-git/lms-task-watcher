@@ -571,6 +571,7 @@ async function repaint(): Promise<void> {
 type ScannedBadgeState = Extract<BadgeState, { kind: 'scanned' }>
 
 let indicatorEl: HTMLDivElement | null = null
+let indicatorState: ScannedBadgeState | null = null
 
 function buildScannedIndicator(state: ScannedBadgeState): void {
   const host = document.createElement('div')
@@ -600,7 +601,7 @@ function buildScannedIndicator(state: ScannedBadgeState): void {
   shadow.appendChild(style)
 
   const el = document.createElement('div')
-  el.title = 'ダッシュボードで確認'
+  el.title = '締切を設定 / 変更'
   el.innerHTML = `
     <span class="icon"></span>
     <div class="label">
@@ -609,7 +610,7 @@ function buildScannedIndicator(state: ScannedBadgeState): void {
     </div>
   `
   el.addEventListener('click', () => {
-    chrome.runtime.sendMessage({ type: 'OPEN_DASHBOARD' })
+    openDeadlineEditor(normalizeAssignmentUrl(location.href), indicatorState?.deadline ?? null)
   })
   shadow.appendChild(el)
 
@@ -618,14 +619,16 @@ function buildScannedIndicator(state: ScannedBadgeState): void {
 }
 
 function updateScannedIndicator(state: ScannedBadgeState): void {
+  indicatorState = state
   const el = indicatorEl
   if (!el) return
 
   el.className = `indicator ${state.submitted ? 'submitted' : ''}`
   el.querySelector('.icon')!.textContent = state.submitted ? '✓' : '！'
   el.querySelector('.title')!.textContent = state.submitted ? '提出済み' : '未提出'
-  el.querySelector('.deadline')!.textContent =
-    `締切 ${state.deadline ? formatDeadlineShort(state.deadline) : '未取得'}`
+  el.querySelector('.deadline')!.textContent = state.deadline
+    ? `締切 ${formatDeadlineShort(state.deadline)}${state.userSet ? ' ✎' : ''}`
+    : '締切を設定（タップ）'
 }
 
 function formatDeadlineShort(isoString: string): string {
