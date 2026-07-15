@@ -1,57 +1,54 @@
-LETUS Task Watcher is a Chrome extension that helps you never miss an assignment deadline on LETUS, the LMS of Tokyo University of Science.
+[Summary (max 132 chars)]
+Auto-collect LETUS deadlines with browser alerts. Links your CLASS timetable & syllabus. All local, nothing sent out. Free.
+
+────────────────────────────────
+[Description]
+
+LETUS Task Watcher is a Chrome extension that helps you never miss an assignment deadline on LETUS, the LMS of Tokyo University of Science. It also links to your timetable and syllabus from the CLASS course-registration system, so you can manage assignments and classes in one place. Every feature is free.
 
 — What it does —
 
 ・Automatically visits the assignment pages of your registered courses and collects due dates
 ・Reminds you with browser notifications 24 hours, 3 hours, and 1 hour before each deadline
-・Refreshes your data automatically once a day
+・Refreshes your data automatically once a day, and finishes in the background even if you close the popup
 ・Lists every deadline in the popup and dashboard, highlighting urgency by color (due today = red / due this week = orange)
-・Automatically imports your timetable from the CLASS course-registration system and shows it as a grid, linking timetable courses to LETUS courses
+・Automatically imports your timetable from the CLASS system and shows it as a grid, linking timetable courses to LETUS courses
 ・Automatically adds courses in your timetable to the tracked list (your manual ON/OFF choices are respected)
 ・Shows syllabus content inside the extension so you can check class details and grading at a glance
-・Notifies you when course content (announcements, materials, etc.) is updated
-・Assignment memos, priority settings, and a dark theme — all free
+・Notifies you when course content (announcements, materials, etc.) is updated — and you can mute this per course
+・Mute notifications or change deadline-warning timing per course
+・Auto / Light / Dark theme, assignment memos, hide & restore — all free
 ・Freely choose and manage which courses to track
 
 — How to use —
 
-1. Log in to LETUS as usual
-2. Click the extension icon to open the popup
-3. Select the courses you want to track in the dashboard
-4. Press "Update now" to fetch your assignments
-5. Assignments are sorted automatically by nearest deadline
+1. Install the extension and accept the Terms of Use
+2. Log in to LETUS as usual
+3. Open "Course Registration → Student Timetable" in CLASS to import your timetable
+4. Select the courses you want to track in the dashboard
+5. Press "Update now" to fetch your assignments (after that, it updates automatically once a day)
 
-— New in this version (v1.2.1) —
+— New in v1.2.2 —
 
-・On first launch you are asked to accept the Terms of Use. Until you accept, the extension collects no information whatsoever
-・Subscription and login features have been removed. The extension now communicates only with LETUS and CLASS, and never sends anything to any external server
-・The initial setup guide has been improved: it walks you through importing your CLASS "Student Timetable," then selecting courses and updating
-・Bug fixes: course codes containing letters (e.g. 9975A06) were not auto-selected from the timetable, and the submission-status badge on LETUS pages did not update after you submitted an assignment — both are now fixed
-
-— New in v1.2.0 —
-
-・All features — assignment memos, priority settings, and dark theme — are now free
-・Automatically imports your timetable from the CLASS system and shows it as a grid, linking timetable courses to LETUS courses
-・Displays syllabus content inside the extension, so you can check class details and grading without opening LETUS or CLASS
-・Notifies you when course content (announcements, materials, etc.) is updated
-・Adds a persistent "Today's timetable" to the popup, highlights deadlines by urgency color (due today = red / this week = orange), and marks updated courses with a "NEW" badge
-・Automatically adds courses in your timetable to the tracked courses (respecting, and never overwriting, your manual ON/OFF choices)
-・Shows a welcome guide introducing the main features on install and update
+・Clearer timetable import: the import toast now shows the year and term, the popup shows the last-imported time, and your first import is confirmed with a notification
+・Notification mute now actually works: mute or change deadline-warning thresholds per course (course-content update alerts respect it too; the NEW badge is kept)
+・New "Auto" theme that follows your device's light/dark setting — now the default. You can still pin Light or Dark
+・The dashboard's lower settings are grouped under a "Settings" heading and tidied up
+・"Update now" finishes in the background: it no longer stops if you close the popup or dashboard mid-update, and notifies you when done
 
 — Privacy —
 
 ・Collects no information until you accept the Terms of Use
-・Never reads or stores your login credentials
-・Communicates only with LETUS and CLASS. It has no server of its own and never sends any information externally
-・All data is stored inside your browser (chrome.storage.local)
-・Does not access your grades
+・Reads only your LETUS assignments and your CLASS timetable/syllabus. It never accesses your grades
+・All data is stored inside your browser (chrome.storage.local) and is never sent to any external server
+・Communicates only with letus.ed.tus.ac.jp and class.admin.tus.ac.jp. It has no server of its own
 ・You can delete stored data anytime from the dashboard
 
 — Permissions —
 
 ・storage: to save assignment data and settings inside your browser
 ・notifications: to notify you of deadlines and course-content updates
-・alarms: to run periodic automatic updates
+・alarms: to run the once-a-day automatic update
 ・https://letus.ed.tus.ac.jp/*: to fetch assignment pages using your logged-in session
 ・https://class.admin.tus.ac.jp/*: to fetch the timetable and syllabus from the CLASS system
 
