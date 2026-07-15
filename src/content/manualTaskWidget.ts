@@ -66,19 +66,25 @@ function toLocalInputValue(iso: string): string {
   return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}T${p(d.getHours())}:${p(d.getMinutes())}`
 }
 
-// 締切を変更したら、その課題の通知済みキー（`${id}:${hours}h`）を剥がし、
-// 新しい締切に対して締切通知を再アームする（延長時に再通知が抑制されないように）。
+// 通知済みキー（`${id}:${hours}h`）から指定idに紐づくエントリを取り除く。
+// `${id}:` への前方一致（区切り文字込み）なので m1 と m10 のような部分一致は起きない。
+async function pruneNotifiedDeadlineKeysForId(id: string): Promise<void> {
+  const r = await chrome.storage.local.get('notifiedDeadlineKeys') as { notifiedDeadlineKeys?: string[] }
+  const keys = r.notifiedDeadlineKeys ?? []
+  const next = keys.filter((k) => !k.startsWith(`${id}:`))
+  if (next.length !== keys.length) await chrome.storage.local.set({ notifiedDeadlineKeys: next })
+}
+
+// 締切を変更したら、その課題の通知済みキーを剥がし、新しい締切に対して締切通知を
+// 再アームする（延長時に再通知が抑制されないように）。スキャン課題は id が url からしか
+// 分からないため、url→id を解決してから剥がす（手動課題は id を直接持っているので
+// pruneNotifiedDeadlineKeysForId を直接呼べばよい）。
 async function rearmDeadlineNotifications(url: string): Promise<void> {
   const target = normalizeAssignmentUrl(url)
-  const r = await chrome.storage.local.get(['assignments', 'notifiedDeadlineKeys']) as {
-    assignments?: Assignment[]
-    notifiedDeadlineKeys?: string[]
-  }
+  const r = await chrome.storage.local.get('assignments') as { assignments?: Assignment[] }
   const assignment = (r.assignments ?? []).find((a) => a.url && normalizeAssignmentUrl(a.url) === target)
   if (!assignment) return
-  const keys = r.notifiedDeadlineKeys ?? []
-  const next = keys.filter((k) => !k.startsWith(`${assignment.id}:`))
-  if (next.length !== keys.length) await chrome.storage.local.set({ notifiedDeadlineKeys: next })
+  await pruneNotifiedDeadlineKeysForId(assignment.id)
 }
 
 // プレミアムのメモ・優先度機能（src/core/premium.ts）と同じストレージ形式。
@@ -272,15 +278,21 @@ function openManualEditForm(assignment: ManualAssignment, courses: Course[]): vo
     if (!deadlineLocal) { errEl.textContent = '締切を入力してください。'; return }
     if (!courseId) { errEl.textContent = 'コースを選択してください。'; return }
 
+    const newDeadline = new Date(deadlineLocal).toISOString()
     await updateManualInline(assignment.id, {
       title,
-      deadline: new Date(deadlineLocal).toISOString(),
+      deadline: newDeadline,
       courseId,
       courseName,
       memo,
       // ユーザーが実際にチェックを変更した場合のみ submitted を含める。
       ...(submitted !== initialSubmitted ? { submitted } : {}),
     })
+    // 締切が実際に変わった場合のみ通知済みキーを剥がす（タイトル/メモ/コース/提出状態
+    // だけの編集では、既に発火済みのしきい値通知を再度出す必要はないため触らない）。
+    if (newDeadline !== assignment.deadline) {
+      await pruneNotifiedDeadlineKeysForId(assignment.id)
+    }
     close()
     // 保存後の storage.onChanged でバッジは再描画される。
   })

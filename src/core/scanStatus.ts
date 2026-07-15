@@ -129,6 +129,15 @@ export async function saveNotifiedDeadlineKeys(notifiedDeadlineKeys: string[]) {
   })
 }
 
+// 締切を変更したら、その課題の通知済みキー（`${id}:${hours}h`）を剥がし、
+// 新しい締切に対して締切通知を再アームする（延長時に再通知が抑制されないように）。
+// `${id}:` への前方一致（区切り文字込み）なので m1 と m10 のような部分一致は起きない。
+export async function rearmDeadlineNotifications(id: string): Promise<void> {
+  const keys = await getNotifiedDeadlineKeys()
+  const next = keys.filter((k) => !k.startsWith(`${id}:`))
+  if (next.length !== keys.length) await saveNotifiedDeadlineKeys(next)
+}
+
 export async function waitForAssignmentScanToFinish(
   onTick: () => Promise<void>,
 ): Promise<void> {
