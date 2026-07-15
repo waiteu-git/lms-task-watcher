@@ -41,7 +41,17 @@ describe('isSameBadgeState', () => {
 describe('computeBadgeState', () => {
   it('スキャン済み・未提出は scanned/submitted:false', () => {
     const s = computeBadgeState(URL, [assignment()], [])
-    expect(s).toEqual({ kind: 'scanned', submitted: false, deadline: '2026-07-12T14:00:00.000Z' })
+    expect(s).toEqual({ kind: 'scanned', submitted: false, deadline: '2026-07-12T14:00:00.000Z', userSet: false })
+  })
+
+  it('override 付き scanned は実効締切と userSet:true を返す', () => {
+    const s = computeBadgeState(URL, [assignment({ deadline: null })], [], { [URL]: '2026-07-22T14:00:00.000Z' })
+    expect(s).toEqual({ kind: 'scanned', submitted: false, deadline: '2026-07-22T14:00:00.000Z', userSet: true })
+  })
+
+  it('override 無しの scanned は userSet:false・パース締切そのまま', () => {
+    const s = computeBadgeState(URL, [assignment()], [])
+    expect(s).toMatchObject({ kind: 'scanned', deadline: '2026-07-12T14:00:00.000Z', userSet: false })
   })
 
   it('submissionStatus が submitted なら submitted:true', () => {
