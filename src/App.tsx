@@ -31,7 +31,6 @@ import {
   initialAssignmentScanStatus,
   initialDeadlineScanStatus,
   saveIgnoredAssignmentIds,
-  saveLastRefreshAt,
   saveLastStaleNotificationAt,
   saveNotifiedDeadlineKeys,
   waitForAssignmentScanToFinish,
@@ -49,7 +48,6 @@ import {
   isWithinThisWeekAfterTomorrow,
 } from './utils/date'
 import {
-  getUrgentAssignments,
   isAssignmentVisibleByCourse,
   isOldPassedAssignment,
   isSubmittedAssignment,
@@ -379,8 +377,7 @@ export default function App() {
       ])
 
       const scanResponse = await chrome.runtime.sendMessage({
-        type: 'START_ASSIGNMENT_SCAN',
-        scanLevel: 'standard',
+        type: 'START_FULL_UPDATE',
       }) as ScanStartResponse
 
       const scanOutcome = classifyScanStartResponse(scanResponse)
@@ -392,55 +389,11 @@ export default function App() {
         throw new Error(scanOutcome.reason)
       }
 
+      // 実処理・最終更新時刻の保存・締切通知・完了通知は service worker 側で走る
+      // （ポップアップ/ダッシュボードを閉じても完走する）。ここでは進捗表示のため
+      // 両スキャンの状態をポーリングし、完了後に画面を最新化するだけ。
       await waitForAssignmentScanToFinish(refreshAll)
-
-      await chrome.runtime.sendMessage({
-        type: 'START_DEADLINE_SCAN',
-      })
-
       await waitForDeadlineScanToFinish(refreshAll)
-
-      const finishedAt = new Date().toISOString()
-      await saveLastRefreshAt(finishedAt)
-
-      const latestAssignments = await getAssignments()
-      const latestCourses = await getCourses()
-      const latestIgnoredIds = await getIgnoredAssignmentIds()
-
-      const visibleLatestAssignments = latestAssignments.filter(
-        (assignment) => !latestIgnoredIds.includes(assignment.id),
-      )
-
-      const urgent = getUrgentAssignments(visibleLatestAssignments, latestCourses)
-
-      setAssignments(latestAssignments)
-      setCourses(latestCourses)
-      setIgnoredAssignmentIds(latestIgnoredIds)
-      setLastRefreshAt(finishedAt)
-
-      await checkDeadlineWarningNotifications(
-        latestAssignments,
-        latestCourses,
-        latestIgnoredIds,
-        manualAssignments,
-      )
-
-      if (urgent.length > 0) {
-        const first = urgent[0]
-
-        createNotification(
-          `letus-task-watcher-update-urgent`,
-          `24時間以内の課題: ${urgent.length}件`,
-          `${first.title}\n${first.courseName}`,
-          first.url,
-        )
-      } else {
-        createNotification(
-          `letus-task-watcher-update-completed`,
-          'LETUS Task Watcher',
-          '更新が完了しました。24時間以内の未提出課題はありません。',
-        )
-      }
 
       await refreshAll()
       if (showOnboarding) {
@@ -449,21 +402,15 @@ export default function App() {
       }
       setMessage('更新が完了しました。')
     } catch (error) {
+      // 実処理・最終化・完了/失敗通知は SW 側で継続・完了する（popup のタイムアウトで
+      // 誤ってエラー通知を出さない）。ここでは画面表示のみ。
       const normalizedMessage = normalizeUpdateError(error)
-
       console.error(error)
-
-      createNotification(
-        `letus-task-watcher-update-error`,
-        'LETUS Task Watcher',
-        '更新中にエラーが発生しました。拡張機能を開いて状態を確認してください。',
-      )
-
       setMessage(normalizedMessage)
     } finally {
       setIsUpdating(false)
     }
-  }, [showOnboarding, manualAssignments])
+  }, [showOnboarding])
 
   useEffect(() => {
     if (consentState !== 'ok') {

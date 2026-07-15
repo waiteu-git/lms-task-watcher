@@ -36,6 +36,7 @@ import { getCapturedCourseCodes } from '../core/timetableView'
 import { selectCoursesByTimetable } from '../core/courseSelect'
 import { academicYear } from '../core/syllabus'
 import { createPacer, LETUS_MIN_REQUEST_GAP_MS, type Pacer } from '../core/pacer'
+import { createKeepAlive } from '../core/keepAlive'
 
 console.log('[LETUS Task Watcher] background service worker loaded')
 
@@ -45,6 +46,39 @@ console.log('[LETUS Task Watcher] background service worker loaded')
  * 実効レートはこのペーサーが決める。
  */
 const letusPacer = createPacer(LETUS_MIN_REQUEST_GAP_MS)
+
+// ─── Service worker keep-alive ────────────────────────────────────────────────
+// MV3 の service worker は 30 秒アイドルで終了する。長時間スキャン中は 20 秒ごとに
+// 軽い拡張 API（getPlatformInfo）を呼んでアイドルタイマをリセットし、ポップアップ/
+// ダッシュボードを閉じてもスキャンを最後まで走らせる。完了で必ずタイマを止める。
+const KEEP_ALIVE_INTERVAL_MS = 20_000
+let keepAliveTimer: ReturnType<typeof setInterval> | null = null
+
+const keepAlive = createKeepAlive({
+  start: () => {
+    if (keepAliveTimer !== null) return
+    keepAliveTimer = setInterval(() => {
+      chrome.runtime.getPlatformInfo(() => {
+        void chrome.runtime.lastError
+      })
+    }, KEEP_ALIVE_INTERVAL_MS)
+  },
+  stop: () => {
+    if (keepAliveTimer === null) return
+    clearInterval(keepAliveTimer)
+    keepAliveTimer = null
+  },
+})
+
+/** fn 実行中だけ service worker を延命する。スキャンの入れ子/連続でもタイマは1本。 */
+async function withKeepAlive<T>(fn: () => Promise<T>): Promise<T> {
+  keepAlive.acquire()
+  try {
+    return await fn()
+  } finally {
+    keepAlive.release()
+  }
+}
 
 const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL as string) ?? ''
 
@@ -917,6 +951,48 @@ export async function runAutoScan(): Promise<void> {
   await checkDeadlineWarningNotifications()
 }
 
+/** 手動更新が途中で失敗したときの通知。スキャンは throw せず {ok:false} を返すため、
+ * runManualUpdate 側で失敗を検知してここで通知する（閉じていても失敗が分かる）。
+ * already_running は別の更新が進行中なだけなので通知しない。 */
+async function notifyUpdateFailed(reason: string | undefined): Promise<void> {
+  if (reason === 'already_running') return
+  const isLogin = reason === 'login_required' || reason === 'not_logged_in'
+  await createNotification({
+    id: isLogin ? 'task-watcher-login-required' : 'letus-task-watcher-update-error',
+    title: 'LETUS Task Watcher',
+    message: isLogin
+      ? 'LETUSにログインしてください。クリックするとログイン画面が開きます。'
+      : '更新に失敗しました。ネットワークやLETUSのログイン状態を確認してください。',
+    url: isLogin ? LETUS_LOGIN_URL : undefined,
+  })
+}
+
+/**
+ * 手動更新（ポップアップの「今すぐ更新」）の全工程を service worker 側で実行する。
+ * 課題スキャン→締切スキャン→最終更新時刻の保存→締切通知判定 まで SW が一気に走るので、
+ * 開始後にポップアップ/ダッシュボードを閉じても最後まで完了する。オーケストレーションと
+ * 最終処理を popup から SW に移すための本体。ログイン確認は呼び出し側（START_FULL_UPDATE
+ * ハンドラ）で済ませてから呼ぶ。
+ *
+ * スキャン関数は失敗時に throw せず {ok:false} を返すため、各段階で ok を確認し、失敗時は
+ * 最終処理（lastRefreshAt 保存・締切通知）をスキップして偽の成功を作らない。完了/緊急の
+ * サマリ通知は締切スキャン成功時に notifyDeadlineSummary が発火するのでここでは出さない。
+ */
+async function runManualUpdate(): Promise<void> {
+  const assignment = await scanAssignmentCandidatesInBackground('standard')
+  if (!assignment.ok) {
+    await notifyUpdateFailed(assignment.reason)
+    return
+  }
+  const deadline = await scanDeadlinesInBackground()
+  if (!deadline.ok) {
+    await notifyUpdateFailed(deadline.reason)
+    return
+  }
+  await saveLastRefreshAt(new Date().toISOString())
+  await checkDeadlineWarningNotifications()
+}
+
 /** 未同意のあいだ拡張アイコンに "!" を出し、同意で消す。通知は使わない。 */
 export async function updateConsentBadge(): Promise<void> {
   const consented = await isConsented()
@@ -984,7 +1060,7 @@ chrome.storage.local.onChanged.addListener((changes) => {
 chrome.alarms.onAlarm.addListener((alarm) => {
   if (alarm.name !== ALARM_NAME) return
 
-  runAutoScan().catch((error) => {
+  withKeepAlive(runAutoScan).catch((error) => {
     console.error('[LETUS Task Watcher] auto scan failed', error)
   })
 })
@@ -1040,6 +1116,31 @@ function handleCollectingMessage(
     return
   }
 
+  if (message.type === 'START_FULL_UPDATE') {
+    if (isAssignmentScanning || isDeadlineScanning) {
+      sendResponse({ ok: false, reason: 'already_running' })
+      return
+    }
+    void (async () => {
+      const courses = await getCourses()
+      const enabledCourses = courses.filter((c) => c.enabled)
+      const loginStatus = await checkIsLoggedIn(enabledCourses)
+      if (loginStatus !== 'ok') {
+        sendResponse({
+          ok: false,
+          reason: loginStatus === 'login_required' ? 'not_logged_in' : 'network_error',
+        })
+        return
+      }
+      sendResponse({ ok: true, reason: 'started' })
+      // 実処理・最終化・完了通知は SW 側で keep-alive 下に完走させる（popup を閉じても続く）。
+      withKeepAlive(runManualUpdate).catch((error) => {
+        console.error('[LETUS Task Watcher] full update failed', error)
+      })
+    })()
+    return
+  }
+
   if (message.type === 'START_ASSIGNMENT_SCAN') {
     if (isAssignmentScanning) {
       sendResponse({ ok: false, reason: 'already_running' })
@@ -1089,7 +1190,7 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
   // 収集を伴うメッセージは、規約同意まで一切受け付けない。
   // popup の自動 refresh は React の useEffect であり画面ゲートでは止まらないため、
   // ここが実効的な防波堤になる。
-  const COLLECTING_MESSAGES = ['UPSERT_COURSES', 'START_ASSIGNMENT_SCAN', 'START_DEADLINE_SCAN']
+  const COLLECTING_MESSAGES = ['UPSERT_COURSES', 'START_ASSIGNMENT_SCAN', 'START_DEADLINE_SCAN', 'START_FULL_UPDATE']
   if (COLLECTING_MESSAGES.includes(message?.type)) {
     void isConsented().then((consented) => {
       if (!consented) {
