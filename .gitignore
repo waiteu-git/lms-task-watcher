@@ -19,3 +19,6 @@ ops/litus-devlog/.delta.json
 ops/litus-devlog/.draft.txt
 ops/litus-devlog/.pending-entry.html
 ops/litus-devlog/.pending-sha
+
+# 内部の設計・計画・提出メモは非公開（ローカル保持・waiteu-dev と同方針）
+docs/
