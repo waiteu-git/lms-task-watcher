@@ -42,6 +42,45 @@ async function addManualAssignment(item: ManualAssignment): Promise<void> {
   await chrome.storage.local.set({ manualAssignments: [...current, item] })
 }
 
+async function getDeadlineOverrides(): Promise<Record<string, string>> {
+  const r = await chrome.storage.local.get('deadlineOverrides') as { deadlineOverrides?: Record<string, string> }
+  return r.deadlineOverrides ?? {}
+}
+
+async function setDeadlineOverride(url: string, iso: string): Promise<void> {
+  const cur = await getDeadlineOverrides()
+  await chrome.storage.local.set({ deadlineOverrides: { ...cur, [normalizeAssignmentUrl(url)]: iso } })
+}
+
+async function clearDeadlineOverride(url: string): Promise<void> {
+  const cur = await getDeadlineOverrides()
+  const next = { ...cur }
+  delete next[normalizeAssignmentUrl(url)]
+  await chrome.storage.local.set({ deadlineOverrides: next })
+}
+
+function toLocalInputValue(iso: string): string {
+  const d = new Date(iso)
+  if (Number.isNaN(d.getTime())) return ''
+  const p = (n: number) => String(n).padStart(2, '0')
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}T${p(d.getHours())}:${p(d.getMinutes())}`
+}
+
+// 締切を変更したら、その課題の通知済みキー（`${id}:${hours}h`）を剥がし、
+// 新しい締切に対して締切通知を再アームする（延長時に再通知が抑制されないように）。
+async function rearmDeadlineNotifications(url: string): Promise<void> {
+  const target = normalizeAssignmentUrl(url)
+  const r = await chrome.storage.local.get(['assignments', 'notifiedDeadlineKeys']) as {
+    assignments?: Assignment[]
+    notifiedDeadlineKeys?: string[]
+  }
+  const assignment = (r.assignments ?? []).find((a) => a.url && normalizeAssignmentUrl(a.url) === target)
+  if (!assignment) return
+  const keys = r.notifiedDeadlineKeys ?? []
+  const next = keys.filter((k) => !k.startsWith(`${assignment.id}:`))
+  if (next.length !== keys.length) await chrome.storage.local.set({ notifiedDeadlineKeys: next })
+}
+
 // プレミアムのメモ・優先度機能（src/core/premium.ts）と同じストレージ形式。
 // content scriptは自己完結が必須のためロジックをインライン化している。
 async function seedAssignmentMemo(assignmentId: string, memo: string): Promise<void> {
@@ -93,6 +132,64 @@ function openQuickAddForm(courses: Course[], title: string, url: string, default
 
   const shadow = host.attachShadow({ mode: 'closed' })
   buildWidgetInto(shadow, courses, { title, url }, defaultCourseId)
+}
+
+/** スキャン課題の締切を設定/変更/クリアする右下固定のミニフォーム（既存ウィジェットと同方式）。 */
+function openDeadlineEditor(url: string, currentDeadline: string | null): void {
+  const existing = document.getElementById('letus-task-watcher-deadline-editor')
+  if (existing) existing.remove()
+
+  const host = document.createElement('div')
+  host.id = 'letus-task-watcher-deadline-editor'
+  host.style.cssText = 'position:fixed;bottom:16px;right:16px;z-index:2147483647;'
+  document.body.appendChild(host)
+
+  const shadow = host.attachShadow({ mode: 'closed' })
+  const style = document.createElement('style')
+  style.textContent = `
+    :host { all: initial; font-family: sans-serif; font-size: 13px; }
+    .panel { background:#fff; border:1px solid #d1d5db; border-radius:12px; padding:14px 16px; width:264px; box-shadow:0 2px 12px rgba(0,0,0,.15); }
+    .head { display:flex; justify-content:space-between; align-items:center; margin-bottom:10px; }
+    .title { font-weight:600; font-size:13px; color:#111827; }
+    .x { background:none; border:none; cursor:pointer; color:#6b7280; font-size:16px; }
+    input { width:100%; box-sizing:border-box; font-size:12px; border:1px solid #d1d5db; border-radius:6px; padding:6px 8px; color:#111827; background:#fff; }
+    .actions { display:flex; gap:6px; margin-top:12px; }
+    .clear { flex:1; border:1px solid #d1d5db; background:#fff; border-radius:6px; padding:6px; cursor:pointer; font-size:11px; color:#374151; }
+    .save { flex:1; background:#2563eb; color:#fff; border:none; border-radius:6px; padding:6px; cursor:pointer; font-size:12px; }
+    .err { color:#dc2626; font-size:11px; margin-top:6px; }
+  `
+  shadow.appendChild(style)
+
+  const panel = document.createElement('div')
+  panel.className = 'panel'
+  panel.innerHTML = `
+    <div class="head"><span class="title">締切を設定</span><button class="x" type="button" aria-label="閉じる">✕</button></div>
+    <input id="dl" type="datetime-local" />
+    <div class="actions">
+      <button class="clear" type="button">クリア（自動検出に戻す）</button>
+      <button class="save" type="button">保存</button>
+    </div>
+    <div class="err" id="err"></div>
+  `
+  shadow.appendChild(panel)
+
+  const input = shadow.getElementById('dl') as HTMLInputElement
+  if (currentDeadline) input.value = toLocalInputValue(currentDeadline)
+
+  const close = () => host.remove()
+  panel.querySelector('.x')!.addEventListener('click', close)
+  panel.querySelector('.save')!.addEventListener('click', async () => {
+    const v = input.value
+    if (!v) { shadow.getElementById('err')!.textContent = '日時を入力してください。'; return }
+    await setDeadlineOverride(url, new Date(v).toISOString())
+    await rearmDeadlineNotifications(url)
+    close()
+  })
+  panel.querySelector('.clear')!.addEventListener('click', async () => {
+    await clearDeadlineOverride(url)
+    await rearmDeadlineNotifications(url)
+    close()
+  })
 }
 
 function buildWidgetInto(
@@ -322,8 +419,16 @@ function applyBadgeState(
 
   if (state.kind === 'scanned') {
     const icon = state.submitted ? '✓' : '！'
-    fresh.className = `badge ${state.submitted ? 'submitted' : ''}`
-    fresh.textContent = state.deadline ? `${formatDeadlineShort(state.deadline)} ${icon}` : icon
+    fresh.className = `badge clickable ${state.submitted ? 'submitted' : ''}`
+    const mark = state.userSet ? ' ✎' : ''
+    fresh.textContent = state.deadline
+      ? `${formatDeadlineShort(state.deadline)} ${icon}${mark}`
+      : `＋締切 ${icon}`
+    fresh.addEventListener('click', (event) => {
+      event.preventDefault()
+      event.stopPropagation()
+      openDeadlineEditor(entry.url, state.deadline)
+    })
     return
   }
 
@@ -352,6 +457,7 @@ function buildCourseBadges(
   courses: Course[],
   assignments: Assignment[],
   manualAssignments: ManualAssignment[],
+  overrides: Record<string, string>,
   currentCourseId?: string,
 ): void {
   for (const link of findAssignmentLinks()) {
@@ -371,7 +477,7 @@ function buildCourseBadges(
 
     const entry: BadgeEntry = { link, url, badge, state: null }
     badgeEntries.push(entry)
-    applyBadgeState(entry, computeBadgeState(url, assignments, manualAssignments), courses, currentCourseId)
+    applyBadgeState(entry, computeBadgeState(url, assignments, manualAssignments, overrides), courses, currentCourseId)
 
     const row = (link.closest('li, tr') ?? link.parentElement) as HTMLElement | null
     if (row) {
@@ -394,10 +500,11 @@ function refreshCourseBadges(
   courses: Course[],
   assignments: Assignment[],
   manualAssignments: ManualAssignment[],
+  overrides: Record<string, string>,
   currentCourseId?: string,
 ): void {
   for (const entry of badgeEntries) {
-    applyBadgeState(entry, computeBadgeState(entry.url, assignments, manualAssignments), courses, currentCourseId)
+    applyBadgeState(entry, computeBadgeState(entry.url, assignments, manualAssignments, overrides), courses, currentCourseId)
   }
 }
 
@@ -409,17 +516,18 @@ function findCurrentCourseId(courses: Course[]): string | undefined {
 export async function initManualTaskWidget(): Promise<void> {
   if (!isCoursePage() && !isAssignmentPage()) return
 
-  const [courses, assignments, manualAssignments] = await Promise.all([
+  const [courses, assignments, manualAssignments, overrides] = await Promise.all([
     getCourses(),
     getAssignments(),
     getManualAssignments(),
+    getDeadlineOverrides(),
   ])
 
   if (courses.length === 0) return
 
   if (isCoursePage()) {
     const currentCourseId = findCurrentCourseId(courses)
-    buildCourseBadges(courses, assignments, manualAssignments, currentCourseId)
+    buildCourseBadges(courses, assignments, manualAssignments, overrides, currentCourseId)
     if (!document.getElementById('letus-task-watcher-widget')) {
       buildWidget(courses, currentCourseId)
     }
@@ -429,7 +537,7 @@ export async function initManualTaskWidget(): Promise<void> {
 
   if (document.getElementById('letus-task-watcher-widget')) return
 
-  const state = computeBadgeState(location.href, assignments, manualAssignments)
+  const state = computeBadgeState(location.href, assignments, manualAssignments, overrides)
   if (state.kind === 'scanned') {
     buildScannedIndicator(state)
     watchStorage()
@@ -449,7 +557,7 @@ function watchStorage(): void {
   storageWatched = true
 
   chrome.storage.local.onChanged.addListener((changes) => {
-    if (!('assignments' in changes || 'manualAssignments' in changes || 'courses' in changes)) return
+    if (!('assignments' in changes || 'manualAssignments' in changes || 'courses' in changes || 'deadlineOverrides' in changes)) return
     void repaint()
   })
   window.addEventListener('pageshow', (event) => {
@@ -458,27 +566,29 @@ function watchStorage(): void {
 }
 
 async function repaint(): Promise<void> {
-  const [courses, assignments, manualAssignments] = await Promise.all([
+  const [courses, assignments, manualAssignments, overrides] = await Promise.all([
     getCourses(),
     getAssignments(),
     getManualAssignments(),
+    getDeadlineOverrides(),
   ])
 
   if (isCoursePage()) {
     const currentCourseId = findCurrentCourseId(courses)
     // 遅延描画で後から現れたリンクも拾う
-    buildCourseBadges(courses, assignments, manualAssignments, currentCourseId)
-    refreshCourseBadges(courses, assignments, manualAssignments, currentCourseId)
+    buildCourseBadges(courses, assignments, manualAssignments, overrides, currentCourseId)
+    refreshCourseBadges(courses, assignments, manualAssignments, overrides, currentCourseId)
     return
   }
 
-  const state = computeBadgeState(location.href, assignments, manualAssignments)
+  const state = computeBadgeState(location.href, assignments, manualAssignments, overrides)
   if (state.kind === 'scanned') updateScannedIndicator(state)
 }
 
 type ScannedBadgeState = Extract<BadgeState, { kind: 'scanned' }>
 
 let indicatorEl: HTMLDivElement | null = null
+let indicatorState: ScannedBadgeState | null = null
 
 function buildScannedIndicator(state: ScannedBadgeState): void {
   const host = document.createElement('div')
@@ -508,7 +618,7 @@ function buildScannedIndicator(state: ScannedBadgeState): void {
   shadow.appendChild(style)
 
   const el = document.createElement('div')
-  el.title = 'ダッシュボードで確認'
+  el.title = '締切を設定 / 変更'
   el.innerHTML = `
     <span class="icon"></span>
     <div class="label">
@@ -517,7 +627,7 @@ function buildScannedIndicator(state: ScannedBadgeState): void {
     </div>
   `
   el.addEventListener('click', () => {
-    chrome.runtime.sendMessage({ type: 'OPEN_DASHBOARD' })
+    openDeadlineEditor(normalizeAssignmentUrl(location.href), indicatorState?.deadline ?? null)
   })
   shadow.appendChild(el)
 
@@ -526,14 +636,16 @@ function buildScannedIndicator(state: ScannedBadgeState): void {
 }
 
 function updateScannedIndicator(state: ScannedBadgeState): void {
+  indicatorState = state
   const el = indicatorEl
   if (!el) return
 
   el.className = `indicator ${state.submitted ? 'submitted' : ''}`
   el.querySelector('.icon')!.textContent = state.submitted ? '✓' : '！'
   el.querySelector('.title')!.textContent = state.submitted ? '提出済み' : '未提出'
-  el.querySelector('.deadline')!.textContent =
-    `締切 ${state.deadline ? formatDeadlineShort(state.deadline) : '未取得'}`
+  el.querySelector('.deadline')!.textContent = state.deadline
+    ? `締切 ${formatDeadlineShort(state.deadline)}${state.userSet ? ' ✎' : ''}`
+    : '締切を設定（タップ）'
 }
 
 function formatDeadlineShort(isoString: string): string {

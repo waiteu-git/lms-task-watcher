@@ -70,6 +70,11 @@ export function AssignmentCard({
               （推定）
             </span>
           )}
+          {assignment.deadlineSource === 'user' && (
+            <span className="estimatedBadge" title="自分で設定した締切です">
+              （手動）
+            </span>
+          )}
         </span>
         <span className="remain">{getRemaining(assignment.deadline)}</span>
       </div>

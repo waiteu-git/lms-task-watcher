@@ -56,6 +56,7 @@ import {
 import { createNotification, normalizeUpdateError } from './utils/notification'
 import { classifyScanStartResponse, type ScanStartResponse } from './utils/scanResponse'
 import { computeDeadlineNotifications, type DeadlineTarget } from './core/deadlineNotify'
+import { applyDeadlineOverrides, getDeadlineOverrides } from './core/deadlineOverride'
 import { resolveEffectiveTheme } from './core/theme'
 import { AssignmentCard } from './components/AssignmentCard'
 import { CollapsibleSection, Section } from './components/Section'
@@ -78,7 +79,7 @@ import {
   toggleManualAssignmentSubmitted,
   type ManualAssignment,
 } from './core/manualAssignment'
-import { MANUAL_ASSIGNMENTS_KEY } from './background/storageKeys'
+import { DEADLINE_OVERRIDES_KEY, MANUAL_ASSIGNMENTS_KEY } from './background/storageKeys'
 import { AssignmentMemo } from './components/AssignmentMemo'
 import { ManualAssignmentCard } from './components/ManualAssignmentCard'
 import { TimetableSection } from './components/TimetableSection'
@@ -182,6 +183,7 @@ export default function App() {
       savedDeadlineScanStatus,
       savedLastRefreshAt,
       savedManualAssignments,
+      overrides,
     ] = await Promise.all([
       getAssignments(),
       getCourses(),
@@ -190,9 +192,10 @@ export default function App() {
       getDeadlineScanStatus(),
       getLastRefreshAt(),
       getManualAssignments(),
+      getDeadlineOverrides(),
     ])
 
-    setAssignments(savedAssignments)
+    setAssignments(applyDeadlineOverrides(savedAssignments, overrides))
     setCourses(savedCourses)
     setIgnoredAssignmentIds(savedIgnoredAssignmentIds)
     setAssignmentScanStatus(savedAssignmentScanStatus)
@@ -346,9 +349,10 @@ export default function App() {
       const savedCourses = await getCourses()
       const savedIgnoredIds = await getIgnoredAssignmentIds()
       const savedManualAssignments = await getManualAssignments()
+      const overrides = await getDeadlineOverrides()
 
       await checkDeadlineWarningNotifications(
-        savedAssignments,
+        applyDeadlineOverrides(savedAssignments, overrides),
         savedCourses,
         savedIgnoredIds,
         savedManualAssignments,
@@ -885,6 +889,7 @@ export default function App() {
       DEADLINE_SCAN_STATUS_KEY,
       LAST_REFRESH_AT_KEY,
       NOTIFIED_DEADLINE_KEYS_KEY,
+      DEADLINE_OVERRIDES_KEY,
     ])
 
     setAssignments([])
@@ -917,6 +922,7 @@ export default function App() {
       IGNORED_ASSIGNMENT_IDS_KEY,
       NOTIFIED_DEADLINE_KEYS_KEY,
       MANUAL_ASSIGNMENTS_KEY,
+      DEADLINE_OVERRIDES_KEY,
     ])
 
     setAssignments([])

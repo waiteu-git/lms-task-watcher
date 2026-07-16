@@ -20,7 +20,7 @@ function isSubmitted(assignment: Assignment): boolean {
  * content script のDOM描画から状態決定を切り離し、ストレージ更新のたびに再計算して差分描画できるようにする。
  */
 export type BadgeState =
-  | { kind: 'scanned'; submitted: boolean; deadline: string | null }
+  | { kind: 'scanned'; submitted: boolean; deadline: string | null; userSet: boolean }
   | { kind: 'manual'; id: string; submitted: boolean; deadline: string }
   | { kind: 'unadded' }
 
@@ -33,12 +33,19 @@ export function computeBadgeState(
   url: string,
   assignments: Assignment[],
   manualAssignments: ManualAssignment[],
+  overrides: Record<string, string> = {},
 ): BadgeState {
   const target = normalizeAssignmentUrl(url)
 
   const scanned = assignments.find((a) => a.url && normalizeAssignmentUrl(a.url) === target)
   if (scanned) {
-    return { kind: 'scanned', submitted: isSubmitted(scanned), deadline: scanned.deadline }
+    const override = overrides[target]
+    return {
+      kind: 'scanned',
+      submitted: isSubmitted(scanned),
+      deadline: override ?? scanned.deadline,
+      userSet: override != null,
+    }
   }
 
   const manual = manualAssignments.find((a) => a.letusUrl && normalizeAssignmentUrl(a.letusUrl) === target)
