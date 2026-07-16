@@ -106,4 +106,155 @@ describe('LETUSページのバッジ', () => {
     await chrome.write({ assignments: [] })
     expect(badgeText(roots)).toBe('+')
   })
+
+  it('手動課題バッジは ✎ を表示し、クリックで編集フォームが開いて更新できる', async () => {
+    const roots = captureShadowRoots()
+    installChromeStub({
+      courses: [{ id: 'c1', name: '9973337 電気数学', url: 'https://letus.ed.tus.ac.jp/course/view.php?id=1', enabled: true, lmsType: 'letus', createdAt: '', updatedAt: '' }],
+      assignments: [],
+      manualAssignments: [{
+        id: 'm1', courseId: 'c1', courseName: '9973337 電気数学', title: '手動レポート',
+        letusUrl: ASSIGNMENT_URL, deadline: '2026-07-20T14:00:00.000Z', memo: '', submitted: false,
+        createdAt: '2026-07-10T00:00:00.000Z',
+      }],
+    })
+
+    const { initManualTaskWidget } = await import('./manualTaskWidget')
+    await initManualTaskWidget()
+
+    // バッジに鉛筆マーク
+    expect(badgeText(roots)).toContain('✎')
+
+    // バッジをクリック → 編集フォームが開く（handler が async のため flush する）
+    const badge = roots.flatMap((r) => Array.from(r.querySelectorAll('.badge')))[0] as HTMLElement
+    badge.click()
+    await new Promise((r) => setTimeout(r, 0))
+    await new Promise((r) => setTimeout(r, 0))
+
+    const titleInput = roots
+      .map((r) => r.getElementById('me-title') as HTMLInputElement | null)
+      .find(Boolean) as HTMLInputElement
+    expect(titleInput.value).toBe('手動レポート')
+
+    // 課題名を変更して「更新」
+    titleInput.value = '手動レポート（改）'
+    const updateBtn = roots
+      .flatMap((r) => Array.from(r.querySelectorAll('.update')))
+      .find(Boolean) as HTMLButtonElement
+    updateBtn.click()
+    await new Promise((r) => setTimeout(r, 0))
+    await new Promise((r) => setTimeout(r, 0))
+
+    const { manualAssignments } = (await globalThis.chrome.storage.local.get(
+      'manualAssignments',
+    )) as { manualAssignments: Array<{ id: string; title: string }> }
+    expect(manualAssignments.find((x) => x.id === 'm1')?.title).toBe('手動レポート（改）')
+  })
+
+  it('編集フォームを開いたまま外部で提出済みに変わっても、チェックを触らず保存すれば上書きしない', async () => {
+    const roots = captureShadowRoots()
+    const manual = {
+      id: 'm1', courseId: 'c1', courseName: '9973337 電気数学', title: '手動レポート',
+      letusUrl: ASSIGNMENT_URL, deadline: '2026-07-20T14:00:00.000Z', memo: '', submitted: false,
+      createdAt: '2026-07-10T00:00:00.000Z',
+    }
+    const chrome = installChromeStub({
+      courses: [{ id: 'c1', name: '9973337 電気数学', url: 'https://letus.ed.tus.ac.jp/course/view.php?id=1', enabled: true, lmsType: 'letus', createdAt: '', updatedAt: '' }],
+      assignments: [],
+      manualAssignments: [manual],
+    })
+
+    const { initManualTaskWidget } = await import('./manualTaskWidget')
+    await initManualTaskWidget()
+
+    // バッジをクリック → 編集フォームが開く（この時点の submitted: false をフォームが記憶する）
+    const badge = roots.flatMap((r) => Array.from(r.querySelectorAll('.badge')))[0] as HTMLElement
+    badge.click()
+    await new Promise((r) => setTimeout(r, 0))
+    await new Promise((r) => setTimeout(r, 0))
+
+    const titleInput = roots
+      .map((r) => r.getElementById('me-title') as HTMLInputElement | null)
+      .find(Boolean) as HTMLInputElement
+    expect(titleInput.value).toBe('手動レポート')
+
+    // フォームを開いたまま、外部（別画面）が提出済みへ変更
+    await chrome.write({ manualAssignments: [{ ...manual, submitted: true }] })
+
+    // 提出チェックボックスには触れず、課題名だけ変更して更新
+    titleInput.value = '手動レポート（改）'
+    const updateBtn = roots
+      .flatMap((r) => Array.from(r.querySelectorAll('.update')))
+      .find(Boolean) as HTMLButtonElement
+    updateBtn.click()
+    await new Promise((r) => setTimeout(r, 0))
+    await new Promise((r) => setTimeout(r, 0))
+
+    const { manualAssignments } = (await globalThis.chrome.storage.local.get(
+      'manualAssignments',
+    )) as { manualAssignments: Array<{ id: string; title: string; submitted: boolean }> }
+    const updated = manualAssignments.find((x) => x.id === 'm1')
+    expect(updated?.title).toBe('手動レポート（改）')
+    expect(updated?.submitted).toBe(true)
+  })
+
+  it('締切を延長すると通知済みキーが再アームされるが、タイトルのみの変更では剥がされない', async () => {
+    const roots = captureShadowRoots()
+    const manual = {
+      id: 'm1', courseId: 'c1', courseName: '9973337 電気数学', title: '手動レポート',
+      letusUrl: ASSIGNMENT_URL, deadline: '2026-07-20T14:00:00.000Z', memo: '', submitted: false,
+      createdAt: '2026-07-10T00:00:00.000Z',
+    }
+    installChromeStub({
+      courses: [{ id: 'c1', name: '9973337 電気数学', url: 'https://letus.ed.tus.ac.jp/course/view.php?id=1', enabled: true, lmsType: 'letus', createdAt: '', updatedAt: '' }],
+      assignments: [],
+      manualAssignments: [manual],
+      // m1 と m10 の衝突（部分一致）が起きないことも合わせて確認する。
+      notifiedDeadlineKeys: ['m1:1h', 'm1:24h', 'm10:24h'],
+    })
+
+    const { initManualTaskWidget } = await import('./manualTaskWidget')
+    await initManualTaskWidget()
+
+    const openEditForm = async () => {
+      const badge = roots.flatMap((r) => Array.from(r.querySelectorAll('.badge')))[0] as HTMLElement
+      badge.click()
+      await new Promise((r) => setTimeout(r, 0))
+      await new Promise((r) => setTimeout(r, 0))
+    }
+    const clickUpdate = async () => {
+      const updateBtn = roots
+        .flatMap((r) => Array.from(r.querySelectorAll('.update')))
+        .find(Boolean) as HTMLButtonElement
+      updateBtn.click()
+      await new Promise((r) => setTimeout(r, 0))
+      await new Promise((r) => setTimeout(r, 0))
+    }
+    const readNotifiedKeys = async () => {
+      const r = (await globalThis.chrome.storage.local.get('notifiedDeadlineKeys')) as {
+        notifiedDeadlineKeys?: string[]
+      }
+      return r.notifiedDeadlineKeys
+    }
+
+    // タイトルのみ変更 → 締切は変わっていないので通知済みキーは剥がれない
+    await openEditForm()
+    const titleInput = roots
+      .map((r) => r.getElementById('me-title') as HTMLInputElement | null)
+      .find(Boolean) as HTMLInputElement
+    titleInput.value = '手動レポート（改）'
+    await clickUpdate()
+
+    expect(await readNotifiedKeys()).toEqual(['m1:1h', 'm1:24h', 'm10:24h'])
+
+    // 締切を延長 → m1: で始まるキーだけ剥がれ、m10: は残る
+    await openEditForm()
+    const deadlineInput = roots
+      .map((r) => r.getElementById('me-deadline') as HTMLInputElement | null)
+      .find(Boolean) as HTMLInputElement
+    deadlineInput.value = '2026-07-25T14:00'
+    await clickUpdate()
+
+    expect(await readNotifiedKeys()).toEqual(['m10:24h'])
+  })
 })

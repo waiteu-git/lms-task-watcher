@@ -23,7 +23,9 @@ import {
   addManualAssignment,
   deleteManualAssignment,
   toggleManualAssignmentSubmitted,
+  updateManualAssignment,
   type ManualAssignment,
+  type ManualAssignmentPatch,
 } from './manualAssignment'
 
 function makeAssignment(overrides?: Partial<ManualAssignment>): ManualAssignment {
@@ -125,5 +127,53 @@ describe('toggleManualAssignmentSubmitted', () => {
     const result = await getManualAssignments()
     expect(result).toHaveLength(1)
     expect(result[0].submitted).toBe(false)
+  })
+})
+
+describe('updateManualAssignment', () => {
+  it('指定IDの課題だけ patch を適用し、他は変えない', async () => {
+    await addManualAssignment(makeAssignment({ id: 'a', title: '旧A' }))
+    await addManualAssignment(makeAssignment({ id: 'b', title: '旧B' }))
+    await updateManualAssignment('a', { title: '新A' })
+    const result = await getManualAssignments()
+    expect(result.find((x) => x.id === 'a')?.title).toBe('新A')
+    expect(result.find((x) => x.id === 'b')?.title).toBe('旧B')
+  })
+
+  it('patch に含まれないフィールドは元の値を保持する', async () => {
+    await addManualAssignment(
+      makeAssignment({ id: 'a', title: '旧', memo: '元メモ', submitted: false }),
+    )
+    await updateManualAssignment('a', { title: '新' })
+    const result = await getManualAssignments()
+    const a = result.find((x) => x.id === 'a')!
+    expect(a.title).toBe('新')
+    expect(a.memo).toBe('元メモ')
+    expect(a.submitted).toBe(false)
+    expect(a.letusUrl).toBe(makeAssignment().letusUrl)
+    expect(a.createdAt).toBe(makeAssignment().createdAt)
+  })
+
+  it('複数フィールドを一度に更新できる', async () => {
+    await addManualAssignment(makeAssignment({ id: 'a' }))
+    const patch: ManualAssignmentPatch = {
+      title: 'T',
+      deadline: '2026-08-01T00:00:00.000Z',
+      courseId: 'c9',
+      courseName: 'コース9',
+      memo: 'm',
+      submitted: true,
+    }
+    await updateManualAssignment('a', patch)
+    const a = (await getManualAssignments()).find((x) => x.id === 'a')!
+    expect(a).toMatchObject(patch)
+  })
+
+  it('存在しないIDでは既存データが変化しない', async () => {
+    await addManualAssignment(makeAssignment({ id: 'a', title: '旧' }))
+    await updateManualAssignment('non-existent', { title: '新' })
+    const result = await getManualAssignments()
+    expect(result).toHaveLength(1)
+    expect(result[0].title).toBe('旧')
   })
 })

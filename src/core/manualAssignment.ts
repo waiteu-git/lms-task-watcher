@@ -58,3 +58,16 @@ export async function toggleManualAssignmentSubmitted(id: string): Promise<void>
   )
   await saveManualAssignments(updated)
 }
+
+export type ManualAssignmentPatch = Partial<
+  Pick<ManualAssignment, 'title' | 'deadline' | 'courseId' | 'courseName' | 'memo' | 'submitted'>
+>
+
+export async function updateManualAssignment(
+  id: string,
+  patch: ManualAssignmentPatch,
+): Promise<void> {
+  const current = await getManualAssignments()
+  const updated = current.map((a) => (a.id === id ? { ...a, ...patch } : a))
+  await saveManualAssignments(updated)
+}

@@ -66,19 +66,25 @@ function toLocalInputValue(iso: string): string {
   return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}T${p(d.getHours())}:${p(d.getMinutes())}`
 }
 
-// 締切を変更したら、その課題の通知済みキー（`${id}:${hours}h`）を剥がし、
-// 新しい締切に対して締切通知を再アームする（延長時に再通知が抑制されないように）。
+// 通知済みキー（`${id}:${hours}h`）から指定idに紐づくエントリを取り除く。
+// `${id}:` への前方一致（区切り文字込み）なので m1 と m10 のような部分一致は起きない。
+async function pruneNotifiedDeadlineKeysForId(id: string): Promise<void> {
+  const r = await chrome.storage.local.get('notifiedDeadlineKeys') as { notifiedDeadlineKeys?: string[] }
+  const keys = r.notifiedDeadlineKeys ?? []
+  const next = keys.filter((k) => !k.startsWith(`${id}:`))
+  if (next.length !== keys.length) await chrome.storage.local.set({ notifiedDeadlineKeys: next })
+}
+
+// 締切を変更したら、その課題の通知済みキーを剥がし、新しい締切に対して締切通知を
+// 再アームする（延長時に再通知が抑制されないように）。スキャン課題は id が url からしか
+// 分からないため、url→id を解決してから剥がす（手動課題は id を直接持っているので
+// pruneNotifiedDeadlineKeysForId を直接呼べばよい）。
 async function rearmDeadlineNotifications(url: string): Promise<void> {
   const target = normalizeAssignmentUrl(url)
-  const r = await chrome.storage.local.get(['assignments', 'notifiedDeadlineKeys']) as {
-    assignments?: Assignment[]
-    notifiedDeadlineKeys?: string[]
-  }
+  const r = await chrome.storage.local.get('assignments') as { assignments?: Assignment[] }
   const assignment = (r.assignments ?? []).find((a) => a.url && normalizeAssignmentUrl(a.url) === target)
   if (!assignment) return
-  const keys = r.notifiedDeadlineKeys ?? []
-  const next = keys.filter((k) => !k.startsWith(`${assignment.id}:`))
-  if (next.length !== keys.length) await chrome.storage.local.set({ notifiedDeadlineKeys: next })
+  await pruneNotifiedDeadlineKeysForId(assignment.id)
 }
 
 // プレミアムのメモ・優先度機能（src/core/premium.ts）と同じストレージ形式。
@@ -188,6 +194,111 @@ function openDeadlineEditor(url: string, currentDeadline: string | null): void {
   panel.querySelector('.clear')!.addEventListener('click', async () => {
     await clearDeadlineOverride(url)
     await rearmDeadlineNotifications(url)
+    close()
+  })
+}
+
+/** 手動追加した課題を編集/削除する右下固定のミニフォーム（openDeadlineEditorと同方式）。 */
+function openManualEditForm(assignment: ManualAssignment, courses: Course[]): void {
+  const existing = document.getElementById('letus-task-watcher-manual-editor')
+  if (existing) existing.remove()
+
+  const host = document.createElement('div')
+  host.id = 'letus-task-watcher-manual-editor'
+  host.style.cssText = 'position:fixed;bottom:16px;right:16px;z-index:2147483647;'
+  document.body.appendChild(host)
+
+  const shadow = host.attachShadow({ mode: 'closed' })
+  const style = document.createElement('style')
+  style.textContent = `
+    :host { all: initial; font-family: sans-serif; font-size: 13px; }
+    .panel { background:#fff; border:1px solid #d1d5db; border-radius:12px; padding:14px 16px; width:280px; box-shadow:0 2px 12px rgba(0,0,0,.15); }
+    .head { display:flex; justify-content:space-between; align-items:center; margin-bottom:10px; }
+    .title { font-weight:600; font-size:13px; color:#111827; }
+    .x { background:none; border:none; cursor:pointer; color:#6b7280; font-size:16px; }
+    .field { margin-bottom:8px; }
+    input, select, textarea { width:100%; box-sizing:border-box; font-size:12px; border:1px solid #d1d5db; border-radius:6px; padding:6px 8px; color:#111827; background:#fff; }
+    textarea { resize:none; height:44px; }
+    .check { display:flex; align-items:center; gap:6px; font-size:12px; color:#374151; }
+    .check input { width:auto; }
+    .actions { display:flex; gap:6px; margin-top:12px; }
+    .del { border:1px solid #fecaca; background:#fff; color:#dc2626; border-radius:6px; padding:6px 10px; cursor:pointer; font-size:11px; }
+    .cancel { flex:1; border:1px solid #d1d5db; background:#fff; border-radius:6px; padding:6px; cursor:pointer; font-size:12px; color:#374151; }
+    .update { flex:1; background:#2563eb; color:#fff; border:none; border-radius:6px; padding:6px; cursor:pointer; font-size:12px; }
+    .err { color:#dc2626; font-size:11px; margin-top:6px; }
+  `
+  shadow.appendChild(style)
+
+  const panel = document.createElement('div')
+  panel.className = 'panel'
+  panel.innerHTML = `
+    <div class="head"><span class="title">課題を編集</span><button class="x" type="button" aria-label="閉じる">✕</button></div>
+    <div class="field"><input id="me-title" type="text" placeholder="課題名" value="${escapeHtml(assignment.title)}" /></div>
+    <div class="field"><input id="me-deadline" type="datetime-local" /></div>
+    <div class="field">
+      <select id="me-course">
+        <option value="">コースを選択</option>
+        ${courses.map((c) => `<option value="${escapeHtml(c.id)}" data-name="${escapeHtml(c.name)}">${escapeHtml(c.name)}</option>`).join('')}
+      </select>
+    </div>
+    <div class="field"><textarea id="me-memo" placeholder="メモ（任意）">${escapeHtml(assignment.memo)}</textarea></div>
+    <div class="field check"><label class="check"><input id="me-submitted" type="checkbox" />提出済み</label></div>
+    <div class="actions">
+      <button class="del" type="button">削除</button>
+      <button class="cancel" type="button">キャンセル</button>
+      <button class="update" type="button">更新</button>
+    </div>
+    <div class="err" id="me-err"></div>
+  `
+  shadow.appendChild(panel)
+
+  ;(shadow.getElementById('me-deadline') as HTMLInputElement).value = toLocalInputValue(assignment.deadline)
+  ;(shadow.getElementById('me-course') as HTMLSelectElement).value = assignment.courseId
+  ;(shadow.getElementById('me-submitted') as HTMLInputElement).checked = assignment.submitted
+  // フォームを開いた時点の値。保存時にチェックボックスがこの値と一致していれば
+  // 「ユーザーは触っていない」と判断し、submitted をパッチから除外する
+  // （他画面での並行変更を保存時に巻き戻さないため）。
+  const initialSubmitted = assignment.submitted
+
+  const close = () => host.remove()
+  panel.querySelector('.x')!.addEventListener('click', close)
+  panel.querySelector('.cancel')!.addEventListener('click', close)
+
+  panel.querySelector('.update')!.addEventListener('click', async () => {
+    const title = (shadow.getElementById('me-title') as HTMLInputElement).value.trim()
+    const deadlineLocal = (shadow.getElementById('me-deadline') as HTMLInputElement).value
+    const courseSelect = shadow.getElementById('me-course') as HTMLSelectElement
+    const courseId = courseSelect.value
+    const courseName = courseSelect.selectedOptions[0]?.dataset.name ?? ''
+    const memo = (shadow.getElementById('me-memo') as HTMLTextAreaElement).value.trim()
+    const submitted = (shadow.getElementById('me-submitted') as HTMLInputElement).checked
+    const errEl = shadow.getElementById('me-err')!
+
+    if (!title) { errEl.textContent = '課題名を入力してください。'; return }
+    if (!deadlineLocal) { errEl.textContent = '締切を入力してください。'; return }
+    if (!courseId) { errEl.textContent = 'コースを選択してください。'; return }
+
+    const newDeadline = new Date(deadlineLocal).toISOString()
+    await updateManualInline(assignment.id, {
+      title,
+      deadline: newDeadline,
+      courseId,
+      courseName,
+      memo,
+      // ユーザーが実際にチェックを変更した場合のみ submitted を含める。
+      ...(submitted !== initialSubmitted ? { submitted } : {}),
+    })
+    // 締切が実際に変わった場合のみ通知済みキーを剥がす（タイトル/メモ/コース/提出状態
+    // だけの編集では、既に発火済みのしきい値通知を再度出す必要はないため触らない）。
+    if (newDeadline !== assignment.deadline) {
+      await pruneNotifiedDeadlineKeysForId(assignment.id)
+    }
+    close()
+    // 保存後の storage.onChanged でバッジは再描画される。
+  })
+
+  panel.querySelector('.del')!.addEventListener('click', async () => {
+    await deleteManualInline(assignment.id)
     close()
   })
 }
@@ -387,14 +498,23 @@ function createBadgeHost(): { host: HTMLElement; shadow: ShadowRoot } {
   return { host, shadow }
 }
 
-async function toggleManualSubmitted(id: string): Promise<void> {
+async function updateManualInline(
+  id: string,
+  patch: Partial<Pick<ManualAssignment, 'title' | 'deadline' | 'courseId' | 'courseName' | 'memo' | 'submitted'>>,
+): Promise<void> {
   const r = await chrome.storage.local.get('manualAssignments') as { manualAssignments?: Array<Partial<ManualAssignment> & { id: string }> }
   const current = (r.manualAssignments ?? []).map((record) => ({
     ...record,
     submitted: record.submitted ?? false,
   })) as ManualAssignment[]
-  const updated = current.map((a) => (a.id === id ? { ...a, submitted: !a.submitted } : a))
+  const updated = current.map((a) => (a.id === id ? { ...a, ...patch } : a))
   await chrome.storage.local.set({ manualAssignments: updated })
+}
+
+async function deleteManualInline(id: string): Promise<void> {
+  const r = await chrome.storage.local.get('manualAssignments') as { manualAssignments?: Array<Partial<ManualAssignment> & { id: string }> }
+  const current = (r.manualAssignments ?? []) as Array<{ id: string }>
+  await chrome.storage.local.set({ manualAssignments: current.filter((a) => a.id !== id) })
 }
 
 /** 描画済みバッジ。ストレージ更新時にDOMを作り直さず中身だけ差し替えるために保持する。 */
@@ -434,12 +554,12 @@ function applyBadgeState(
 
   if (state.kind === 'manual') {
     fresh.className = `badge clickable ${state.submitted ? 'submitted' : ''}`
-    fresh.textContent = `${formatDeadlineShort(state.deadline)} ${state.submitted ? '✓' : '！'}`
+    fresh.textContent = `${formatDeadlineShort(state.deadline)} ${state.submitted ? '✓' : '！'} ✎`
     fresh.addEventListener('click', async (event) => {
       event.preventDefault()
       event.stopPropagation()
-      await toggleManualSubmitted(state.id)
-      // 保存後の storage.onChanged で再描画されるため、ここでDOMは触らない。
+      const item = (await getManualAssignments()).find((a) => a.id === state.id)
+      if (item) openManualEditForm(item, courses)
     })
     return
   }
