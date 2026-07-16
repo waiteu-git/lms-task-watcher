@@ -21,4 +21,10 @@ ops/litus-devlog/.pending-entry.html
 ops/litus-devlog/.pending-sha
 
 # 内部の設計・計画・提出メモは非公開（ローカル保持・waiteu-dev と同方針）
-docs/
+# ※ docs/ ではなく docs/* にすること。末尾スラッシュだと配下を !  で再includeできない。
+docs/*
+
+# ただし規約の正典は公開物。scripts/gen-terms.mjs が docs/legal/terms-ja.md を
+# 単一正典として TERMS_BODY と landing/terms.html を生成するため、
+# これを除外するとクリーンクローンで規約を再生成できなくなる。
+!docs/legal/
