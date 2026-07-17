@@ -19,6 +19,18 @@ describe('selectCoursesByTimetable', () => {
     const out = selectCoursesByTimetable(courses, new Set(['9975A06']), NOW)
     expect(out[0].enabled).toBe(true)
   })
+  it('クォーター積みペアは両方の科目コードで各LETUSコースを独立に自動ONする', () => {
+    // 同一コマの2科目(有機化学・基礎/微生物学)は別々の7桁コードを持つ。時間割コード集合には
+    // 両方が入る(getCapturedCourseCodesが全科目を拾う)ので、対応するLETUSコースは両方ONになる。
+    const courses = [
+      course({ id: 'a', name: '9983343 有機化学・基礎', enabled: false }),
+      course({ id: 'b', name: '9983365 微生物学', enabled: false }),
+    ]
+    const out = selectCoursesByTimetable(courses, new Set(['9983343', '9983365']), NOW)
+    expect(out.find((c) => c.id === 'a')!.enabled).toBe(true)
+    expect(out.find((c) => c.id === 'b')!.enabled).toBe(true)
+  })
+
   it('統合コースは片方一致でON', () => {
     const courses = [course({ id: 'a', name: '統合 1111111 / 9973337', enabled: false })]
     const out = selectCoursesByTimetable(courses, new Set(['9973337']), NOW)
