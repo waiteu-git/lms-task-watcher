@@ -32,6 +32,36 @@ export const CELL_ALNUM_CODE = `
 
 export const CELL_EMPTY = `<div class="jugyo-info jugyo-normal noClass"></div>`
 
+/**
+ * クォーター科目の積みセル（実データ由来）。火1限に 有機化学・基礎(9983343) と
+ * 微生物学(9983365) が各1.0単位で同居する。CLASS実HTMLは jugyo-info を単純に2つ並べるだけで、
+ * どちらが1Q/2Qかを示す属性・クラス・バッジは一切付かない。
+ */
+export const CELL_STACKED_QUARTER = `<td class="colYobi"><div class="jugyo-info jugyo-normal "><div class="fontB">有機化学・基礎 （旧：有機化学２）</div><div class="">吉田　優</div><div class=""><span>葛：E304教室</span></div><div class="">9983343</div><div class="taniSu">1.0単位</div><div><div class="noTextIconLine alignRight"><button class="ui-button"><span class="ui-button-text ui-c">ui-button</span></button></div></div></div><div class="jugyo-info jugyo-normal "><div class="fontB">微生物学 （旧：微生物学）</div><div class="">清水　公徳</div><div class=""><span>葛：E101教室</span></div><div class="">9983365</div><div class="taniSu">1.0単位</div><div><div class="noTextIconLine alignRight"><button class="ui-button"><span class="ui-button-text ui-c">ui-button</span></button></div></div></div></td>`
+
+/** 火1限に上記の積みセルを持つ最小テーブル（実CLASS構造）。 */
+export const TABLE_STACKED_QUARTER = `
+<table class="table table-bordered classTable">
+  <tr>
+    <th class="ui-widget-header headerJigen"></th>
+    <th class="ui-widget-header headerYobi">月曜日</th>
+    <th class="ui-widget-header headerYobi">火曜日</th>
+    <th class="ui-widget-header headerYobi">水曜日</th>
+    <th class="ui-widget-header headerYobi">木曜日</th>
+    <th class="ui-widget-header headerYobi">金曜日</th>
+    <th class="ui-widget-header headerYobi">土曜日</th>
+  </tr>
+  <tr>
+    <td class="colJigen ui-widget-header">1</td>
+    <td class="colYobi"><div class="jugyo-info jugyo-normal noClass"></div></td>
+    ${CELL_STACKED_QUARTER}
+    <td class="colYobi"><div class="jugyo-info jugyo-normal noClass"></div></td>
+    <td class="colYobi"><div class="jugyo-info jugyo-normal noClass"></div></td>
+    <td class="colYobi"><div class="jugyo-info jugyo-normal noClass"></div></td>
+    <td class="colYobi"><div class="jugyo-info jugyo-normal noClass"></div></td>
+  </tr>
+</table>`
+
 export const JIGEN_AREA_NODA = `野田（1限 08:50～10:20／2限 10:30～12:00／3限 13:00～14:30／4限 14:40～16:10／5限 16:20～17:50／6限 18:10～19:40／7限 19:50～21:20）`
 
 export const TABLE_MINIMAL = `

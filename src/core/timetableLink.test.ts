@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import { extractCourseCode, extractCourseCodes, resolveSemester } from './timetableLink'
-import { applyOverrides, linkAssignmentsToSlots } from './timetableLink'
+import { applyOverrides, linkAssignmentsToSlots, isQuarterSlot, defaultCurrentQuarter, resolveCurrentQuarter, isDimmedForCurrentQuarter } from './timetableLink'
 import type { TimetableSlot } from './timetable'
 import type { Course, Assignment } from './types'
 import type { ManualAssignment } from './manualAssignment'
@@ -180,5 +180,72 @@ describe('linkAssignmentsToSlots 緊急度', () => {
     const m = [manual('9973337 電気数学', '2026-07-08T20:00:00+09:00')]
     const { courseCodeUrgency } = linkAssignmentsToSlots(slots, courses, a, m, NOW)
     expect(courseCodeUrgency['9973337']).toBe('today')
+  })
+})
+
+describe('クォーター（半期）科目', () => {
+  /** 実データ: 火1限に 有機化学・基礎(9983343) と 微生物学(9983365) が各1.0単位で積まれている */
+  function stacked(): TimetableSlot {
+    return {
+      day: 'tue',
+      period: 1,
+      classes: [
+        { courseCode: '9983343', name: '有機化学・基礎', teachers: [], room: 'E304教室', isRemote: false, credits: 1, badges: [] },
+        { courseCode: '9983365', name: '微生物学', teachers: [], room: 'E101教室', isRemote: false, credits: 1, badges: [] },
+      ],
+    }
+  }
+
+  it('isQuarterSlot: 同一コマ2科目以上を半期科目のコマとみなす', () => {
+    expect(isQuarterSlot(stacked())).toBe(true)
+    expect(isQuarterSlot(slot('mon', 1, '9973337', '445教室'))).toBe(false)
+  })
+
+  it('applyOverrides: room 指定が無くても quarter だけを適用できる', () => {
+    const result = applyOverrides([stacked()], { '9983343': { quarter: 'second' } })
+    expect(result[0].classes[0].quarter).toBe('second')
+    expect(result[0].classes[0].room).toBe('E304教室')
+    expect(result[0].classes[1].quarter).toBeUndefined()
+  })
+
+  it('applyOverrides: room と quarter を同時に適用できる', () => {
+    const result = applyOverrides([stacked()], { '9983365': { room: '遠隔（オンライン）', quarter: 'first' } })
+    expect(result[0].classes[1].quarter).toBe('first')
+    expect(result[0].classes[1].room).toBe('遠隔（オンライン）')
+    expect(result[0].classes[1].isRemote).toBe(true)
+  })
+
+  it('applyOverrides: 指定が無ければ quarter は undefined のまま（CLASSは1Q/2Qを公開しない）', () => {
+    const result = applyOverrides([stacked()], {})
+    expect(result[0].classes[0].quarter).toBeUndefined()
+    expect(result[0].classes[1].quarter).toBeUndefined()
+  })
+
+  it('defaultCurrentQuarter: 前期は4-5月が前半、6-9月が後半', () => {
+    expect(defaultCurrentQuarter(new Date(2026, 3, 15), 'zenki')).toBe('first')
+    expect(defaultCurrentQuarter(new Date(2026, 4, 31), 'zenki')).toBe('first')
+    expect(defaultCurrentQuarter(new Date(2026, 5, 1), 'zenki')).toBe('second')
+    expect(defaultCurrentQuarter(new Date(2026, 7, 1), 'zenki')).toBe('second')
+  })
+
+  it('defaultCurrentQuarter: 後期は10-11月が前半、12-3月が後半', () => {
+    expect(defaultCurrentQuarter(new Date(2026, 9, 1), 'kouki')).toBe('first')
+    expect(defaultCurrentQuarter(new Date(2026, 10, 30), 'kouki')).toBe('first')
+    expect(defaultCurrentQuarter(new Date(2026, 11, 1), 'kouki')).toBe('second')
+    expect(defaultCurrentQuarter(new Date(2027, 1, 1), 'kouki')).toBe('second')
+  })
+
+  it('resolveCurrentQuarter: 手動指定を最優先、無ければ日付既定、学期未確定は first', () => {
+    const now = new Date(2026, 4, 1) // 5月＝前期前半
+    expect(resolveCurrentQuarter('second', now, 'zenki')).toBe('second') // pref優先
+    expect(resolveCurrentQuarter(null, now, 'zenki')).toBe('first') // 日付既定
+    expect(resolveCurrentQuarter(null, now, null)).toBe('first') // 学期未確定
+  })
+
+  it('isDimmedForCurrentQuarter: 指定済みで現在と異なる積み科目だけ薄くする', () => {
+    expect(isDimmedForCurrentQuarter('first', 'second', true)).toBe(true) // 前半科目・今後半
+    expect(isDimmedForCurrentQuarter('second', 'second', true)).toBe(false) // 一致
+    expect(isDimmedForCurrentQuarter(undefined, 'first', true)).toBe(false) // 未指定は薄くしない
+    expect(isDimmedForCurrentQuarter('first', 'second', false)).toBe(false) // 非積みは薄くしない
   })
 })

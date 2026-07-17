@@ -7,6 +7,7 @@ import {
   CELL_EMPTY,
   JIGEN_AREA_NODA,
   TABLE_MINIMAL,
+  TABLE_STACKED_QUARTER,
 } from './timetable.fixtures'
 
 describe('parseClassCell', () => {
@@ -92,5 +93,16 @@ describe('parseTimetable', () => {
     expect(tue4).toBeDefined()
     expect(tue4!.classes[0].name).toBe('物理学実験Ａ')
     expect(tue4!.classes[0].courseCode).toBe('9973344')
+  })
+
+  it('クォーター科目: 同一コマの2科目を両方返す（実データ構造・以前UIが片方を捨てていた）', () => {
+    const slots = parseTimetable(TABLE_STACKED_QUARTER)
+    const tue1 = slots.find((s) => s.day === 'tue' && s.period === 1)
+    expect(tue1).toBeDefined()
+    expect(tue1!.classes).toHaveLength(2)
+    expect(tue1!.classes.map((c) => c.courseCode)).toEqual(['9983343', '9983365'])
+    expect(tue1!.classes.map((c) => c.name)).toEqual(['有機化学・基礎 （旧：有機化学２）', '微生物学 （旧：微生物学）'])
+    // パース時点では 1Q/2Q の区別情報はどこにも無い＝両方 undefined
+    expect(tue1!.classes.every((c) => c.quarter === undefined)).toBe(true)
   })
 })

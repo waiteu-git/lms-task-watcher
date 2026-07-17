@@ -1,6 +1,12 @@
 import { parse, type HTMLElement } from 'node-html-parser'
 import { firstCourseCodeLoose, isCourseCode } from './courseCode'
 
+/**
+ * クォーター（半期）科目の開講半期。CLASSは1Q/2Qを一切公開しない（時間割HTML・シラバスとも
+ * 「前期」としか書かれない）ため、パーサでは決定できずユーザー指定でのみ埋まる。
+ */
+export type Quarter = 'first' | 'second'
+
 export type TimetableClass = {
   courseCode: string
   name: string
@@ -9,6 +15,8 @@ export type TimetableClass = {
   isRemote: boolean
   credits: number | null
   badges: string[]
+  /** ユーザーが指定した開講半期。未指定は undefined（パース時は常に undefined）。 */
+  quarter?: Quarter
 }
 export type DayOfWeek = 'mon' | 'tue' | 'wed' | 'thu' | 'fri' | 'sat'
 export type TimetableSlot = { day: DayOfWeek; period: number; classes: TimetableClass[] }
