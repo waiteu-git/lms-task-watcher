@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 import type { Assignment, AssignmentCandidate, Course } from '../core/types'
 import {
   ASSIGNMENT_CANDIDATES_KEY,
+  ASSIGNMENT_SCAN_STATUS_KEY,
   ASSIGNMENTS_KEY,
   COURSES_KEY,
   DEADLINE_SCAN_STATUS_KEY,
@@ -382,6 +383,124 @@ describe('scanAssignmentCandidatesInBackground', () => {
       loggedOutCount: 1,
       notMoodleCount: 0,
     })
+  })
+
+  it('スキャン途中でログアウトを検知したら以降のfetchを中止しlogin_requiredを返す（ログインガード）', async () => {
+    // deadlineスキャン側の checkIsLoggedIn ガードと整合: ログイン切れをエラーとして
+    // 正直に報告し、無駄な大学向けリクエストを増やさない。
+    store[COURSES_KEY] = [1, 2, 3, 4].map((i) =>
+      makeCourse({
+        id: `course-${i}`,
+        name: `講義${i}`,
+        url: `https://letus.ed.tus.ac.jp/course/view.php?id=${i}`,
+      }),
+    )
+
+    const fetchSpy = vi.fn(async (url: string) => ({
+      ok: true,
+      url,
+      text: async () => '<span>あなたはログインしていません。</span>',
+    }))
+    vi.stubGlobal('fetch', fetchSpy)
+
+    const result = await scanAssignmentCandidatesInBackground('standard', noopPacer)
+
+    expect(result.ok).toBe(false)
+    expect(result.reason).toBe('login_required')
+    expect(result.errorMessage).toBe('LETUSにログインしていないため更新できませんでした。')
+    expect(result.diagnostics).toContain('LOGGED_OUT')
+    // 同時実行3で走行を始めた3件はfetch済みだが、ログアウト検知後の4件目はfetchしない
+    expect(fetchSpy).toHaveBeenCalledTimes(3)
+    const status = store[ASSIGNMENT_SCAN_STATUS_KEY] as { state: string; errorMessage: string | null }
+    expect(status.state).toBe('error')
+    expect(status.errorMessage).toBe('LETUSにログインしていないため更新できませんでした。')
+  })
+
+  it('ログアウト検知時、既存の候補とコースシグネチャを一切破壊しない', async () => {
+    store[COURSES_KEY] = [makeCourse()]
+    store[ASSIGNMENT_CANDIDATES_KEY] = [makeCandidate()]
+    const prevSig = [{ title: '課題1', url: 'https://letus.ed.tus.ac.jp/mod/assign/view.php?id=1' }]
+    store['courseSignature:course-1'] = prevSig
+
+    vi.stubGlobal('fetch', vi.fn(async (url: string) => ({
+      ok: true,
+      url,
+      text: async () => '<span>あなたはログインしていません。</span>',
+    })))
+
+    const result = await scanAssignmentCandidatesInBackground('standard', noopPacer)
+
+    expect(result.ok).toBe(false)
+    expect(store[ASSIGNMENT_CANDIDATES_KEY]).toEqual([makeCandidate()])
+    expect(store['courseSignature:course-1']).toEqual(prevSig)
+  })
+
+  it('既知コースの全課題喪失はCOURSE_LOST_ALL_ASSIGNMENTSを診断しシグネチャはlast-goodを保持する', async () => {
+    // spec§4: courseUpdates の暗黙 skipSave を明示的な診断コードへ格上げ（skip自体は維持）。
+    store[COURSES_KEY] = [makeCourse()]
+    const prevSig = [
+      { title: '課題1', url: 'https://letus.ed.tus.ac.jp/mod/assign/view.php?id=1' },
+      { title: '課題2', url: 'https://letus.ed.tus.ac.jp/mod/assign/view.php?id=2' },
+    ]
+    store['courseSignature:course-1'] = prevSig
+
+    vi.stubGlobal('fetch', vi.fn(async (url: string) => ({
+      ok: true,
+      url,
+      text: async () =>
+        '<body class="format-topics path-course-view">' +
+        '<script>M.cfg = {"wwwroot":"https:\\/\\/letus.ed.tus.ac.jp","sesskey":"AbCd012345"};</script>' +
+        'コース本文（課題リンク無し）</body>',
+    })))
+
+    const result = await scanAssignmentCandidatesInBackground('standard', noopPacer)
+
+    expect(result.ok).toBe(true)
+    expect(result.diagnostics).toEqual(['COURSE_LOST_ALL_ASSIGNMENTS'])
+    expect(store['courseSignature:course-1']).toEqual(prevSig)
+  })
+
+  it('診断コード: 正常ページは空・Moodle以外の応答はNOT_A_MOODLE_PAGE（複数ページでも重複排除）', async () => {
+    store[COURSES_KEY] = [
+      makeCourse({ id: 'course-1', url: 'https://letus.ed.tus.ac.jp/course/view.php?id=1' }),
+      makeCourse({ id: 'course-2', url: 'https://letus.ed.tus.ac.jp/course/view.php?id=2', name: '講義2' }),
+      makeCourse({ id: 'course-3', url: 'https://letus.ed.tus.ac.jp/course/view.php?id=3', name: '講義3' }),
+    ]
+
+    vi.stubGlobal('fetch', vi.fn(async (url: string) => {
+      if (url.includes('id=1')) {
+        return {
+          ok: true,
+          url,
+          text: async () =>
+            '<script>M.cfg = {"wwwroot":"https:\\/\\/letus.ed.tus.ac.jp","sesskey":"AbCd012345"};</script>' +
+            '<a href="/mod/assign/view.php?id=1">課題1</a>',
+        }
+      }
+      return { ok: true, url, text: async () => '<html><body>メンテナンス中</body></html>' }
+    }))
+
+    const result = await scanAssignmentCandidatesInBackground('standard', noopPacer)
+
+    expect(result.ok).toBe(true)
+    expect(result.diagnostics).toEqual(['NOT_A_MOODLE_PAGE'])
+  })
+
+  it('全ページ正常なら診断コードは空配列を返す', async () => {
+    store[COURSES_KEY] = [makeCourse()]
+
+    vi.stubGlobal('fetch', vi.fn(async (url: string) => ({
+      ok: true,
+      url,
+      text: async () =>
+        '<script>M.cfg = {"wwwroot":"https:\\/\\/letus.ed.tus.ac.jp","sesskey":"AbCd012345"};</script>' +
+        '<a href="/mod/assign/view.php?id=1">課題1</a>',
+    })))
+
+    const result = await scanAssignmentCandidatesInBackground('standard', noopPacer)
+
+    expect(result.ok).toBe(true)
+    expect(result.diagnostics).toEqual([])
   })
 })
 

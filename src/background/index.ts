@@ -43,7 +43,14 @@ import {
   emptyAuthProbeSummary,
   addToAuthProbeSummary,
   type AuthProbeSummary,
+  type PageAuthClassification,
 } from '../core/authProbe'
+import {
+  diagnoseAuthProbe,
+  diagnoseCoursePage,
+  type DiagnosticCode,
+  type PageAuthState,
+} from '../core/diagnose'
 
 console.log('[LETUS Task Watcher] background service worker loaded')
 
@@ -507,6 +514,18 @@ chrome.notifications.onClosed.addListener(async (notificationId) => {
 
 // ─── Assignment scan ──────────────────────────────────────────────────────────
 
+/** deadlineスキャンのログインガードと同一文言（ログイン切れをUIに正直に示す） */
+const NOT_LOGGED_IN_ERROR_MESSAGE = 'LETUSにログインしていないため更新できませんでした。'
+
+/**
+ * classifyFetchedPage の分類を diagnose 層の PageAuthState へ写像する薄いアダプタ。
+ * not_moodle_page は「ログイン/ログアウトどちらの証拠も無い」＝ unknown に倒し、
+ * コースページ系の矛盾検知を誤発火させない（NOT_A_MOODLE_PAGE は diagnoseAuthProbe が担う）。
+ */
+function toPageAuthState(classification: PageAuthClassification): PageAuthState {
+  return classification === 'not_moodle_page' ? 'unknown' : classification
+}
+
 export async function scanAssignmentCandidatesInBackground(
   scanLevel: ScanLevel = 'standard',
   pacer: Pacer = letusPacer,
@@ -517,12 +536,18 @@ export async function scanAssignmentCandidatesInBackground(
   errorMessage?: string
   /** コースページfetchの認証分類集計（piggyback・追加リクエスト0）。診断配線タスクが利用する */
   authProbe?: AuthProbeSummary
+  /** スキャン全体で発火した診断コード（spec§4の評価関数の出力・重複排除）。storage永続はT9 */
+  diagnostics?: DiagnosticCode[]
 }> {
   if (isAssignmentScanning) return { ok: false, reason: 'already_running' }
 
   isAssignmentScanning = true
   const startedAt = new Date().toISOString()
   let authProbe = emptyAuthProbeSummary()
+  // ログインガード（spec§6）: コースページの応答が logged_out と分類されたら立てる。
+  // 以降のコースのfetchを打ち切り、既存データを一切変更せずエラーとして報告する。
+  let loggedOutDetected = false
+  const diagnosticCodes = new Set<DiagnosticCode>()
   const courses = await getCourses()
   const enabledCourses = courses.filter((c) => c.enabled)
   const enabledCourseIds = new Set(enabledCourses.map((c) => c.id))
@@ -556,6 +581,11 @@ export async function scanAssignmentCandidatesInBackground(
       enabledCourses,
       3,
       async (course) => {
+        // ログインガード: 先行コースで logged_out を検知済みなら fetch 自体を行わない
+        // （無駄な大学向けリクエストの抑制）。並走中だった fetch は完走するが、
+        // 下の logged_out 早期 return で既存データには触れない。
+        if (loggedOutDetected) return null
+
         let response: Response
         try {
           await pacer.acquire()
@@ -567,16 +597,43 @@ export async function scanAssignmentCandidatesInBackground(
 
         const html = await response.text()
         // 認証プローブ（piggyback）: 取得済みレスポンスをそのまま分類して集計する。
-        // 追加リクエストはしない。この時点では観測のみ（storage永続・UIは診断配線側）。
-        authProbe = addToAuthProbeSummary(
-          authProbe,
-          classifyFetchedPage({ finalUrl: response.url ?? '', bodyText: html }),
-        )
+        // 追加リクエストはしない。この時点では観測のみ（storage永続はT9）。
+        const classification = classifyFetchedPage({ finalUrl: response.url ?? '', bodyText: html })
+        authProbe = addToAuthProbeSummary(authProbe, classification)
+        // 分類は classifyFetchedPage 内でマーカー優先順位（ログアウト証拠 > M.cfg）を
+        // 織り込み済みなので、diagnoseAuthProbe の入力へそのまま復元できる。
+        for (const code of diagnoseAuthProbe({
+          fetchOk: true,
+          hasMcfg: classification === 'logged_in',
+          hasLoginMarker: classification === 'logged_out',
+        })) {
+          diagnosticCodes.add(code)
+        }
+
+        if (classification === 'logged_out') {
+          // 未ログインHTML(200)から候補抽出・シグネチャ保存をすると、空データが
+          // 既存候補やベースラインを汚染する（skipSave黙殺の温床）。このページは
+          // 一切処理せず、スキャン全体をログインエラーへ倒す（deadlineスキャンの
+          // checkIsLoggedIn ガードと同じ結末）。
+          loggedOutDetected = true
+          return null
+        }
+
         const links = extractLinksFromHtml(html, course.url)
 
         try {
           const prevSig = await getCourseSignature(course.id)
           const upd = computeCourseUpdate(prevSig, html, course.url, new Date().toISOString())
+          // skipSave の明示化（spec§4）: スキップを含む観測結果を評価関数に流し、
+          // 「既知コースの全課題喪失/ページ不読」を診断コードとして浮上させる。
+          for (const code of diagnoseCoursePage({
+            pageAuthState: toPageAuthState(classification),
+            modAnchorCount: upd.diagnostic.modAnchorCount,
+            prevSignatureLen: upd.diagnostic.prevSignatureLen,
+            hasCourseMarker: upd.diagnostic.hasCourseMarker,
+          })) {
+            diagnosticCodes.add(code)
+          }
           if (!upd.skipSave) {
             await saveCourseSignature(course.id, upd.signature)
             if (upd.added.length > 0) {
@@ -625,6 +682,28 @@ export async function scanAssignmentCandidatesInBackground(
       },
     )
 
+    if (loggedOutDetected) {
+      // deadlineスキャンの checkIsLoggedIn ガードと整合: 既存候補・シグネチャは
+      // 一切変更せず（最終保存・除去も行わず）、ログインエラーとして正直に報告する。
+      await saveAssignmentScanStatus({
+        state: 'error',
+        startedAt,
+        finishedAt: new Date().toISOString(),
+        totalCourses: enabledCourses.length,
+        completedCourses: 0,
+        currentCourseName: '',
+        detectedCount: assignmentMap.size,
+        errorMessage: NOT_LOGGED_IN_ERROR_MESSAGE,
+      })
+      return {
+        ok: false,
+        reason: 'login_required',
+        errorMessage: NOT_LOGGED_IN_ERROR_MESSAGE,
+        authProbe,
+        diagnostics: Array.from(diagnosticCodes),
+      }
+    }
+
     const finishedAt = new Date().toISOString()
     const assignmentCandidates = Array.from(assignmentMap.values()).filter((c) =>
       enabledCourseIds.has(c.courseId),
@@ -642,7 +721,12 @@ export async function scanAssignmentCandidatesInBackground(
       errorMessage: null,
     })
 
-    return { ok: true, detectedCount: assignmentCandidates.length, authProbe }
+    return {
+      ok: true,
+      detectedCount: assignmentCandidates.length,
+      authProbe,
+      diagnostics: Array.from(diagnosticCodes),
+    }
   } catch (error) {
     await saveAssignmentScanStatus({
       state: 'error',
@@ -654,7 +738,13 @@ export async function scanAssignmentCandidatesInBackground(
       detectedCount: assignmentMap.size,
       errorMessage: String(error),
     })
-    return { ok: false, reason: 'error', errorMessage: String(error), authProbe }
+    return {
+      ok: false,
+      reason: 'error',
+      errorMessage: String(error),
+      authProbe,
+      diagnostics: Array.from(diagnosticCodes),
+    }
   } finally {
     isAssignmentScanning = false
   }
@@ -685,7 +775,7 @@ export async function scanDeadlinesInBackground(pacer: Pacer = letusPacer): Prom
   if (isLoginBlocking(loginStatus)) {
     const errorMessage =
       loginStatus === 'login_required'
-        ? 'LETUSにログインしていないため更新できませんでした。'
+        ? NOT_LOGGED_IN_ERROR_MESSAGE
         : 'LETUSへの通信に失敗しました。ネットワーク接続を確認してください。'
 
     await saveDeadlineScanStatus({
