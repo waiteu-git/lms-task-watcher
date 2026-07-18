@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest'
 import {
   buildBannerContent,
   buildInfoNotes,
+  shouldSuppressScanErrorBanner,
   type BannerContent,
   type BannerKind,
 } from './diagnosticsBanner'
@@ -293,5 +294,54 @@ describe('buildInfoNotes: 複数コード・順序・未知コード', () => {
     const snapshot = structuredClone(state)
     buildInfoNotes(state)
     expect(state).toEqual(snapshot)
+  })
+})
+
+// background のログインガード文言（src/background/index.ts の NOT_LOGGED_IN_ERROR_MESSAGE）。
+// core→background の依存は張れないためテスト側に実文言を写し、変質したら検知する。
+const NOT_LOGGED_IN_SCAN_ERROR = 'LETUSにログインしていないため更新できませんでした。'
+
+describe('shouldSuppressScanErrorBanner: logged_out バナーとの二重表示解消', () => {
+  it('logged_out バナー表示中のログアウト趣旨メッセージは抑制する', () => {
+    expect(shouldSuppressScanErrorBanner('logged_out', NOT_LOGGED_IN_SCAN_ERROR)).toBe(true)
+  })
+
+  it('logged_out バナー表示中でも別趣旨（ネットワーク）のメッセージは抑制しない（情報を消さない）', () => {
+    // 「ログイン状態を確認」の字句を含むが、趣旨は通信失敗＝ログアウトバナーでは代替されない
+    expect(
+      shouldSuppressScanErrorBanner(
+        'logged_out',
+        'LETUSへの通信に失敗しました。ネットワーク接続またはLETUSのログイン状態を確認してください。',
+      ),
+    ).toBe(false)
+  })
+
+  it('logged_out バナー表示中でも別趣旨（タイムアウト）のメッセージは抑制しない', () => {
+    expect(
+      shouldSuppressScanErrorBanner(
+        'logged_out',
+        '更新が時間内に完了しませんでした。LETUSにログインしているか、通信状態を確認してください。',
+      ),
+    ).toBe(false)
+  })
+
+  it.each<BannerKind>(['none', 'unreadable', 'unsupported'])(
+    'バナーが %s のときはログアウト趣旨メッセージでも抑制しない（唯一の表示経路を残す）',
+    (kind) => {
+      expect(shouldSuppressScanErrorBanner(kind, NOT_LOGGED_IN_SCAN_ERROR)).toBe(false)
+    },
+  )
+
+  it('メッセージが null / 空文字なら抑制対象なし（false）', () => {
+    expect(shouldSuppressScanErrorBanner('logged_out', null)).toBe(false)
+    expect(shouldSuppressScanErrorBanner('logged_out', '')).toBe(false)
+  })
+
+  it('logged_out バナーの文言自体はログアウト趣旨の判定キーを含む（判定キーとUIの整合）', () => {
+    // 判定キー「ログインしていない」が示す状況と、代替表示になる logged_out バナーの
+    // 案内（ログインし直す）が同じ事象を指していることの回帰確認
+    const banner = buildBannerContent(stateWith(['LOGGED_OUT']))
+    expect(banner.kind).toBe('logged_out')
+    expect(banner.title).toContain('ログアウト')
   })
 })

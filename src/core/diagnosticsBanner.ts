@@ -11,6 +11,9 @@
  *    その実配線。健全なLETUSでも恒常発火し得るコードなので、警告色・再試行
  *    ボタンを持たない小さなノートに留める。
  *
+ * 付随して shouldSuppressScanErrorBanner（重複排除の選択ロジック）を持つ:
+ * logged_out バナー表示中は旧エラーバナーの同趣旨メッセージを抑制する（詳細は関数doc）。
+ *
  * いずれも diagnosticsState（自己診断台帳）だけを入力とする純関数。
  * chrome.* / DOM に触れない。
  *
@@ -114,6 +117,39 @@ const INFO_NOTE_TEXTS: Partial<Record<DiagnosticCode, string>> = {
 
 /** 未知の info コード（将来の階級再分類等）を黙って落とさないための汎用文 */
 const FALLBACK_INFO_NOTE_TEXT = '一部の情報を自動取得できていない可能性があります。'
+
+/**
+ * 旧エラーバナー（スキャン失敗メッセージ）のログアウト趣旨判定キー。
+ * background のログインガード文言「LETUSにログインしていないため更新できませんでした。」
+ * （src/background/index.ts NOT_LOGGED_IN_ERROR_MESSAGE・課題/締切両スキャン共通）に
+ * 一致させる。core→background の依存は張れない（background は chrome.* 副作用と同居）
+ * ため全文でなく趣旨の中核句で部分一致させ、文言の推敲に対して壊れにくくする。
+ * タイムアウト文言「ログインしているか」・通信失敗文言「ログイン状態」はこの句を
+ * 含まない＝別趣旨として抑制対象にならない。
+ */
+const NOT_LOGGED_IN_SCAN_ERROR_MARKER = 'ログインしていない'
+
+/**
+ * 診断バナーが logged_out を表示している間、旧エラーバナーの同趣旨メッセージ
+ * （ログインしていないため更新できなかった）を抑制するかを決める（spec§7 の重複排除）。
+ *
+ * 方向は「diagnosticsBanner を優先する一元化」: logged_out バナーが再ログイン案内・
+ * 最終取得時刻・再試行導線を持つため、旧バナーを消しても情報と導線は失われない。
+ * 逆に、ネットワーク断など別趣旨のスキャン失敗は logged_out バナーでは代替されない
+ * ので抑制しない（情報が消えない方向）。バナーが logged_out 以外（none/unreadable/
+ * unsupported）のときは、ログアウト趣旨メッセージでも旧バナーが唯一の表示経路なので
+ * 抑制しない。
+ */
+export function shouldSuppressScanErrorBanner(
+  bannerKind: BannerKind,
+  scanErrorMessage: string | null,
+): boolean {
+  if (scanErrorMessage === null || scanErrorMessage === '') return false
+  return (
+    bannerKind === 'logged_out' &&
+    scanErrorMessage.includes(NOT_LOGGED_IN_SCAN_ERROR_MARKER)
+  )
+}
 
 /**
  * diagnosticsState からカバレッジ情報ノート（警告でない注記）を導出する。

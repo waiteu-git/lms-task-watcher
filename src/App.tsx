@@ -107,7 +107,11 @@ import {
 } from './utils/manualAssignment'
 import { isConsented, saveConsent } from './legal/termsConsent'
 import { TermsConsentScreen } from './components/TermsConsentScreen'
-import { buildBannerContent, buildInfoNotes } from './core/diagnosticsBanner'
+import {
+  buildBannerContent,
+  buildInfoNotes,
+  shouldSuppressScanErrorBanner,
+} from './core/diagnosticsBanner'
 import { DIAGNOSTICS_STATE_KEY, type DiagnosticsState } from './core/diagnosticsState'
 
 // 自前バックエンドは凍結中（VITE_API_BASE_URL 未設定=空）。空なら syncToServer 等は no-op。
@@ -563,6 +567,18 @@ export default function App() {
     }
     return null
   }, [assignmentScanStatus, deadlineScanStatus])
+
+  // 診断バナー（logged_out）表示中は、旧エラーバナーの同趣旨メッセージ
+  // 「LETUSにログインしていないため更新できませんでした」を抑制する（二重表示の解消）。
+  // 再ログイン案内・最終取得時刻・再試行導線は診断バナー側が持つため情報は失われない。
+  // 別趣旨（ネットワーク等）の失敗メッセージは抑制しない（判定は core の純関数）。
+  const visibleScanErrorMessage = useMemo(
+    () =>
+      shouldSuppressScanErrorBanner(diagnosticsBanner.kind, scanErrorMessage)
+        ? null
+        : scanErrorMessage,
+    [diagnosticsBanner.kind, scanErrorMessage],
+  )
 
   const workingLabel = useMemo(() => {
     if (assignmentScanStatus.state === 'running') {
@@ -1143,10 +1159,10 @@ export default function App() {
         )}
       </div>
 
-      {scanErrorMessage && (
+      {visibleScanErrorMessage && (
         <div className="errorBanner">
           <strong>更新に失敗しました。前回のデータを表示しています。</strong>
-          <span>{scanErrorMessage}</span>
+          <span>{visibleScanErrorMessage}</span>
         </div>
       )}
 
