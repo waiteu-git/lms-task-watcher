@@ -502,6 +502,76 @@ describe('scanAssignmentCandidatesInBackground', () => {
     expect(result.ok).toBe(true)
     expect(result.diagnostics).toEqual([])
   })
+
+  it('コースページに未知モジュール型のリンクがあればUNSUPPORTED_MODULEを診断し型リストを返す（追加fetch無し）', async () => {
+    // spec§3原則5: 未知の /mod/<type>/view.php を silent drop せず「未対応がある」事実を浮上させる。
+    // 未知型のページをスキャンしに行くことはしない（パース対象は広げない）。
+    store[COURSES_KEY] = [makeCourse()]
+
+    const fetchSpy = vi.fn(async (url: string) => ({
+      ok: true,
+      url,
+      text: async () =>
+        '<script>M.cfg = {"wwwroot":"https:\\/\\/letus.ed.tus.ac.jp","sesskey":"AbCd012345"};</script>' +
+        '<a href="/mod/assign/view.php?id=1">課題1</a>' +
+        '<a href="/mod/hvp/view.php?id=2">インタラクティブ教材</a>' +
+        '<a href="/mod/customcert/view.php?id=3">修了証</a>' +
+        '<a href="/mod/hvp/view.php?id=4">教材2</a>' +
+        '<a href="/mod/resource/view.php?id=5">資料</a>',
+    }))
+    vi.stubGlobal('fetch', fetchSpy)
+
+    const result = await scanAssignmentCandidatesInBackground('standard', noopPacer)
+
+    expect(result.ok).toBe(true)
+    expect(result.diagnostics).toEqual(['UNSUPPORTED_MODULE'])
+    expect(result.unsupportedModuleTypes).toEqual(['customcert', 'hvp'])
+    // コースページ1件のfetchのみ（未知型ページを追加でスキャンしない）
+    expect(fetchSpy).toHaveBeenCalledTimes(1)
+    // 未知型は候補にはならない（既知の assign のみ検出）
+    const candidates = store[ASSIGNMENT_CANDIDATES_KEY] as AssignmentCandidate[]
+    expect(candidates.map((c) => c.url)).toEqual([
+      'https://letus.ed.tus.ac.jp/mod/assign/view.php?id=1',
+    ])
+  })
+
+  it('broad許可リスト内の型(forum等)と除外型(resource等)だけならUNSUPPORTED_MODULEを発火しない', async () => {
+    // standard スキャンで対象外の forum も「既知型」なので未知扱いにしない。
+    store[COURSES_KEY] = [makeCourse()]
+
+    vi.stubGlobal('fetch', vi.fn(async (url: string) => ({
+      ok: true,
+      url,
+      text: async () =>
+        '<script>M.cfg = {"wwwroot":"https:\\/\\/letus.ed.tus.ac.jp","sesskey":"AbCd012345"};</script>' +
+        '<a href="/mod/forum/view.php?id=1">フォーラム</a>' +
+        '<a href="/mod/lesson/view.php?id=2">レッスン</a>' +
+        '<a href="/mod/resource/view.php?id=3">資料</a>',
+    })))
+
+    const result = await scanAssignmentCandidatesInBackground('standard', noopPacer)
+
+    expect(result.ok).toBe(true)
+    expect(result.diagnostics).toEqual([])
+    expect(result.unsupportedModuleTypes).toEqual([])
+  })
+
+  it('未知モジュール型があってもMoodleと認識できないページでは発火しない（誤検知抑制）', async () => {
+    store[COURSES_KEY] = [makeCourse()]
+
+    vi.stubGlobal('fetch', vi.fn(async (url: string) => ({
+      ok: true,
+      url,
+      // M.cfg 無し＝not_moodle_page 分類。リンクがあっても未知型診断はしない
+      text: async () => '<html><body><a href="/mod/hvp/view.php?id=1">教材</a></body></html>',
+    })))
+
+    const result = await scanAssignmentCandidatesInBackground('standard', noopPacer)
+
+    expect(result.ok).toBe(true)
+    expect(result.diagnostics).toEqual(['NOT_A_MOODLE_PAGE'])
+    expect(result.unsupportedModuleTypes).toEqual([])
+  })
 })
 
 describe('scanDeadlinesInBackground', () => {

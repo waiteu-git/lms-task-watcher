@@ -30,6 +30,13 @@ import { computeDeadlineNotifications, type DeadlineTarget } from '../core/deadl
 import { applyDeadlineOverrides, getDeadlineOverrides } from '../core/deadlineOverride'
 import { normalizeText, htmlToPlainText } from '../core/htmlText'
 import { extractLinksFromHtml } from '../core/letusLinks'
+import {
+  STRICT_MODULE_PATHS,
+  STANDARD_MODULE_PATHS,
+  BROAD_MODULE_PATHS,
+  NON_ASSIGNMENT_PATHS,
+  collectUnknownModuleTypes,
+} from '../core/moduleTypes'
 import { computeCourseUpdate } from '../core/courseUpdates'
 import { pickFirstImportNotification, buildFirstImportNotification } from '../core/timetableImportNotify'
 import { getCourseSignature, saveCourseSignature, addUnreadUpdates } from './courseUpdatesStore'
@@ -156,65 +163,22 @@ async function mapWithConcurrency<T, R>(
 
 type ScanLevel = 'strict' | 'standard' | 'broad'
 
+// 許可/除外リストの実体は src/core/moduleTypes.ts（単一情報源）。
+// 未知モジュール型のcatch-all診断（collectUnknownModuleTypes）と同じリストを共有する。
 function isTargetActivityUrl(url: string, scanLevel: ScanLevel): boolean {
   const normalizedUrl = url.toLowerCase()
-
-  const strictModulePaths = [
-    '/mod/assign/view.php',
-    '/mod/quiz/view.php',
-    '/mod/turnitintool/view.php',
-    '/mod/turnitintooltwo/view.php',
-  ]
-
-  const standardModulePaths = [
-    ...strictModulePaths,
-    '/mod/workshop/view.php',
-    '/mod/feedback/view.php',
-    '/mod/choice/view.php',
-    '/mod/questionnaire/view.php',
-    '/mod/lti/view.php',
-  ]
-
-  const broadModulePaths = [
-    ...standardModulePaths,
-    '/mod/forum/view.php',
-    '/mod/survey/view.php',
-    '/mod/lesson/view.php',
-  ]
-
-  if (scanLevel === 'strict') {
-    return strictModulePaths.some((path) => normalizedUrl.includes(path))
-  }
-  if (scanLevel === 'broad') {
-    return broadModulePaths.some((path) => normalizedUrl.includes(path))
-  }
-  return standardModulePaths.some((path) => normalizedUrl.includes(path))
+  const modulePaths =
+    scanLevel === 'strict'
+      ? STRICT_MODULE_PATHS
+      : scanLevel === 'broad'
+        ? BROAD_MODULE_PATHS
+        : STANDARD_MODULE_PATHS
+  return modulePaths.some((path) => normalizedUrl.includes(path))
 }
 
 function isClearlyNonAssignmentUrl(url: string): boolean {
   const normalizedUrl = url.toLowerCase()
-  const excludedPaths = [
-    '/grade/',
-    '/grade/report/',
-    '/reportbuilder/',
-    '/user/',
-    '/calendar/',
-    '/message/',
-    '/blog/',
-    '/badges/',
-    '/competency/',
-    '/course/report/',
-    '/course/view.php',
-    '/mod/resource/',
-    '/mod/folder/',
-    '/mod/page/',
-    '/mod/url/',
-    '/mod/book/',
-    '/mod/label/',
-    '/mod/glossary/',
-    '/mod/wiki/',
-  ]
-  return excludedPaths.some((path) => normalizedUrl.includes(path))
+  return NON_ASSIGNMENT_PATHS.some((path) => normalizedUrl.includes(path))
 }
 
 function hasAssignmentKeyword(text: string, url: string): boolean {
@@ -538,6 +502,8 @@ export async function scanAssignmentCandidatesInBackground(
   authProbe?: AuthProbeSummary
   /** スキャン全体で発火した診断コード（spec§4の評価関数の出力・重複排除）。storage永続はT9 */
   diagnostics?: DiagnosticCode[]
+  /** UNSUPPORTED_MODULE の詳細: コースページのリンクに現れた未知モジュール型（重複排除・昇順） */
+  unsupportedModuleTypes?: string[]
 }> {
   if (isAssignmentScanning) return { ok: false, reason: 'already_running' }
 
@@ -548,6 +514,7 @@ export async function scanAssignmentCandidatesInBackground(
   // 以降のコースのfetchを打ち切り、既存データを一切変更せずエラーとして報告する。
   let loggedOutDetected = false
   const diagnosticCodes = new Set<DiagnosticCode>()
+  const unsupportedModuleTypes = new Set<string>()
   const courses = await getCourses()
   const enabledCourses = courses.filter((c) => c.enabled)
   const enabledCourseIds = new Set(enabledCourses.map((c) => c.id))
@@ -620,6 +587,19 @@ export async function scanAssignmentCandidatesInBackground(
         }
 
         const links = extractLinksFromHtml(html, course.url)
+
+        // catch-all診断（spec§3原則5）: 許可/除外どちらのリストにも無い
+        // /mod/<type>/view.php リンクを silent drop せず「未対応モジュールがある」
+        // 事実として浮上させる。未知型ページを追加でスキャンしには行かない
+        // （パース対象は広げない＝大学向けリクエスト増ゼロ・観測のみ）。
+        // Moodleと認識できないページ（メンテ等）のリンクで誤発火しないよう logged_in に限定。
+        if (classification === 'logged_in') {
+          const unknownTypes = collectUnknownModuleTypes(links.map((link) => link.url))
+          if (unknownTypes.length > 0) {
+            diagnosticCodes.add('UNSUPPORTED_MODULE')
+            for (const type of unknownTypes) unsupportedModuleTypes.add(type)
+          }
+        }
 
         try {
           const prevSig = await getCourseSignature(course.id)
@@ -701,6 +681,7 @@ export async function scanAssignmentCandidatesInBackground(
         errorMessage: NOT_LOGGED_IN_ERROR_MESSAGE,
         authProbe,
         diagnostics: Array.from(diagnosticCodes),
+        unsupportedModuleTypes: Array.from(unsupportedModuleTypes).sort(),
       }
     }
 
@@ -726,6 +707,7 @@ export async function scanAssignmentCandidatesInBackground(
       detectedCount: assignmentCandidates.length,
       authProbe,
       diagnostics: Array.from(diagnosticCodes),
+      unsupportedModuleTypes: Array.from(unsupportedModuleTypes).sort(),
     }
   } catch (error) {
     await saveAssignmentScanStatus({
@@ -744,6 +726,7 @@ export async function scanAssignmentCandidatesInBackground(
       errorMessage: String(error),
       authProbe,
       diagnostics: Array.from(diagnosticCodes),
+      unsupportedModuleTypes: Array.from(unsupportedModuleTypes).sort(),
     }
   } finally {
     isAssignmentScanning = false
