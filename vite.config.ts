@@ -77,6 +77,10 @@ export default defineConfig(({ mode }) => {
     },
   },
   test: {
+    // vitest はプロジェクトの src/ 配下のみを対象にする。
+    // ops/litus-devlog/*.test.mjs は node:test 形式で `node --test` の管轄のため、
+    // 既定 glob だと誤収集されてファイル単位で FAIL 表示になる（テスト内容は無関係）。
+    include: ['src/**/*.{test,spec}.{ts,tsx}'],
     setupFiles: ['./vitest.setup.ts'],
   },
   }
