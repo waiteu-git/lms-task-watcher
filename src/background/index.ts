@@ -60,6 +60,7 @@ import {
   diagnoseActivityPage,
   diagnoseAuthProbe,
   diagnoseCoursePage,
+  diagnoseDashboard,
   type DiagnosticCode,
   type PageAuthState,
 } from '../core/diagnose'
@@ -1008,6 +1009,11 @@ async function recordScanCycleOutcome(results: ScanDiagnosticsResult[]): Promise
   const hasHardCode = codes.some((code) => !isInfoDiagnosticCode(code))
   if (!hasHardCode && !allOk) return
 
+  await foldIntoDiagnosticsLedger(codes)
+}
+
+/** 診断コード群を1回の観測として diagnosticsState 台帳へ畳み込む（保存失敗は握って console.error のみ） */
+async function foldIntoDiagnosticsLedger(codes: DiagnosticCode[]): Promise<void> {
   try {
     const stored = await chrome.storage.local.get(DIAGNOSTICS_STATE_KEY)
     const prev = (stored[DIAGNOSTICS_STATE_KEY] as DiagnosticsState | undefined) ?? null
@@ -1016,6 +1022,32 @@ async function recordScanCycleOutcome(results: ScanDiagnosticsResult[]): Promise
   } catch (error) {
     console.error('[LETUS Task Watcher] diagnostics state save failed', error)
   }
+}
+
+/**
+ * content script の COURSE_DETECTION_EMPTY（コース面で予算切れまで0コース・spec§6 T4）を
+ * diagnoseDashboard で判定し、診断台帳へ畳み込む。
+ *
+ * - pageAuthState は 'logged_in' 固定とする: content script は same-origin で描画された
+ *   LETUSページ上でしか実行されず、TUS の未ログイン /my/ は SAML SSO（クロスオリジン）へ
+ *   リダイレクトされて content script 自体が走らない（実機採取 2026-07-19 で確定）。
+ *   ゆえに「コース面の DOM を読めた＝ログイン済み」とみなせる。
+ * - 診断コード無し（既知コース0件＝初回利用の正当な空）は中立スキップ:
+ *   ページ単発の観測はスキャンサイクルの完走ではないため、成功として lastGoodAt を
+ *   進めたり activeCodes を消したりしない（recordScanCycleOutcome と同じ非対称原則）。
+ * - コード有りのみ失敗観測として畳み込む。連続失敗のエスカレーション閾値
+ *   （ESCALATION_THRESHOLD）は台帳 reducer の既存規則にそのまま従う＝
+ *   単発の一過性0件ではバナーを出さない。
+ */
+async function recordDashboardEmptyReport(): Promise<void> {
+  const knownCourses = await getCourses()
+  const codes = diagnoseDashboard({
+    pageAuthState: 'logged_in',
+    courseAnchorCount: 0,
+    knownCourseCount: knownCourses.length,
+  })
+  if (codes.length === 0) return
+  await foldIntoDiagnosticsLedger(codes)
 }
 
 // ─── Additional storage helpers ──────────────────────────────────────────────
@@ -1426,6 +1458,25 @@ function handleCollectingMessage(
     })
     return
   }
+
+  if (message.type === 'COURSE_DETECTION_EMPTY') {
+    const path = typeof message.path === 'string' ? message.path : ''
+    // コース面（Dashboard/マイコース一覧）以外からの報告は受け付けない（ノイズ防止）。
+    // 判定は content 側 courseDetectorCore.isDashboardPath と同値。content 配下の
+    // モジュールを background から import すると Rollup が共有チャンク化して
+    // dist/content.js に import 文が残るため、ここに複製する（termsConsent と同じ理由）。
+    const isDashboard =
+      path === '/my' || path === '/my/' || path === '/my/index.php' || path === '/my/courses.php'
+    if (!isDashboard) {
+      sendResponse({ ok: false, reason: 'not_dashboard' })
+      return
+    }
+    sendResponse({ ok: true })
+    recordDashboardEmptyReport().catch((error) => {
+      console.error('[LETUS Task Watcher] course detection empty handling failed', error)
+    })
+    return
+  }
 }
 
 chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
@@ -1439,7 +1490,13 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
   // 収集を伴うメッセージは、規約同意まで一切受け付けない。
   // popup の自動 refresh は React の useEffect であり画面ゲートでは止まらないため、
   // ここが実効的な防波堤になる。
-  const COLLECTING_MESSAGES = ['UPSERT_COURSES', 'START_ASSIGNMENT_SCAN', 'START_DEADLINE_SCAN', 'START_FULL_UPDATE']
+  const COLLECTING_MESSAGES = [
+    'UPSERT_COURSES',
+    'START_ASSIGNMENT_SCAN',
+    'START_DEADLINE_SCAN',
+    'START_FULL_UPDATE',
+    'COURSE_DETECTION_EMPTY',
+  ]
   if (COLLECTING_MESSAGES.includes(message?.type)) {
     void isConsented().then((consented) => {
       if (!consented) {
