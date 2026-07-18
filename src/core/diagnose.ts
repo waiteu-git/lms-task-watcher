@@ -141,9 +141,13 @@ export interface AuthProbeInput {
 /**
  * 認証プローブ（既存fetchレスポンスへのpiggyback）の矛盾検知。
  * - fetch失敗はネットワーク問題＝ここでは診断しない（既存の network_error 経路の責務）。
- * - ログインマーカーは M.cfg 有無より優先する: 学外SSO/IdPのログインページは
- *   Moodleでない（M.cfg無し）が、それは NOT_A_MOODLE_PAGE でなく LOGGED_OUT。
- * - どちらのマーカーも無く M.cfg も欠落 → Moodle以外が応答している（NOT_A_MOODLE_PAGE）。
+ * - ログインマーカーは M.cfg 有無より優先する: 学外SSO/IdPのログインページ
+ *   （idp.admin.tus.ac.jp / login.microsoftonline.com 等）は Moodleでない（M.cfg無し）が、
+ *   それは NOT_A_MOODLE_PAGE でなく LOGGED_OUT。この検知自体は authProbe の
+ *   classifyFetchedPage のURL規則（/auth/shibboleth/ 入口・非LETUSホスト着地＝logged_out）
+ *   が担い、配線側が logged_out 分類を hasLoginMarker として本関数へ渡す。
+ * - どちらのマーカーも無く M.cfg も欠落 → Moodle以外がLETUSオリジンで応答している
+ *   （NOT_A_MOODLE_PAGE）。
  */
 export function diagnoseAuthProbe(input: AuthProbeInput): DiagnosticCode[] {
   if (!input.fetchOk) return []
