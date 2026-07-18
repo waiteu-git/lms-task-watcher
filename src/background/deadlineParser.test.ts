@@ -197,6 +197,41 @@ describe('⑤-2 相対語は締切キーワード文脈でのみ効く（呼び�
   })
 })
 
+describe('⑤-3 散文中の相対語を締切に昇格させない（ラベル-値形式アンカー）', () => {
+  // 抽出窓は締切キーワードから始まる320文字＝キーワードから離れた散文の
+  // 「今日/明日」も窓内に入る。相対語は「ラベル[:：] 値」のラベル直後のみ採用し、
+  // 期限未設定の説明文から幻の締切（スキャン時刻基準で日々ドリフト）を作らない。
+  it('散文の「今日」（〜が期限です。今日から…）は昇格しない', () => {
+    const text = '毎週の課題は翌週月曜が期限です。今日から取り組みましょう'
+    expect(parseDeadline(extractDeadlineText(text))).toBe(null)
+  })
+
+  it('散文の「明日」（締切は口頭で…。明日の授業で…）は昇格しない', () => {
+    const text = '締切は口頭で伝えます。明日の授業で説明します'
+    expect(parseDeadline(extractDeadlineText(text))).toBe(null)
+  })
+
+  it('ラベル直後でない相対語は parseDeadline 直呼びでも棄却', () => {
+    expect(parseDeadline('期限です。今日から取り組みましょう')).toBe(null)
+  })
+
+  it('ラベル値スロットが別トークンで占有されていれば後方の相対語は棄却', () => {
+    expect(parseDeadline('締切: 13/40 明日')).toBe(null)
+  })
+
+  it('タイトル経路は相対語を解決しない（英語・静的テキストのため）', () => {
+    expect(parseDeadlineFromTitle("Close Reading: today's exercise")).toBe(null)
+  })
+
+  it('タイトル経路はラベル形式の相対語でも解決しない', () => {
+    expect(parseDeadlineFromTitle('締切: 明日')).toBe(null)
+  })
+
+  it('タイトル経路の絶対日付は引き続き有効', () => {
+    expect(jst(parseDeadlineFromTitle('第13回小テスト（締切：7月3日）'))).toBe('2026/7/3 23:59:00')
+  })
+})
+
 describe('⑥ hasDeadlineKeyword（存在判定のみ）', () => {
   it('日本語キーワードを含めば true', () => {
     expect(hasDeadlineKeyword('第10回 レポート課題 終了日時: 明日')).toBe(true)

@@ -79,18 +79,44 @@ export function hasDeadlineKeyword(plainText: string): boolean {
 }
 
 /**
+ * 相対語アンカー: 「<締切キーワード>[:：]? <相対語>」のラベル-値形式の先頭部分。
+ * 抽出窓（extractDeadlineText の返り値）は必ず締切キーワードで始まるため、
+ * このアンカー直後に始まるトークンだけが「ラベルの値」とみなせる。
+ * 長いキーワード優先で並べ、'Closes' が 'Close' に先取りされて
+ * アンカー終端が手前にずれるのを防ぐ（正規表現の選択肢は記述順に試される）。
+ */
+const RELATIVE_ANCHOR_PATTERN = new RegExp(
+  '^(?:' +
+    [...DEADLINE_KEYWORDS]
+      .sort((a, b) => b.length - a.length)
+      .map((keyword) => keyword.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'))
+      .join('|') +
+    ')\\s*[:：]?\\s*',
+  'i',
+)
+
+/**
  * 相対/human日付の副次認識器（spec§3原則4）。
  * Moodle の relative dates mode 等で「今日/明日/あとN日/Today/Tomorrow/in N days」が
  * 出た場合の補完で、絶対日付が1つも取れなかったときだけ parseDeadline から呼ばれる。
  * 時刻は仕様どおり一律 23:59（基準日 now のローカル日付起点）。
- * 誤検知防止は呼び出し構造で担保する: 実スキャン経路（background/index.ts）は
- * extractDeadlineText が締切キーワードを見つけた時のみ parseDeadline を呼ぶため、
- * 無関係本文の「今日/明日」には反応しない（deadlineParser.test.ts ⑤-2 で裏取り）。
+ * 誤検知防止は2段構え:
+ * (1) 呼び出し構造: 実スキャン経路（background/index.ts）は extractDeadlineText が
+ *     締切キーワードを見つけた時のみ parseDeadline を呼ぶ（⑤-2 で裏取り）。
+ * (2) ラベル-値形式アンカー: 抽出窓は320文字あり、キーワードから離れた散文の
+ *     「今日/明日」（例:「〜が期限です。今日から取り組みましょう」）も窓内に入る。
+ *     Moodle が生成する相対日付は「期限: 今日」のようにラベル直後に来るため、
+ *     アンカー直後（キーワード＋任意コロンの直後）に始まるトークンのみ採用する（⑤-3）。
  */
 function parseRelativeDeadline(text: string, now: Date): string | null {
+  const anchorMatch = RELATIVE_ANCHOR_PATTERN.exec(text)
+  if (!anchorMatch) return null
+  const anchorEnd = anchorMatch[0].length
+
   const candidates: Array<{ index: number; days: number }> = []
   const add = (index: number, days: number) => {
-    if (index >= 0) candidates.push({ index, days })
+    // ラベル直後（anchorEnd 位置）に始まるトークンのみ「ラベルの値」として採用
+    if (index === anchorEnd) candidates.push({ index, days })
   }
 
   // 「説明日/発明日/判明日/表明日/証明日」等の複合語に含まれる「明日」を誤認しない
@@ -104,8 +130,7 @@ function parseRelativeDeadline(text: string, now: Date): string | null {
   if (inDaysEn) add(inDaysEn.index, Number(inDaysEn[1]))
 
   if (candidates.length === 0) return null
-  // 抽出窓の先頭＝締切キーワードに最も近い表現を採用する
-  candidates.sort((a, b) => a.index - b.index)
+  // アンカー一致により候補は高々1件（異なる相対語が同一位置から始まることはない）
   const target = new Date(
     now.getFullYear(),
     now.getMonth(),
@@ -119,9 +144,13 @@ function parseRelativeDeadline(text: string, now: Date): string | null {
   return target.toISOString()
 }
 
-export function parseDeadline(deadlineText: string, now: Date = new Date()): string | null {
-  const text = normalizeText(deadlineText)
-
+/**
+ * 絶対日付（YYYY年M月D日 / M月D日 / スラッシュ日付）のみを解釈する内部関数。
+ * 三値を返す: string=成功／null=日付らしき一致はあったが無効（従来どおりここで打ち切り・
+ * 相対認識へ進まない）／undefined=絶対日付パターンに一致せず（相対認識へ進んでよい）。
+ * parseDeadline（相対フォールバック有り）と parseDeadlineFromTitle（絶対のみ）で共有する。
+ */
+function parseAbsoluteDeadline(text: string, now: Date): string | null | undefined {
   const japaneseDateMatch = text.match(
     /(20\d{2})\s*年\s*(\d{1,2})\s*月\s*(\d{1,2})\s*日(?:\s*[(（][^)）]*[)）])?\s*(?:(\d{1,2})\s*(?:時|:|：)\s*(\d{1,2})?\s*分?)?/,
   )
@@ -170,6 +199,13 @@ export function parseDeadline(deadlineText: string, now: Date = new Date()): str
     }
   }
 
+  return undefined
+}
+
+export function parseDeadline(deadlineText: string, now: Date = new Date()): string | null {
+  const text = normalizeText(deadlineText)
+  const absolute = parseAbsoluteDeadline(text, now)
+  if (absolute !== undefined) return absolute
   // 絶対日付にマッチしなかった場合のみ、相対/human日付の副次認識器へフォールバック
   return parseRelativeDeadline(text, now)
 }
@@ -178,5 +214,7 @@ export function parseDeadlineFromTitle(title: string): string | null {
   const text = normalizeText(title)
   // 締切を示す語が含まれるときのみ推定する（無関係な数字の誤検知を防ぐ）
   if (!/(締切|締め切り|〆|期限|due|close)/i.test(text)) return null
-  return parseDeadline(text)
+  // タイトルは静的テキスト＝相対語（今日/明日/tomorrow等）をスキャン時刻で解決すると
+  // 常に誤り（基準日が日々ドリフト）のため、絶対日付のみ解釈し相対認識は行わない。
+  return parseAbsoluteDeadline(text, new Date()) ?? null
 }
