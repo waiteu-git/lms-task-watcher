@@ -107,6 +107,8 @@ import {
 } from './utils/manualAssignment'
 import { isConsented, saveConsent } from './legal/termsConsent'
 import { TermsConsentScreen } from './components/TermsConsentScreen'
+import { buildBannerContent } from './core/diagnosticsBanner'
+import { DIAGNOSTICS_STATE_KEY, type DiagnosticsState } from './core/diagnosticsState'
 
 // 自前バックエンドは凍結中（VITE_API_BASE_URL 未設定=空）。空なら syncToServer 等は no-op。
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL as string ?? ''
@@ -141,6 +143,7 @@ export default function App() {
     courseOverrides: {},
   })
   const [message, setMessage] = useState('')
+  const [diagnosticsState, setDiagnosticsState] = useState<DiagnosticsState | null>(null)
   const [showOnboarding, setShowOnboarding] = useState(false)
   const [consentState, setConsentState] = useState<'loading' | 'needed' | 'ok'>('loading')
   const hasAutoRefreshCheckedRef = useRef(false)
@@ -330,10 +333,23 @@ export default function App() {
         const newValue = changes[MANUAL_ASSIGNMENTS_KEY].newValue as ManualAssignment[] | undefined
         setManualAssignments(newValue ?? [])
       }
+      if (DIAGNOSTICS_STATE_KEY in changes) {
+        const newValue = changes[DIAGNOSTICS_STATE_KEY].newValue as DiagnosticsState | undefined
+        setDiagnosticsState(newValue ?? null)
+      }
     }
 
     chrome.storage.local.onChanged.addListener(onStorageChanged)
     return () => chrome.storage.local.onChanged.removeListener(onStorageChanged)
+  }, [])
+
+  // 自己診断台帳（diagnosticsState）の初期読込。以降の更新は上の onChanged が追従する。
+  useEffect(() => {
+    void chrome.storage.local.get(DIAGNOSTICS_STATE_KEY).then((stored) => {
+      setDiagnosticsState(
+        (stored[DIAGNOSTICS_STATE_KEY] as DiagnosticsState | undefined) ?? null,
+      )
+    })
   }, [])
 
   useEffect(() => {
@@ -521,6 +537,14 @@ export default function App() {
     assignmentScanStatus,
     deadlineScanStatus,
   ])
+
+  // 正直な「読めませんでした」バナー（spec§7）。エスカレーション済みの activeCodes が
+  // 非空のときのみ表示される（判定は buildBannerContent 内・kind: 'none' なら非表示）。
+  // CLASS（時間割）はMoodle診断の対象外なので、このバナーはCLASS系セクションに置かない。
+  const diagnosticsBanner = useMemo(
+    () => buildBannerContent(diagnosticsState),
+    [diagnosticsState],
+  )
 
   const scanErrorMessage = useMemo(() => {
     if (assignmentScanStatus.state === 'error') {
@@ -1116,6 +1140,23 @@ export default function App() {
           <strong>更新に失敗しました。前回のデータを表示しています。</strong>
           <span>{scanErrorMessage}</span>
         </div>
+      )}
+
+      {diagnosticsBanner.kind !== 'none' && (
+        <section className="diagnosticsBanner" role="status">
+          <strong>{diagnosticsBanner.title}</strong>
+          <span>{diagnosticsBanner.body}</span>
+          <div className="diagnosticsBannerFooter">
+            <span>最終取得: {formatDateTime(diagnosticsBanner.lastGoodAt)}</span>
+            <button
+              type="button"
+              onClick={updateNow}
+              disabled={isUpdating || isBackgroundRunning}
+            >
+              再試行
+            </button>
+          </div>
+        </section>
       )}
 
       {message && <p className="message">{message}</p>}
