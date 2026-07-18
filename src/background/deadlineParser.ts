@@ -70,8 +70,10 @@ export function extractDeadlineText(plainText: string): string {
 
 /**
  * 締切キーワードの存在判定のみを行う軽量プローブ（extractDeadlineText の既存APIは不変）。
- * 自己診断（DEADLINE_KEYWORD_NO_DATE: キーワード有るのに日付null）の入力に使う。
- * extractDeadlineText と同じ DEADLINE_KEYWORDS を共有し、判定基準がズレないようにする。
+ * 自己診断（DEADLINE_KEYWORD_NO_DATE: キーワード有るのに日付null）の keywordFound と
+ * 同値の判定。実スキャン経路（background/index.ts）は算出済みの extractDeadlineText の
+ * 返り値の非空で同じ事実を得るため再スキャンせずこちらを呼ばないが、単体で
+ * 「キーワードの有無」を問うAPIとして残す（DEADLINE_KEYWORDS を共有し判定基準は不変）。
  */
 export function hasDeadlineKeyword(plainText: string): boolean {
   const lowerText = normalizeText(plainText).toLowerCase()
@@ -79,11 +81,17 @@ export function hasDeadlineKeyword(plainText: string): boolean {
 }
 
 /**
- * 相対語アンカー: 「<締切キーワード>[:：]? <相対語>」のラベル-値形式の先頭部分。
+ * 相対語アンカー: 「<締切キーワード>[:：] <相対語>」のラベル-値形式の先頭部分。
  * 抽出窓（extractDeadlineText の返り値）は必ず締切キーワードで始まるため、
  * このアンカー直後に始まるトークンだけが「ラベルの値」とみなせる。
  * 長いキーワード優先で並べ、'Closes' が 'Close' に先取りされて
  * アンカー終端が手前にずれるのを防ぐ（正規表現の選択肢は記述順に試される）。
+ *
+ * コロンは必須（最終レビュー指摘対応）: 抽出窓は「無期限」内の部分文字列「期限」からも
+ * 始まり得る（例:「提出は無期限 今日から利用可能です」→ 窓「期限 今日から…」）。
+ * コロン任意だと素のキーワード＋空白でもアンカー成立し、締切なし課題の説明文から
+ * 「本日締切」を捏造する。Moodle が生成する相対日付は「期限: 今日」のような
+ * ラベル＋コロン形式のため、コロン必須でも実フィールドは全て通る。
  */
 const RELATIVE_ANCHOR_PATTERN = new RegExp(
   '^(?:' +
@@ -91,7 +99,7 @@ const RELATIVE_ANCHOR_PATTERN = new RegExp(
       .sort((a, b) => b.length - a.length)
       .map((keyword) => keyword.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'))
       .join('|') +
-    ')\\s*[:：]?\\s*',
+    ')\\s*[:：]\\s*',
   'i',
 )
 
@@ -106,7 +114,8 @@ const RELATIVE_ANCHOR_PATTERN = new RegExp(
  * (2) ラベル-値形式アンカー: 抽出窓は320文字あり、キーワードから離れた散文の
  *     「今日/明日」（例:「〜が期限です。今日から取り組みましょう」）も窓内に入る。
  *     Moodle が生成する相対日付は「期限: 今日」のようにラベル直後に来るため、
- *     アンカー直後（キーワード＋任意コロンの直後）に始まるトークンのみ採用する（⑤-3）。
+ *     アンカー直後（キーワード＋必須コロンの直後）に始まるトークンのみ採用する（⑤-3）。
+ *     コロン必須の理由は RELATIVE_ANCHOR_PATTERN のコメント参照（「無期限」対策）。
  */
 function parseRelativeDeadline(text: string, now: Date): string | null {
   const anchorMatch = RELATIVE_ANCHOR_PATTERN.exec(text)

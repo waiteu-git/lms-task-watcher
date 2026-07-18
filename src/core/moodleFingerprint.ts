@@ -26,6 +26,19 @@ export interface MoodleFingerprint {
 }
 
 /**
+ * chrome.storage.local へ永続する最新観測（spec§5/§8の監視前提・配線は background 側）。
+ * 版が読めた観測のみ保存する（version は非null）。bodyClasses はページ毎に揺れる
+ * 一時情報なので永続しない。bs5=true 時の挙動変更（lenientパース/レイアウトバナー）は
+ * 次版送りで、本版は記録のみ（メンテ窓でのpassiveスモークチェックが実データを持つため）。
+ */
+export interface StoredMoodleFingerprint {
+  version: MoodleVersion
+  bs5: boolean
+  /** この版を最後に観測した時刻（ISO） */
+  observedAt: string
+}
+
+/**
  * docs.moodle.org ヘルプリンクの版セグメント。
  * - ホストは docs.moodle.org 完全一致（mydocs.moodle.org 等のサブドメイン風は除外）。
  * - セグメントは3〜4桁の数字＋直後のスラッシュ（/405/・/501/・/1001/）。

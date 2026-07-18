@@ -4,11 +4,14 @@ import {
   STANDARD_MODULE_TYPES,
   BROAD_MODULE_TYPES,
   NON_ASSIGNMENT_MODULE_TYPES,
+  KNOWN_UNSCANNED_MODULE_TYPES,
   STRICT_MODULE_PATHS,
   STANDARD_MODULE_PATHS,
   BROAD_MODULE_PATHS,
   NON_ASSIGNMENT_PATHS,
   collectUnknownModuleTypes,
+  extractModuleType,
+  isStatusSupportedModuleType,
 } from './moduleTypes'
 
 const BASE = 'https://letus.ed.tus.ac.jp'
@@ -84,9 +87,9 @@ describe('collectUnknownModuleTypes', () => {
       `${BASE}/mod/hvp/view.php?id=1`,
       `${BASE}/mod/customcert/view.php?id=2`,
       `${BASE}/mod/hvp/view.php?id=3`,
-      `${BASE}/mod/h5pactivity/view.php?id=4`,
+      `${BASE}/mod/attendance/view.php?id=4`,
     ])
-    expect(result).toEqual(['customcert', 'h5pactivity', 'hvp'])
+    expect(result).toEqual(['attendance', 'customcert', 'hvp'])
   })
 
   it('broad許可リストの全型は未知として返さない', () => {
@@ -97,6 +100,21 @@ describe('collectUnknownModuleTypes', () => {
   it('除外リストの全モジュール型は未知として返さない', () => {
     const urls = NON_ASSIGNMENT_MODULE_TYPES.map((t) => `${BASE}/mod/${t}/view.php?id=1`)
     expect(collectUnknownModuleTypes(urls)).toEqual([])
+  })
+
+  it('コア標準の既知非スキャン型（scorm/h5pactivity等）は未知として返さない（最終レビュー指摘対応）', () => {
+    // 健全な現行LETUS(4.5.8)にも普通に存在し得るコア標準型で
+    // UNSUPPORTED_MODULE infoノートが恒久表示されるのを防ぐ（spec§8休眠出荷）。
+    const urls = KNOWN_UNSCANNED_MODULE_TYPES.map((t) => `${BASE}/mod/${t}/view.php?id=1`)
+    expect(collectUnknownModuleTypes(urls)).toEqual([])
+  })
+
+  it('既知非スキャン型は除外パスへ加えない（broadスキャンの既存挙動を変えない）', () => {
+    // KNOWN_UNSCANNED は catch-all 診断の既知化専用。NON_ASSIGNMENT_PATHS に混入すると
+    // broad の isAssignmentLikeLink から scorm 等が締切追跡不能になる（挙動後退）。
+    for (const t of KNOWN_UNSCANNED_MODULE_TYPES) {
+      expect(NON_ASSIGNMENT_PATHS).not.toContain(`/mod/${t}/`)
+    }
   })
 
   it('/mod/<type>/view.php に一致しないURLは無視する', () => {
@@ -128,5 +146,35 @@ describe('collectUnknownModuleTypes', () => {
 
   it('空配列には空配列を返す', () => {
     expect(collectUnknownModuleTypes([])).toEqual([])
+  })
+})
+
+describe('extractModuleType', () => {
+  it('/mod/<type>/view.php から型を抽出する', () => {
+    expect(extractModuleType(`${BASE}/mod/assign/view.php?id=1`)).toBe('assign')
+    expect(extractModuleType(`${BASE}/mod/feedback/view.php?id=2`)).toBe('feedback')
+  })
+
+  it('大文字混じりURLも小文字化して抽出する', () => {
+    expect(extractModuleType(`${BASE}/MOD/Quiz/VIEW.PHP?id=9`)).toBe('quiz')
+  })
+
+  it('view.php 以外・非modURLは null', () => {
+    expect(extractModuleType(`${BASE}/course/view.php?id=1`)).toBe(null)
+    expect(extractModuleType(`${BASE}/mod/assign/index.php?id=1`)).toBe(null)
+    expect(extractModuleType('https://example.com/unrelated')).toBe(null)
+  })
+})
+
+describe('isStatusSupportedModuleType', () => {
+  it('assign/quiz は対応済み', () => {
+    expect(isStatusSupportedModuleType('assign')).toBe(true)
+    expect(isStatusSupportedModuleType('quiz')).toBe(true)
+  })
+
+  it('feedback等の未対応型と null は false', () => {
+    expect(isStatusSupportedModuleType('feedback')).toBe(false)
+    expect(isStatusSupportedModuleType('scorm')).toBe(false)
+    expect(isStatusSupportedModuleType(null)).toBe(false)
   })
 })

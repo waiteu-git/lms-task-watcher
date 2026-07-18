@@ -45,6 +45,35 @@ export const NON_ASSIGNMENT_MODULE_TYPES = [
   'wiki',
 ] as const
 
+/**
+ * Moodleコア標準のうち LTW がスキャン対象にしていない既知モジュール型
+ * （catch-all診断の「既知化」専用・最終レビュー指摘対応）。
+ *
+ * これらが「未知」扱いだと、コースに1つ含まれるだけで健全な現行LETUS(4.5.8)でも
+ * UNSUPPORTED_MODULE の infoノートが初日から恒久表示され、spec§8の休眠出荷方針
+ * （4.5.8では表示なし）と矛盾する。コア標準型は「LETUSの画面構成が変わった兆候」
+ * ではないため既知として扱う。
+ *
+ * NON_ASSIGNMENT_MODULE_TYPES と分ける理由: あちらは NON_ASSIGNMENT_PATHS 経由で
+ * broadスキャンのキーワード判定からも除外される。scorm/h5pactivity は締切を持ち得る
+ * ため除外リストへは入れず、既存のスキャン挙動（broadでのキーワード拾い上げ）を
+ * 一切変えずに「未知型」誤警告だけを止める。フル対応は v1.4 のカバレッジ課題。
+ */
+export const KNOWN_UNSCANNED_MODULE_TYPES = [
+  'chat',
+  'data',
+  'h5pactivity',
+  'imscp',
+  'scorm',
+] as const
+
+/**
+ * 提出状態抽出（extractSubmissionStatus）が対応済みのモジュール型（spec§1: assign/quiz）。
+ * diagnoseActivityPage の moduleSupported 判定（配線側の許可リスト）の単一情報源。
+ * 対応型の状態unknownは正当なvariantがあり得るため UNSUPPORTED_MODULE を発火しない。
+ */
+export const STATUS_SUPPORTED_MODULE_TYPES = ['assign', 'quiz'] as const
+
 function toViewPaths(types: readonly string[]): readonly string[] {
   return types.map((type) => `/mod/${type}/view.php`)
 }
@@ -76,8 +105,27 @@ export const NON_ASSIGNMENT_PATHS: readonly string[] = [
 const MOD_VIEW_URL_PATTERN = /\/mod\/([a-z][a-z0-9_]*)\/view\.php/
 
 /**
+ * URLから /mod/<type>/view.php の <type> を抽出する（大文字混じりは小文字化）。
+ * マッチしなければ null（コースページ・broadキーワード由来の非view URL等）。
+ * diagnoseActivityPage の moduleType 入力（診断メッセージ用）に使う。
+ */
+export function extractModuleType(url: string): string | null {
+  const match = MOD_VIEW_URL_PATTERN.exec(url.toLowerCase())
+  return match !== null ? match[1] : null
+}
+
+/** この型の提出状態抽出に対応済みか（diagnoseActivityPage の moduleSupported 入力） */
+export function isStatusSupportedModuleType(moduleType: string | null): boolean {
+  return (
+    moduleType !== null &&
+    (STATUS_SUPPORTED_MODULE_TYPES as readonly string[]).includes(moduleType)
+  )
+}
+
+/**
  * catch-all診断の純関数（spec§3原則5）: /mod/<type>/view.php にマッチするのに
- * broad許可リストにも除外リストにも入らないモジュール型を重複排除・昇順で返す。
+ * broad許可リスト・除外リスト・既知非スキャンリストのいずれにも入らない
+ * モジュール型を重複排除・昇順で返す。
  *
  * 新モジュール型が LETUS に現れたとき、従来は isTargetActivityUrl が黙って落とす
  * （silent drop）だけで観測できなかった。この関数で「未対応の活動がある」事実を
@@ -85,7 +133,11 @@ const MOD_VIEW_URL_PATTERN = /\/mod\/([a-z][a-z0-9_]*)\/view\.php/
  * しない（パース対象は広げない＝大学向けリクエストを増やさない）。
  */
 export function collectUnknownModuleTypes(urls: string[]): string[] {
-  const knownTypes = new Set<string>([...BROAD_MODULE_TYPES, ...NON_ASSIGNMENT_MODULE_TYPES])
+  const knownTypes = new Set<string>([
+    ...BROAD_MODULE_TYPES,
+    ...NON_ASSIGNMENT_MODULE_TYPES,
+    ...KNOWN_UNSCANNED_MODULE_TYPES,
+  ])
   const unknownTypes = new Set<string>()
   for (const url of urls) {
     const match = MOD_VIEW_URL_PATTERN.exec(url.toLowerCase())

@@ -8,7 +8,9 @@ import {
   DEADLINE_SCAN_STATUS_KEY,
   TERMS_CONSENT_KEY,
   WELCOME_GUIDE_SHOWN_KEY,
+  MOODLE_FINGERPRINT_KEY,
 } from './storageKeys'
+import type { StoredMoodleFingerprint } from '../core/moodleFingerprint'
 import { TABLE_MINIMAL } from '../core/timetable.fixtures'
 import { TERMS_VERSION } from '../legal/termsVersion'
 import { DIAGNOSTICS_STATE_KEY, type DiagnosticsState } from '../core/diagnosticsState'
@@ -574,6 +576,110 @@ describe('scanAssignmentCandidatesInBackground', () => {
     expect(result.diagnostics).toEqual(['NOT_A_MOODLE_PAGE'])
     expect(result.unsupportedModuleTypes).toEqual([])
   })
+
+  it('コア標準の非スキャン型（scorm等）のリンクではUNSUPPORTED_MODULEを発火しない（最終レビュー指摘対応）', async () => {
+    // 健全な現行LETUS(4.5.8)に普通に存在し得る型で「未対応」infoノートが
+    // 恒久表示されるのを防ぐ（spec§8: 4.5.8では表示なし・診断はcount蓄積のみ）。
+    store[COURSES_KEY] = [makeCourse()]
+
+    vi.stubGlobal('fetch', vi.fn(async (url: string) => ({
+      ok: true,
+      url,
+      text: async () =>
+        '<script>M.cfg = {"wwwroot":"https:\\/\\/letus.ed.tus.ac.jp","sesskey":"AbCd012345"};</script>' +
+        '<a href="/mod/assign/view.php?id=1">課題1</a>' +
+        '<a href="/mod/scorm/view.php?id=2">教材パッケージ</a>' +
+        '<a href="/mod/h5pactivity/view.php?id=3">インタラクティブ動画</a>' +
+        '<a href="/mod/chat/view.php?id=4">チャット</a>',
+    })))
+
+    const result = await scanAssignmentCandidatesInBackground('standard', noopPacer)
+
+    expect(result.ok).toBe(true)
+    expect(result.diagnostics).toEqual([])
+    expect(result.unsupportedModuleTypes).toEqual([])
+  })
+
+  it('コースHTMLのdocs.moodle.orgリンクから版フィンガープリントを記録する（piggyback・追加リクエスト0）', async () => {
+    store[COURSES_KEY] = [makeCourse()]
+
+    const fetchSpy = vi.fn(async (url: string) => ({
+      ok: true,
+      url,
+      text: async () =>
+        '<script>M.cfg = {"wwwroot":"https:\\/\\/letus.ed.tus.ac.jp","sesskey":"AbCd012345"};</script>' +
+        '<a href="https://docs.moodle.org/405/ja/course/view">ヘルプ</a>' +
+        '<a href="/mod/assign/view.php?id=1">課題1</a>',
+    }))
+    vi.stubGlobal('fetch', fetchSpy)
+
+    const result = await scanAssignmentCandidatesInBackground('standard', noopPacer)
+
+    expect(result.ok).toBe(true)
+    const stored = store[MOODLE_FINGERPRINT_KEY] as StoredMoodleFingerprint
+    expect(stored).toMatchObject({ version: { major: 4, minor: 5 }, bs5: false })
+    expect(typeof stored.observedAt).toBe('string')
+    // piggyback制約: fetchはコースページ1件のみ（版判定用の追加リクエスト無し）
+    expect(fetchSpy).toHaveBeenCalledTimes(1)
+  })
+
+  it('BS5世代（5.x）のdocsリンクではbs5:trueで記録する', async () => {
+    store[COURSES_KEY] = [makeCourse()]
+
+    vi.stubGlobal('fetch', vi.fn(async (url: string) => ({
+      ok: true,
+      url,
+      text: async () =>
+        '<script>M.cfg = {"wwwroot":"https:\\/\\/letus.ed.tus.ac.jp","sesskey":"AbCd012345"};</script>' +
+        '<a href="https://docs.moodle.org/501/ja/course/view">ヘルプ</a>',
+    })))
+
+    await scanAssignmentCandidatesInBackground('standard', noopPacer)
+
+    expect(store[MOODLE_FINGERPRINT_KEY]).toMatchObject({
+      version: { major: 5, minor: 1 },
+      bs5: true,
+    })
+  })
+
+  it('版が読めないスキャンでは既存のフィンガープリント記録を上書きしない（last-good維持）', async () => {
+    store[COURSES_KEY] = [makeCourse()]
+    const prev: StoredMoodleFingerprint = {
+      version: { major: 4, minor: 5 },
+      bs5: false,
+      observedAt: '2026-07-01T00:00:00.000Z',
+    }
+    store[MOODLE_FINGERPRINT_KEY] = prev
+
+    vi.stubGlobal('fetch', vi.fn(async (url: string) => ({
+      ok: true,
+      url,
+      // docsリンク無し（版不明）のログイン済みコースページ
+      text: async () =>
+        '<script>M.cfg = {"wwwroot":"https:\\/\\/letus.ed.tus.ac.jp","sesskey":"AbCd012345"};</script>' +
+        '<a href="/mod/assign/view.php?id=1">課題1</a>',
+    })))
+
+    await scanAssignmentCandidatesInBackground('standard', noopPacer)
+
+    expect(store[MOODLE_FINGERPRINT_KEY]).toEqual(prev)
+  })
+
+  it('Moodleと認識できないページのdocsリンクは記録しない（誤記録抑制）', async () => {
+    store[COURSES_KEY] = [makeCourse()]
+
+    vi.stubGlobal('fetch', vi.fn(async (url: string) => ({
+      ok: true,
+      url,
+      // M.cfg 無し＝not_moodle_page 分類（ポータル/メンテ画面が docs へリンクする場合等）
+      text: async () =>
+        '<html><body><a href="https://docs.moodle.org/500/ja/">Moodleについて</a></body></html>',
+    })))
+
+    await scanAssignmentCandidatesInBackground('standard', noopPacer)
+
+    expect(store[MOODLE_FINGERPRINT_KEY]).toBeUndefined()
+  })
 })
 
 describe('scanDeadlinesInBackground', () => {
@@ -795,6 +901,94 @@ describe('scanDeadlinesInBackground', () => {
     expect(result.reason).toBe('network_error')
     expect(result.diagnostics).toEqual([])
   })
+
+  it('締切キーワードは在るのに日付が読めない活動ページはDEADLINE_KEYWORD_NO_DATEを診断する', async () => {
+    // spec§4の矛盾検知規則「キーワード有るが日付null」の本番生産経路（最終レビュー指摘対応）。
+    // 相対日付モード発動や書式変更で締切を取りこぼしている兆候を infoノートへ浮上させる。
+    store[COURSES_KEY] = [makeCourse()]
+    store[ASSIGNMENT_CANDIDATES_KEY] = [makeCandidate()]
+
+    vi.stubGlobal('fetch', vi.fn(async (url: string) => ({
+      ok: true,
+      url,
+      text: async () =>
+        '<script>M.cfg = {"wwwroot":"https:\\/\\/letus.ed.tus.ac.jp","sesskey":"AbCd012345"};</script>' +
+        '提出期限: 後日連絡します 未提出',
+    })))
+
+    const result = await scanDeadlinesInBackground(noopPacer)
+
+    expect(result.ok).toBe(true)
+    expect(result.diagnostics).toEqual(['DEADLINE_KEYWORD_NO_DATE'])
+  })
+
+  it('未対応型（feedback）で締切は取れたが状態不明ならUNSUPPORTED_MODULEを診断する', async () => {
+    store[COURSES_KEY] = [makeCourse()]
+    store[ASSIGNMENT_CANDIDATES_KEY] = [
+      makeCandidate({
+        id: 'cand-fb',
+        title: '授業アンケート',
+        url: 'https://letus.ed.tus.ac.jp/mod/feedback/view.php?id=7',
+      }),
+    ]
+
+    vi.stubGlobal('fetch', vi.fn(async (url: string) => ({
+      ok: true,
+      url,
+      text: async () =>
+        '<script>M.cfg = {"wwwroot":"https:\\/\\/letus.ed.tus.ac.jp","sesskey":"AbCd012345"};</script>' +
+        '回答終了: 2026年 12月 1日 23:59',
+    })))
+
+    const result = await scanDeadlinesInBackground(noopPacer)
+
+    expect(result.ok).toBe(true)
+    // 締切自体は取得できている（正直表示は「状態抽出が未対応」の注記のみ）
+    const saved = store[ASSIGNMENTS_KEY] as Assignment[]
+    expect(saved[0]?.deadline).not.toBeNull()
+    expect(result.diagnostics).toEqual(['UNSUPPORTED_MODULE'])
+  })
+
+  it('対応型（assign）は状態unknownでも日付が読めればUNSUPPORTED_MODULEを出さない', async () => {
+    // 対応型の状態unknownは正当なvariant（グループ課題等）があり得るため発火しない。
+    store[COURSES_KEY] = [makeCourse()]
+    store[ASSIGNMENT_CANDIDATES_KEY] = [makeCandidate()]
+
+    vi.stubGlobal('fetch', vi.fn(async (url: string) => ({
+      ok: true,
+      url,
+      text: async () =>
+        '<script>M.cfg = {"wwwroot":"https:\\/\\/letus.ed.tus.ac.jp","sesskey":"AbCd012345"};</script>' +
+        '終了日時: 2026年 12月 1日 23:59',
+    })))
+
+    const result = await scanDeadlinesInBackground(noopPacer)
+
+    expect(result.ok).toBe(true)
+    expect(result.diagnostics).toEqual([])
+  })
+
+  it('「無期限 今日から利用可能」の活動を本日締切に捏造せず、日付なしとして診断する', async () => {
+    // 最終レビュー指摘: 「無期限」内の部分文字列「期限」＋相対語で偽の本日締切を作らない
+    // （deadlineParser のコロン必須アンカーの本番経路ガード）。
+    store[COURSES_KEY] = [makeCourse()]
+    store[ASSIGNMENT_CANDIDATES_KEY] = [makeCandidate()]
+
+    vi.stubGlobal('fetch', vi.fn(async (url: string) => ({
+      ok: true,
+      url,
+      text: async () =>
+        '<script>M.cfg = {"wwwroot":"https:\\/\\/letus.ed.tus.ac.jp","sesskey":"AbCd012345"};</script>' +
+        '提出は無期限 今日から利用可能です 未提出',
+    })))
+
+    const result = await scanDeadlinesInBackground(noopPacer)
+
+    expect(result.ok).toBe(true)
+    const saved = store[ASSIGNMENTS_KEY] as Assignment[]
+    expect(saved[0]?.deadline).toBeNull()
+    expect(result.diagnostics).toEqual(['DEADLINE_KEYWORD_NO_DATE'])
+  })
 })
 
 describe('diagnosticsState 保存配線（runAutoScanのスキャン完了処理）', () => {
@@ -898,7 +1092,7 @@ describe('diagnosticsState 保存配線（runAutoScanのスキャン完了処理
       text: async () =>
         url.includes('/mod/assign/')
           ? '<script>M.cfg = {"wwwroot":"https:\\/\\/letus.ed.tus.ac.jp","sesskey":"AbCd012345"};</script>提出期限 2026年12月1日 23時59分'
-          : healthyCoursePage + '<a href="/mod/h5pactivity/view.php?id=9">教材ビデオ</a>',
+          : healthyCoursePage + '<a href="/mod/hvp/view.php?id=9">教材ビデオ</a>',
     })))
 
     await runAutoScan(noopPacer)

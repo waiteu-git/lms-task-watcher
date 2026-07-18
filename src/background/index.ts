@@ -18,6 +18,7 @@ import {
   TERMS_CONSENT_KEY,
   WELCOME_GUIDE_SHOWN_KEY,
   TIMETABLE_IMPORT_NOTIFIED_KEY,
+  MOODLE_FINGERPRINT_KEY,
 } from './storageKeys'
 import { isConsented } from '../legal/termsConsent'
 import type { AssignmentScanStatus, DeadlineScanStatus } from '../core/scanStatus'
@@ -36,7 +37,10 @@ import {
   BROAD_MODULE_PATHS,
   NON_ASSIGNMENT_PATHS,
   collectUnknownModuleTypes,
+  extractModuleType,
+  isStatusSupportedModuleType,
 } from '../core/moduleTypes'
+import { fingerprintPage, type MoodleFingerprint, type StoredMoodleFingerprint } from '../core/moodleFingerprint'
 import { computeCourseUpdate } from '../core/courseUpdates'
 import { pickFirstImportNotification, buildFirstImportNotification } from '../core/timetableImportNotify'
 import { getCourseSignature, saveCourseSignature, addUnreadUpdates } from './courseUpdatesStore'
@@ -53,6 +57,7 @@ import {
   type PageAuthClassification,
 } from '../core/authProbe'
 import {
+  diagnoseActivityPage,
   diagnoseAuthProbe,
   diagnoseCoursePage,
   type DiagnosticCode,
@@ -523,6 +528,11 @@ export async function scanAssignmentCandidatesInBackground(
   let loggedOutDetected = false
   const diagnosticCodes = new Set<DiagnosticCode>()
   const unsupportedModuleTypes = new Set<string>()
+  // passive版フィンガープリント（spec§5/§8）: 版が読めた最新観測をスキャン完了後に
+  // 1回だけ永続する（並走ハンドラの後勝ちで良い＝どの観測も同一サイトの実測値）。
+  // ref オブジェクト形式なのは TS の制御フロー解析対策（クロージャ内でしか代入されない
+  // let は use 箇所で初期値 null に狭められ、null チェックが never 型になるため）。
+  const latestFingerprint: { current: MoodleFingerprint | null } = { current: null }
   const courses = await getCourses()
   const enabledCourses = courses.filter((c) => c.enabled)
   const enabledCourseIds = new Set(enabledCourses.map((c) => c.id))
@@ -607,6 +617,12 @@ export async function scanAssignmentCandidatesInBackground(
             diagnosticCodes.add('UNSUPPORTED_MODULE')
             for (const type of unknownTypes) unsupportedModuleTypes.add(type)
           }
+
+          // passive版フィンガープリント（spec§5）: 取得済みコースHTMLの docs.moodle.org
+          // ヘルプリンクから稼働版を読む（piggyback・追加リクエスト0）。ログイン済みと
+          // 分類できたページに限定し、SSO/メンテ画面等の無関係リンクで誤記録しない。
+          const fingerprint = fingerprintPage(html)
+          if (fingerprint.version !== null) latestFingerprint.current = fingerprint
         }
 
         try {
@@ -669,6 +685,25 @@ export async function scanAssignmentCandidatesInBackground(
         })
       },
     )
+
+    // passive版フィンガープリントの記録（spec§8の監視前提）: 版が読めた観測があれば
+    // 最新1件だけ保存する。読めなかったスキャンでは既存の記録を消さない（last-good維持）。
+    // 途中でログアウト検知しても、検知前に読めた観測は有効なので保存する。
+    // 保存失敗はスキャン本体を壊さない（診断台帳の保存と同じ方針）。
+    const observedFingerprint = latestFingerprint.current
+    if (observedFingerprint !== null && observedFingerprint.version !== null) {
+      try {
+        await chrome.storage.local.set({
+          [MOODLE_FINGERPRINT_KEY]: {
+            version: observedFingerprint.version,
+            bs5: observedFingerprint.bs5,
+            observedAt: new Date().toISOString(),
+          } satisfies StoredMoodleFingerprint,
+        })
+      } catch (error) {
+        console.error('[LETUS Task Watcher] moodle fingerprint save failed', error)
+      }
+    }
 
     if (loggedOutDetected) {
       // deadlineスキャンの checkIsLoggedIn ガードと整合: 既存候補・シグネチャは
@@ -844,6 +879,24 @@ export async function scanDeadlinesInBackground(pacer: Pacer = letusPacer): Prom
             : null
         const submissionStatus = extractSubmissionStatus(plainText, candidate.url)
         const lifecycleStatus = resolveLifecycleStatus(plainText, submissionStatus, deadline)
+
+        // 活動ページ診断（spec§4）: 算出済みのキーワード/日付/状態フラグをそのまま
+        // 評価関数へ流す（追加リクエスト0）。DEADLINE_KEYWORD_NO_DATE（キーワード有るのに
+        // 日付null＝相対日付モード/書式変更の兆候）と UNSUPPORTED_MODULE（締切の証拠が
+        // 在るのに状態不明な未対応型）の本番生産経路。誤検知抑制（logged_in 限定・
+        // 対応型のstatus unknown非発火等）は diagnoseActivityPage 側に内蔵済み。
+        const moduleType = extractModuleType(candidate.url)
+        for (const code of diagnoseActivityPage({
+          pageAuthState: toPageAuthState(classification),
+          keywordFound: deadlineText !== '',
+          dateParsed: deadline !== null,
+          statusResolved: submissionStatus !== 'unknown',
+          moduleType,
+          moduleSupported: isStatusSupportedModuleType(moduleType),
+        })) {
+          diagnosticCodes.add(code)
+        }
+
         const now = new Date().toISOString()
 
         return {

@@ -232,6 +232,31 @@ describe('⑤-3 散文中の相対語を締切に昇格させない（ラベル-
   })
 })
 
+describe('⑤-4 「無期限」内の部分文字列キーワードから相対語を捏造しない（コロン必須アンカー）', () => {
+  // 抽出窓は「無期限」内の部分文字列「期限」からも始まる（窓「期限 今日から…」）。
+  // 相対アンカーのコロンが任意だと素のキーワード＋空白で成立し、締切なし課題の
+  // 説明文から偽の「本日締切」通知を作る。コロン必須化の回帰ガード。
+  it('「提出は無期限 今日から利用可能です」を本日締切に捏造しない', () => {
+    expect(parseDeadline(extractDeadlineText('提出は無期限 今日から利用可能です'))).toBe(null)
+  })
+
+  it('「無期限 明日から公開されます」を明日締切に捏造しない', () => {
+    expect(parseDeadline(extractDeadlineText('無期限 明日から公開されます'))).toBe(null)
+  })
+
+  it('素のキーワード直後の相対語はコロンが無ければ採用しない（parseDeadline直呼び）', () => {
+    expect(parseDeadline('期限 今日')).toBe(null)
+  })
+
+  it('コロン付きラベルの相対語は引き続き解決される', () => {
+    expect(jst(parseDeadline('期限: 今日'))).toBe('2026/7/4 23:59:00')
+  })
+
+  it('全角コロン＋空白のラベルも解決される', () => {
+    expect(jst(parseDeadline('締切　：　明日'))).toBe('2026/7/5 23:59:00')
+  })
+})
+
 describe('⑥ hasDeadlineKeyword（存在判定のみ）', () => {
   it('日本語キーワードを含めば true', () => {
     expect(hasDeadlineKeyword('第10回 レポート課題 終了日時: 明日')).toBe(true)
