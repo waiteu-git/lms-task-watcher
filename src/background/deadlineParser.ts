@@ -68,7 +68,58 @@ export function extractDeadlineText(plainText: string): string {
   return ''
 }
 
-export function parseDeadline(deadlineText: string): string | null {
+/**
+ * 締切キーワードの存在判定のみを行う軽量プローブ（extractDeadlineText の既存APIは不変）。
+ * 自己診断（DEADLINE_KEYWORD_NO_DATE: キーワード有るのに日付null）の入力に使う。
+ * extractDeadlineText と同じ DEADLINE_KEYWORDS を共有し、判定基準がズレないようにする。
+ */
+export function hasDeadlineKeyword(plainText: string): boolean {
+  const lowerText = normalizeText(plainText).toLowerCase()
+  return DEADLINE_KEYWORDS.some((keyword) => lowerText.includes(keyword.toLowerCase()))
+}
+
+/**
+ * 相対/human日付の副次認識器（spec§3原則4）。
+ * Moodle の relative dates mode 等で「今日/明日/あとN日/Today/Tomorrow/in N days」が
+ * 出た場合の補完で、絶対日付が1つも取れなかったときだけ parseDeadline から呼ばれる。
+ * 時刻は仕様どおり一律 23:59（基準日 now のローカル日付起点）。
+ * 誤検知防止は呼び出し構造で担保する: 実スキャン経路（background/index.ts）は
+ * extractDeadlineText が締切キーワードを見つけた時のみ parseDeadline を呼ぶため、
+ * 無関係本文の「今日/明日」には反応しない（deadlineParser.test.ts ⑤-2 で裏取り）。
+ */
+function parseRelativeDeadline(text: string, now: Date): string | null {
+  const candidates: Array<{ index: number; days: number }> = []
+  const add = (index: number, days: number) => {
+    if (index >= 0) candidates.push({ index, days })
+  }
+
+  // 「説明日/発明日/判明日/表明日/証明日」等の複合語に含まれる「明日」を誤認しない
+  add(text.search(/(?<![説発判表証])明日/), 1)
+  add(text.search(/今日|本日/), 0)
+  const remainJa = /あと\s*(\d+)\s*日/.exec(text)
+  if (remainJa) add(remainJa.index, Number(remainJa[1]))
+  add(text.search(/\btoday\b/i), 0)
+  add(text.search(/\btomorrow\b/i), 1)
+  const inDaysEn = /\bin\s+(\d+)\s+days?\b/i.exec(text)
+  if (inDaysEn) add(inDaysEn.index, Number(inDaysEn[1]))
+
+  if (candidates.length === 0) return null
+  // 抽出窓の先頭＝締切キーワードに最も近い表現を採用する
+  candidates.sort((a, b) => a.index - b.index)
+  const target = new Date(
+    now.getFullYear(),
+    now.getMonth(),
+    now.getDate() + candidates[0].days,
+    23,
+    59,
+    0,
+    0,
+  )
+  if (Number.isNaN(target.getTime())) return null
+  return target.toISOString()
+}
+
+export function parseDeadline(deadlineText: string, now: Date = new Date()): string | null {
   const text = normalizeText(deadlineText)
 
   const japaneseDateMatch = text.match(
@@ -89,7 +140,7 @@ export function parseDeadline(deadlineText: string): string | null {
     /(\d{1,2})\s*月\s*(\d{1,2})\s*日(?:\s*[(（][^)）]*[)）])?\s*(?:(\d{1,2})\s*(?:時|:|：)\s*(\d{1,2})?\s*分?)?/,
   )
   if (noYearJapaneseDateMatch) {
-    const currentYear = String(new Date().getFullYear())
+    const currentYear = String(now.getFullYear())
     const hasHour = noYearJapaneseDateMatch[3] !== undefined
     return toIsoStringFromParts(
       currentYear,
@@ -107,7 +158,7 @@ export function parseDeadline(deadlineText: string): string | null {
     const month = Number(slashDateMatch[2])
     const day = Number(slashDateMatch[3])
     if (month >= 1 && month <= 12 && day >= 1 && day <= 31) {
-      const year = slashDateMatch[1] ?? String(new Date().getFullYear())
+      const year = slashDateMatch[1] ?? String(now.getFullYear())
       const hasHour = slashDateMatch[4] !== undefined
       return toIsoStringFromParts(
         year,
@@ -119,7 +170,8 @@ export function parseDeadline(deadlineText: string): string | null {
     }
   }
 
-  return null
+  // 絶対日付にマッチしなかった場合のみ、相対/human日付の副次認識器へフォールバック
+  return parseRelativeDeadline(text, now)
 }
 
 export function parseDeadlineFromTitle(title: string): string | null {

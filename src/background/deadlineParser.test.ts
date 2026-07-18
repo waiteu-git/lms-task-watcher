@@ -1,5 +1,10 @@
 import { describe, it, expect, vi, beforeAll, afterAll } from 'vitest'
-import { extractDeadlineText, parseDeadline, parseDeadlineFromTitle } from './deadlineParser'
+import {
+  extractDeadlineText,
+  parseDeadline,
+  parseDeadlineFromTitle,
+  hasDeadlineKeyword,
+} from './deadlineParser'
 
 const jst = (iso: string | null) =>
   iso ? new Date(iso).toLocaleString('ja-JP', { timeZone: 'Asia/Tokyo' }) : null
@@ -93,5 +98,125 @@ describe('④ タイトル締切フォールバック', () => {
   })
   it('日付の無い曜日〆は null', () => {
     expect(parseDeadlineFromTitle('WK1 宿題窓口（金曜日〆）')).toBe(null)
+  })
+})
+
+// システム時刻は beforeAll で 2026-07-04T00:00:00（ローカル）に固定済み
+describe('⑤ 相対/human日付の副次認識器（絶対日付が無いときのみ）', () => {
+  it('今日 → 当日23:59', () => {
+    expect(jst(parseDeadline('締切: 今日'))).toBe('2026/7/4 23:59:00')
+  })
+
+  it('本日 → 当日23:59', () => {
+    expect(jst(parseDeadline('期限: 本日'))).toBe('2026/7/4 23:59:00')
+  })
+
+  it('明日 → +1日23:59', () => {
+    expect(jst(parseDeadline('締切: 明日'))).toBe('2026/7/5 23:59:00')
+  })
+
+  it('あと3日 → +3日23:59', () => {
+    expect(jst(parseDeadline('締切: あと3日'))).toBe('2026/7/7 23:59:00')
+  })
+
+  it('あと0日（境界）→ 当日23:59', () => {
+    expect(jst(parseDeadline('締切: あと 0 日'))).toBe('2026/7/4 23:59:00')
+  })
+
+  it('空白入り複数桁（あと 12 日）→ +12日', () => {
+    expect(jst(parseDeadline('締切: あと 12 日'))).toBe('2026/7/16 23:59:00')
+  })
+
+  it('大きなN（あと365日）→ 翌年へ繰り上がる', () => {
+    expect(jst(parseDeadline('締切: あと365日'))).toBe('2027/7/4 23:59:00')
+  })
+
+  it('TODAY（大文字）→ 当日', () => {
+    expect(jst(parseDeadline('Due: TODAY'))).toBe('2026/7/4 23:59:00')
+  })
+
+  it('tomorrow（小文字）→ +1日', () => {
+    expect(jst(parseDeadline('Closes: tomorrow'))).toBe('2026/7/5 23:59:00')
+  })
+
+  it('Tomorrow（先頭大文字）→ +1日', () => {
+    expect(jst(parseDeadline('Due date: Tomorrow'))).toBe('2026/7/5 23:59:00')
+  })
+
+  it('in 5 days → +5日', () => {
+    expect(jst(parseDeadline('Due date: in 5 days'))).toBe('2026/7/9 23:59:00')
+  })
+
+  it('in 1 day（単数形）→ +1日', () => {
+    expect(jst(parseDeadline('Due: in 1 day'))).toBe('2026/7/5 23:59:00')
+  })
+
+  it('絶対日付があるときは相対語より絶対日付を優先する', () => {
+    expect(jst(parseDeadline('期限: 2026年 6月 19日 23:59（あと3日）'))).toBe(
+      '2026/6/19 23:59:00',
+    )
+  })
+
+  it('now引数で決定的に評価できる（年跨ぎの繰り上がり）', () => {
+    expect(jst(parseDeadline('締切: あと3日', new Date(2026, 11, 30)))).toBe(
+      '2027/1/2 23:59:00',
+    )
+  })
+
+  it('now引数で明日も決定的', () => {
+    expect(jst(parseDeadline('締切: 明日', new Date(2026, 0, 31)))).toBe('2026/2/1 23:59:00')
+  })
+
+  it('複合語の「説明日」を明日と誤認しない', () => {
+    expect(parseDeadline('締切: 課題の説明日程を参照')).toBe(null)
+  })
+
+  it('複数の相対語があるときはキーワードに近い方を採用', () => {
+    expect(jst(parseDeadline('締切: 明日 23:59 今日中に準備すること'))).toBe(
+      '2026/7/5 23:59:00',
+    )
+  })
+
+  it('相対語が無ければ従来どおり null', () => {
+    expect(parseDeadline('締切: 制限時間 10分')).toBe(null)
+  })
+})
+
+describe('⑤-2 相対語は締切キーワード文脈でのみ効く（呼び出し構造の裏取り）', () => {
+  // 実スキャン経路（background/index.ts）は extractDeadlineText が空文字なら
+  // parseDeadline を呼ばない。キーワード無し本文の相対語が拾われないことを固定する。
+  it('キーワード無し本文の「明日/今日」は extractDeadlineText が空を返す', () => {
+    const text = '明日の授業は休講です。今日の小テストはありません。'
+    expect(extractDeadlineText(text)).toBe('')
+    expect(parseDeadline(extractDeadlineText(text))).toBe(null)
+  })
+
+  it('キーワードがあれば抽出窓を経由して相対語が解決される', () => {
+    const text = '小テスト 終了予定: 明日 制限時間は10分間'
+    expect(jst(parseDeadline(extractDeadlineText(text)))).toBe('2026/7/5 23:59:00')
+  })
+})
+
+describe('⑥ hasDeadlineKeyword（存在判定のみ）', () => {
+  it('日本語キーワードを含めば true', () => {
+    expect(hasDeadlineKeyword('第10回 レポート課題 終了日時: 明日')).toBe(true)
+  })
+
+  it('英語キーワードは大文字小文字を無視して true', () => {
+    expect(hasDeadlineKeyword('DUE DATE: Tomorrow')).toBe(true)
+  })
+
+  it('開始系キーワードのみは false', () => {
+    expect(hasDeadlineKeyword('開始日時: 2026年 04月 21日(月曜日) 00:00 制限時間なし')).toBe(
+      false,
+    )
+  })
+
+  it('無関係な本文は false', () => {
+    expect(hasDeadlineKeyword('明日の授業は休講です')).toBe(false)
+  })
+
+  it('空文字は false', () => {
+    expect(hasDeadlineKeyword('')).toBe(false)
   })
 })
