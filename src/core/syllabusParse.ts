@@ -12,8 +12,8 @@ export type SyllabusDoc = {
 const JP_RANGE = '　-〿぀-ヿ一-鿿＀-￯'
 const LABEL_JP_RE = new RegExp(`^.*[${JP_RANGE}]`)
 // ノーブレークスペース(U+00A0)・ゼロ幅スペース(U+200B)を通常空白/除去に正規化。
-const NBSP_RE = / /g
-const ZWSP_RE = /​/g
+const NBSP_RE = /\u00A0/g
+const ZWSP_RE = /\u200B/g
 
 /** 日英併記ラベルから日本語部分（末尾の日本語文字まで）を取り出す。日本語が無ければ原文。 */
 export function japaneseLabel(raw: string): string {
