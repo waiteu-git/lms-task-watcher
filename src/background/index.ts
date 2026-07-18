@@ -28,7 +28,7 @@ import { extractDeadlineText, parseDeadline, parseDeadlineFromTitle } from './de
 import { shouldNotifyCourseUpdate } from './notificationRules'
 import { computeDeadlineNotifications, type DeadlineTarget } from '../core/deadlineNotify'
 import { applyDeadlineOverrides, getDeadlineOverrides } from '../core/deadlineOverride'
-import { normalizeText, stripTags, decodeHtmlEntities } from '../core/htmlText'
+import { normalizeText, htmlToPlainText } from '../core/htmlText'
 import { extractLinksFromHtml } from '../core/letusLinks'
 import { computeCourseUpdate } from '../core/courseUpdates'
 import { pickFirstImportNotification, buildFirstImportNotification } from '../core/timetableImportNotify'
@@ -99,21 +99,6 @@ function createId(value: string): string {
 
 function createAssignmentCandidateId(courseId: string, url: string): string {
   return createId(`${courseId}:${url}`)
-}
-
-function htmlToPlainText(html: string): string {
-  return decodeHtmlEntities(
-    stripTags(
-      String(html)
-        .replace(/<br\s*\/?>/gi, '\n')
-        .replace(/<\/p>/gi, '\n')
-        .replace(/<\/div>/gi, '\n')
-        .replace(/<\/li>/gi, '\n')
-        .replace(/<\/tr>/gi, '\n')
-        .replace(/<\/th>/gi, ' ')
-        .replace(/<\/td>/gi, ' '),
-    ),
-  )
 }
 
 // ─── Concurrency helper ───────────────────────────────────────────────────────
