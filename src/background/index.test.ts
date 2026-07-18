@@ -75,6 +75,7 @@ const {
   runAutoScan,
   handleInstalled,
   applyAutoSelect,
+  extractSubmissionStatus,
   ALARM_PERIOD_MINUTES,
 } = await import('./index')
 
@@ -1286,5 +1287,72 @@ describe('未同意時の収集ガード', () => {
     })
     await mod.updateConsentBadge()
     expect(setBadgeText).toHaveBeenLastCalledWith({ text: '' })
+  })
+})
+
+describe('extractSubmissionStatus（P3: 未提出状態値の補完と優先順位）', () => {
+  // TUS実機4.5.8（2026-07-19採取）で実証: 未提出assignの状態値は「まだ提出されていません。」で、
+  // 従来の「未提出」includes に不一致＝現行本番でも unknown に落ちていた実バグ。
+  const ASSIGN_URL = 'https://letus.ed.tus.ac.jp/mod/assign/view.php?id=1'
+  const QUIZ_URL = 'https://letus.ed.tus.ac.jp/mod/quiz/view.php?id=2'
+
+  it('TUS実機の未提出値「まだ提出されていません。」を not_submitted と判定する（実バグ修正）', () => {
+    expect(
+      extractSubmissionStatus('提出ステータス まだ提出されていません。 評定 未評定', ASSIGN_URL),
+    ).toBe('not_submitted')
+  })
+
+  it('句点なし「まだ提出されていません」でも not_submitted（句点有無に頑健）', () => {
+    expect(extractSubmissionStatus('提出ステータス まだ提出されていません', ASSIGN_URL)).toBe(
+      'not_submitted',
+    )
+  })
+
+  it('EN「No submissions have been made yet」を大文字小文字によらず not_submitted と判定する', () => {
+    expect(
+      extractSubmissionStatus('Submission status No submissions have been made yet', ASSIGN_URL),
+    ).toBe('not_submitted')
+    expect(
+      extractSubmissionStatus('Submission status NO SUBMISSIONS HAVE BEEN MADE YET', ASSIGN_URL),
+    ).toBe('not_submitted')
+  })
+
+  it('EN「No submission」単体でも not_submitted', () => {
+    expect(extractSubmissionStatus('Submission status No submission', ASSIGN_URL)).toBe(
+      'not_submitted',
+    )
+  })
+
+  it('誤爆チェック: 課題説明に「まだ提出されていません」が在っても提出テーブルの「提出済み」が勝つ（優先順位不変）', () => {
+    expect(
+      extractSubmissionStatus(
+        '課題説明: まだ提出されていません、という表示が消えるまで再提出すること。 提出ステータス 評定のために提出済み',
+        ASSIGN_URL,
+      ),
+    ).toBe('submitted')
+  })
+
+  it('誤爆チェックEN: No submissions... と Submitted for grading が同居したら submitted が勝つ', () => {
+    expect(
+      extractSubmissionStatus(
+        'If you see No submissions have been made yet, try again. Submission status Submitted for grading',
+        ASSIGN_URL,
+      ),
+    ).toBe('submitted')
+  })
+
+  it('TUS実機の提出済み値「評定のために提出済み」は従来どおり submitted（既存判定不変）', () => {
+    expect(extractSubmissionStatus('提出ステータス 評定のために提出済み', ASSIGN_URL)).toBe(
+      'submitted',
+    )
+  })
+
+  it('既存の「未提出」判定は不変', () => {
+    expect(extractSubmissionStatus('提出ステータス 未提出', ASSIGN_URL)).toBe('not_submitted')
+  })
+
+  it('quiz経路は変更なし: 「ステータス 終了」は completed・quizページの「まだ提出されていません」は判定対象外', () => {
+    expect(extractSubmissionStatus('ステータス 終了', QUIZ_URL)).toBe('completed')
+    expect(extractSubmissionStatus('まだ提出されていません。', QUIZ_URL)).toBe('unknown')
   })
 })

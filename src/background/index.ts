@@ -219,7 +219,7 @@ function isAssignmentLikeLink(text: string, url: string, scanLevel: ScanLevel): 
 
 // ─── Submission & lifecycle status ────────────────────────────────────────────
 
-function extractSubmissionStatus(
+export function extractSubmissionStatus(
   plainText: string,
   url: string,
 ): AssignmentSubmissionStatus {
@@ -247,7 +247,17 @@ function extractSubmissionStatus(
   if (text.includes('提出済み') || text.includes('submitted')) {
     return 'submitted'
   }
-  if (text.includes('未提出') || text.includes('not submitted')) {
+  if (
+    text.includes('未提出') ||
+    text.includes('not submitted') ||
+    // TUS実機4.5.8／Moodle 5.2（Mount Orange）実測の未提出状態値（2026-07-19採取）。
+    // 従来は上記いずれの includes にも不一致で unknown に落ちていた（現行本番の実バグ）。
+    // text は normalizeText＋toLowerCase 済み＝大文字小文字に頑健・includes 判定＝末尾句点
+    // 「。」の有無にも頑健。提出済み判定を先に評価する優先順位は不変（説明文への誤爆防止）。
+    text.includes('まだ提出されていません') ||
+    text.includes('no submissions have been made yet') ||
+    text.includes('no submission')
+  ) {
     return 'not_submitted'
   }
   return 'unknown'

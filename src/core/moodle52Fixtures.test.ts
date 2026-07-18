@@ -7,7 +7,8 @@
  * - RAW Dashboard はコースアンカー0件（発見面が全面クライアント描画）→ 診断が黙殺しない
  * - course/view.php の活動一覧は 5.2 でも SSR 維持 → 背景スキャンは生存
  * - JA assign の「期限:」年月日書式は現行パーサで取得可・EN書式は不能（診断の題材）
- * - 「まだ提出されていません。」は現行 extractSubmissionStatus で unknown（特性固定・P3で更新予定）
+ * - 「まだ提出されていません。」「No submissions have been made yet」は not_submitted に解決される
+ *   （P3: 現行TUSで実証された実バグの修正。P1時点の unknown 特性固定を意図的に更新済み）
  *
  * 検証観点は spec §6 の原則「各fixtureでパース成功 OR 対応する自己診断が発火」（黙って空を返さない）。
  */
@@ -79,7 +80,7 @@ vi.stubGlobal('chrome', {
   },
 })
 
-const { scanDeadlinesInBackground } = await import('../background/index')
+const { scanDeadlinesInBackground, extractSubmissionStatus } = await import('../background/index')
 
 const COURSE_URL = 'https://school.moodledemo.net/course/view.php?id=62'
 const ASSIGN_URL = 'https://school.moodledemo.net/mod/assign/view.php?id=724'
@@ -181,6 +182,14 @@ describe('assign52_ja.html（JA assign・実flatten経路）', () => {
     expect(fp.bodyClasses).toContain('path-mod-assign')
     expect(fp.bodyClasses).toContain('lang-ja')
   })
+
+  it('htmlToPlainText→extractSubmissionStatus: 「まだ提出されていません。」が not_submitted に解決される（P3実バグ修正）', () => {
+    // TUS実機4.5.8のJA未提出状態値と同値（2026-07-19実証）。P1時点は「未提出」includes に
+    // 不一致で unknown＝現行本番の実バグ。状態文字列セット補完で not_submitted に解決する。
+    const plain = htmlToPlainText(assign52Ja)
+    expect(plain).toContain('まだ提出されていません。')
+    expect(extractSubmissionStatus(plain, ASSIGN_URL)).toBe('not_submitted')
+  })
 })
 
 describe('assign52_en.html（EN assign・現行regex対象外書式）', () => {
@@ -203,6 +212,12 @@ describe('assign52_en.html（EN assign・現行regex対象外書式）', () => {
         moduleSupported: true,
       }),
     ).toEqual(['DEADLINE_KEYWORD_NO_DATE'])
+  })
+
+  it('htmlToPlainText→extractSubmissionStatus: 「No submissions have been made yet」が not_submitted に解決される', () => {
+    const plain = htmlToPlainText(assign52En)
+    expect(plain).toContain('No submissions have been made yet')
+    expect(extractSubmissionStatus(plain, ASSIGN_URL)).toBe('not_submitted')
   })
 })
 
@@ -237,7 +252,7 @@ describe('scanDeadlinesInBackground（実fixtureをそのまま背景スキャ�
     })))
   }
 
-  it('JA: 締切が field 取得され「まだ提出されていません。」は unknown（特性固定・P3で更新予定）', async () => {
+  it('JA: 締切が field 取得され「まだ提出されていません。」は not_submitted になる（P3実バグ修正）', async () => {
     store[COURSES_KEY] = [course]
     store[ASSIGNMENT_CANDIDATES_KEY] = [candidate]
     stubFetchWithAssignPage(assign52Ja)
@@ -252,10 +267,10 @@ describe('scanDeadlinesInBackground（実fixtureをそのまま背景スキャ�
     expect(assignments).toHaveLength(1)
     expect(assignments[0].deadline).toBe(EXPECTED_DEADLINE_ISO)
     expect(assignments[0].deadlineSource).toBe('field')
-    // 特性固定: JA未提出値「まだ提出されていません。」は現行 extractSubmissionStatus の
-    // 「未提出」includes に不一致で unknown に落ちる（5.2 Mount Orange と TUS実機4.5.8 で同値）。
-    // P3（状態文字列セット補完）が not_submitted に修正する際、このアサートも更新する。
-    expect(assignments[0].submissionStatus).toBe('unknown')
+    // P3で更新: JA未提出値「まだ提出されていません。」（5.2 Mount Orange と TUS実機4.5.8 で同値）は
+    // P1時点は「未提出」includes に不一致で unknown に落ちていた（現行本番の実バグ）。
+    // 状態文字列セット補完により not_submitted に解決される。
+    expect(assignments[0].submissionStatus).toBe('not_submitted')
     expect(assignments[0].lifecycleStatus).toBe('passed') // 締切2023年＝超過
   })
 
@@ -272,8 +287,8 @@ describe('scanDeadlinesInBackground（実fixtureをそのまま背景スキャ�
     const assignments = store[ASSIGNMENTS_KEY] as Assignment[]
     expect(assignments).toHaveLength(1)
     expect(assignments[0].deadline).toBeNull()
-    // 「No submissions have been made yet」も現行ロジックでは unknown（特性固定）
-    expect(assignments[0].submissionStatus).toBe('unknown')
+    // 「No submissions have been made yet」も P3 の状態文字列セット補完で not_submitted に解決される
+    expect(assignments[0].submissionStatus).toBe('not_submitted')
     expect(assignments[0].lifecycleStatus).toBe('active')
   })
 })
