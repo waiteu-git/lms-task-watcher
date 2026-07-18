@@ -28,8 +28,12 @@ export interface MoodleFingerprint {
 /**
  * chrome.storage.local へ永続する最新観測（spec§5/§8の監視前提・配線は background 側）。
  * 版が読めた観測のみ保存する（version は非null）。bodyClasses はページ毎に揺れる
- * 一時情報なので永続しない。bs5=true 時の挙動変更（lenientパース/レイアウトバナー）は
- * 次版送りで、本版は記録のみ（メンテ窓でのpassiveスモークチェックが実データを持つため）。
+ * 一時情報なので永続しない。
+ *
+ * 読み出し側: bs5=true はダッシュボードの情報ノート1行として表示する
+ * （diagnosticsBanner.buildInfoNotes の第2引数・spec§7 layout-changed の最小配線）。
+ * bs5=true 時の lenient parse 等のパース挙動変更は次版送り（版プローブは補助信号で
+ * 安全網は§4の矛盾検知・メンテ窓でのpassiveスモークチェックが実データを持つため）。
  */
 export interface StoredMoodleFingerprint {
   version: MoodleVersion

@@ -59,6 +59,7 @@ import {
 import {
   diagnoseActivityPage,
   diagnoseAuthProbe,
+  diagnoseCourseLossAggregate,
   diagnoseCoursePage,
   diagnoseDashboard,
   type DiagnosticCode,
@@ -544,6 +545,12 @@ export async function scanAssignmentCandidatesInBackground(
   // ref オブジェクト形式なのは TS の制御フロー解析対策（クロージャ内でしか代入されない
   // let は use 箇所で初期値 null に狭められ、null チェックが never 型になるため）。
   const latestFingerprint: { current: MoodleFingerprint | null } = { current: null }
+  // コース横断の喪失集計（diagnoseCourseLossAggregate の入力）: diagnosticCodes は
+  // Set なので per-course の多重度が失われる。「1コースの正当な非表示化」と
+  // 「既知コースの過半が一斉喪失（レイアウト破損の強い兆候）」を区別するため、
+  // ログイン済みと分類できた既知コース（prevシグネチャ>0）の観測数と、そのうち
+  // COURSE_LOST_ALL_ASSIGNMENTS を発火した数を別カウンタで数える。
+  const courseLossTally = { lost: 0, tracked: 0 }
   const courses = await getCourses()
   const enabledCourses = courses.filter((c) => c.enabled)
   const enabledCourseIds = new Set(enabledCourses.map((c) => c.id))
@@ -641,13 +648,27 @@ export async function scanAssignmentCandidatesInBackground(
           const upd = computeCourseUpdate(prevSig, html, course.url, new Date().toISOString())
           // skipSave の明示化（spec§4）: スキップを含む観測結果を評価関数に流し、
           // 「既知コースの全課題喪失/ページ不読」を診断コードとして浮上させる。
-          for (const code of diagnoseCoursePage({
+          const coursePageCodes = diagnoseCoursePage({
             pageAuthState: toPageAuthState(classification),
             modAnchorCount: upd.diagnostic.modAnchorCount,
             prevSignatureLen: upd.diagnostic.prevSignatureLen,
             hasCourseMarker: upd.diagnostic.hasCourseMarker,
-          })) {
+          })
+          for (const code of coursePageCodes) {
             diagnosticCodes.add(code)
+          }
+          // 喪失集計: 分母はログイン済みと分類できた既知コース（prev>0）の観測。
+          // fetch失敗・ログアウト分類・初回/空コースは分母に入らない（観測できていない
+          // か、そもそも喪失を定義できない）。COURSE_PAGE_NO_ACTIVITIES のコースは
+          // 分母に入る（既知コースの観測ではある＝過半判定がより保守的になる方向）。
+          if (
+            classification === 'logged_in' &&
+            (upd.diagnostic.prevSignatureLen ?? 0) > 0
+          ) {
+            courseLossTally.tracked += 1
+            if (coursePageCodes.includes('COURSE_LOST_ALL_ASSIGNMENTS')) {
+              courseLossTally.lost += 1
+            }
           }
           if (!upd.skipSave) {
             await saveCourseSignature(course.id, upd.signature)
@@ -696,6 +717,18 @@ export async function scanAssignmentCandidatesInBackground(
         })
       },
     )
+
+    // コース横断の喪失集計を単一の hard コードへ畳み込む（per-course info 判定の
+    // 死角の補完）。ログアウト検知時は観測が不完全（残コースを打ち切っている）な上、
+    // 原因は LOGGED_OUT に一元化すべきなので集計しない。
+    if (!loggedOutDetected) {
+      for (const code of diagnoseCourseLossAggregate({
+        lostCourseCount: courseLossTally.lost,
+        trackedCourseCount: courseLossTally.tracked,
+      })) {
+        diagnosticCodes.add(code)
+      }
+    }
 
     // passive版フィンガープリントの記録（spec§8の監視前提）: 版が読めた観測があれば
     // 最新1件だけ保存する。読めなかったスキャンでは既存の記録を消さない（last-good維持）。

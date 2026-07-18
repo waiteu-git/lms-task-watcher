@@ -465,6 +465,87 @@ describe('scanAssignmentCandidatesInBackground', () => {
     expect(store['courseSignature:course-1']).toEqual(prevSig)
   })
 
+  it('1コースだけの全課題喪失では過半集計（COURSES_MAJORITY_LOST）を発火しない（正当な非表示化の保護）', async () => {
+    // 既知3コース中1コースのみ喪失＝教員の全非表示という正当ケースの本命。
+    // per-course の info コードは出るが、hard の集計コードへは昇格しない。
+    store[COURSES_KEY] = [1, 2, 3].map((i) =>
+      makeCourse({
+        id: `course-${i}`,
+        name: `講義${i}`,
+        url: `https://letus.ed.tus.ac.jp/course/view.php?id=${i}`,
+      }),
+    )
+    for (const i of [1, 2, 3]) {
+      store[`courseSignature:course-${i}`] = [
+        { title: `課題${i}`, url: `https://letus.ed.tus.ac.jp/mod/assign/view.php?id=${i}0` },
+      ]
+    }
+
+    vi.stubGlobal('fetch', vi.fn(async (url: string) => ({
+      ok: true,
+      url,
+      text: async () => {
+        const id = new URL(url).searchParams.get('id')
+        const mcfg =
+          '<script>M.cfg = {"wwwroot":"https:\\/\\/letus.ed.tus.ac.jp","sesskey":"AbCd012345"};</script>'
+        if (id === '1') {
+          // course-1 だけ全課題喪失（マーカーは残存）
+          return `<body class="format-topics path-course-view">${mcfg}コース本文（課題リンク無し）</body>`
+        }
+        return (
+          `<body class="format-topics path-course-view">${mcfg}` +
+          `<a href="/mod/assign/view.php?id=${id}0">課題${id}</a></body>`
+        )
+      },
+    })))
+
+    const result = await scanAssignmentCandidatesInBackground('standard', noopPacer)
+
+    expect(result.ok).toBe(true)
+    expect(result.diagnostics).toContain('COURSE_LOST_ALL_ASSIGNMENTS')
+    expect(result.diagnostics).not.toContain('COURSES_MAJORITY_LOST')
+  })
+
+  it('既知コースの過半が同時に全課題喪失するとCOURSES_MAJORITY_LOSTを発火する（5.x移行でformat-*だけ残る破損モードの検知）', async () => {
+    // レビュー指摘対応: 全コースで mod-anchor が消えるが format-* body class は残る
+    // 破損モードでは per-course の COURSE_LOST_ALL_ASSIGNMENTS（info）しか出ず、
+    // 警告バナー経路（hard）に到達しなかった。過半の一斉喪失は集計で hard へ昇格する。
+    store[COURSES_KEY] = [1, 2, 3].map((i) =>
+      makeCourse({
+        id: `course-${i}`,
+        name: `講義${i}`,
+        url: `https://letus.ed.tus.ac.jp/course/view.php?id=${i}`,
+      }),
+    )
+    for (const i of [1, 2, 3]) {
+      store[`courseSignature:course-${i}`] = [
+        { title: `課題${i}`, url: `https://letus.ed.tus.ac.jp/mod/assign/view.php?id=${i}0` },
+      ]
+    }
+
+    vi.stubGlobal('fetch', vi.fn(async (url: string) => ({
+      ok: true,
+      url,
+      // 全コースが「マーカー残存・mod-anchor 0件」＝一様なレイアウト破損
+      text: async () =>
+        '<body class="format-topics path-course-view">' +
+        '<script>M.cfg = {"wwwroot":"https:\\/\\/letus.ed.tus.ac.jp","sesskey":"AbCd012345"};</script>' +
+        'コース本文（課題リンク無し）</body>',
+    })))
+
+    const result = await scanAssignmentCandidatesInBackground('standard', noopPacer)
+
+    expect(result.ok).toBe(true)
+    expect(result.diagnostics).toContain('COURSE_LOST_ALL_ASSIGNMENTS')
+    expect(result.diagnostics).toContain('COURSES_MAJORITY_LOST')
+    // 集計コードが出てもシグネチャの last-good 保持（skipSave）は変わらない
+    for (const i of [1, 2, 3]) {
+      expect(store[`courseSignature:course-${i}`]).toEqual([
+        { title: `課題${i}`, url: `https://letus.ed.tus.ac.jp/mod/assign/view.php?id=${i}0` },
+      ])
+    }
+  })
+
   it('診断コード: 正常ページは空・Moodle以外の応答はNOT_A_MOODLE_PAGE（複数ページでも重複排除）', async () => {
     store[COURSES_KEY] = [
       makeCourse({ id: 'course-1', url: 'https://letus.ed.tus.ac.jp/course/view.php?id=1' }),

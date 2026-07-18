@@ -46,7 +46,10 @@ export const ESCALATION_THRESHOLD = 2
  *   非表示にした正当ケースでも発火し、skipSave が旧シグネチャを保持するため自己回復しない。
  *   1コースの状態で全体台帳を凍結させないため info とする。実レイアウト破損は
  *   DASHBOARD_UNREADABLE / COURSE_PAGE_NO_ACTIVITIES（hard）と§5のpassive版
- *   フィンガープリントが別途拾う。
+ *   フィンガープリントが別途拾う。加えて「既知コースの過半が同一スキャンで一斉喪失」
+ *   （format-* は残るが活動一覧だけが全コースで死ぬ5.x破損モード）は、per-course 判定の
+ *   死角として集計側 diagnoseCourseLossAggregate が COURSES_MAJORITY_LOST（hard）へ
+ *   昇格させる＝正当な1コース非表示と全滅破損の区別は件数集計が担う。
  */
 export const INFO_DIAGNOSTIC_CODES = [
   'UNSUPPORTED_MODULE',

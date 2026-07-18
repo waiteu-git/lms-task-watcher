@@ -21,6 +21,8 @@ export const DIAGNOSTIC_CODES = [
   'DEADLINE_KEYWORD_NO_DATE',
   /** 既知コース（前回シグネチャ>0）が全課題を喪失した */
   'COURSE_LOST_ALL_ASSIGNMENTS',
+  /** 既知コースの過半が同一スキャンで全課題を喪失した（レイアウト破損の強い兆候・hard階級） */
+  'COURSES_MAJORITY_LOST',
   /** 認証fetchの応答に M.cfg が無い＝Moodleでないページが返っている */
   'NOT_A_MOODLE_PAGE',
   /** 提出状態の抽出に未対応なモジュール型（正直に「未対応」と示す） */
@@ -127,6 +129,38 @@ export function diagnoseActivityPage(input: ActivityPageInput): DiagnosticCode[]
     codes.push('UNSUPPORTED_MODULE')
   }
   return codes
+}
+
+export interface CourseLossAggregateInput {
+  /** 今回スキャンで COURSE_LOST_ALL_ASSIGNMENTS を発火した既知コース数 */
+  lostCourseCount: number
+  /** 今回スキャンで観測できた既知コース（ログイン済み・前回シグネチャ>0）の総数 */
+  trackedCourseCount: number
+}
+
+/**
+ * コース横断の喪失集計（per-course判定の構造的死角の補完）。
+ *
+ * COURSE_LOST_ALL_ASSIGNMENTS は「教員が学期末に全活動を非表示にした正当ケース」でも
+ * 発火するため info 階級（警告バナー非発火・lastGoodAt 継続）だが、その区分は
+ * 「1コースの正当な非表示化」と「全コース一斉喪失」を区別できない。5.x移行で
+ * format-* body class は残るのに mod-anchor が全コースで消える破損モード
+ * （活動一覧のクライアント描画化）では、per-course 判定だけだと hard コードが
+ * 一切発火せず§7の警告経路に到達しない。この集計が両者を件数で区別する:
+ *
+ * - lostCourseCount >= 2: 1コースだけの喪失は正当ケースの本命なので絶対に昇格しない
+ *   （既知コース1件のユーザーの単独喪失も昇格しない＝info階級の設計根拠を保存）。
+ * - 厳密過半（lost*2 > tracked）: レイアウト破損は全コースを一様に壊す一方、
+ *   複数教員の非表示操作が同一スキャン窓で過半に達することは稀。
+ * - さらに diagnosticsState の連続失敗閾値（ESCALATION_THRESHOLD）を経て初めて
+ *   バナー表示に至る（単発の一過性失敗では鳴らない）。
+ *
+ * 入力の集計（各コースの diagnoseCoursePage 結果を数える）は配線側の責務。
+ */
+export function diagnoseCourseLossAggregate(input: CourseLossAggregateInput): DiagnosticCode[] {
+  if (input.lostCourseCount < 2) return []
+  if (input.lostCourseCount * 2 <= input.trackedCourseCount) return []
+  return ['COURSES_MAJORITY_LOST']
 }
 
 export interface AuthProbeInput {

@@ -10,6 +10,11 @@
  *    正直に示す」に UI 経路が無い。infoCodes を警告でないトーンで出すこの層が
  *    その実配線。健全なLETUSでも恒常発火し得るコードなので、警告色・再試行
  *    ボタンを持たない小さなノートに留める。
+ *    加えて passive版フィンガープリント（spec§5）の BS5世代観測
+ *    （StoredMoodleFingerprint.bs5=true）も、この層の情報ノート1行として出す
+ *    （spec§7 layout-changed の最小配線）。版プローブは補助信号（安全網は§4）で、
+ *    パースが正常でも 5.x 稼働はあり得るため、観測単独では警告バナーにしない。
+ *    bs5=true 時の lenient parse 等の挙動変更は次版送り（moodleFingerprint.ts 参照）。
  *
  * 付随して shouldSuppressScanErrorBanner（重複排除の選択ロジック）を持つ:
  * logged_out バナー表示中は旧エラーバナーの同趣旨メッセージを抑制する（詳細は関数doc）。
@@ -39,6 +44,7 @@
 
 import type { DiagnosticCode } from './diagnose'
 import type { DiagnosticsState } from './diagnosticsState'
+import type { StoredMoodleFingerprint } from './moodleFingerprint'
 
 export type BannerKind = 'none' | 'logged_out' | 'unreadable' | 'unsupported'
 
@@ -89,9 +95,18 @@ export function buildBannerContent(state: DiagnosticsState | null): BannerConten
   return { kind, title, body, lastGoodAt: state.lastGoodAt }
 }
 
+/**
+ * BS5世代観測ノートの識別コード。DiagnosticCode ではない（診断台帳でなく
+ * passive版フィンガープリント由来の独立した観測）ため専用の値を持つ。
+ */
+export const BS5_LAYOUT_NOTE_CODE = 'MOODLE_BS5_LAYOUT' as const
+
+/** InfoNote の識別子: 診断コード or BS5観測ノート */
+export type InfoNoteCode = DiagnosticCode | typeof BS5_LAYOUT_NOTE_CODE
+
 /** カバレッジ情報ノート1件。code は React key 等の識別用（UI に表示しない） */
 export interface InfoNote {
-  code: DiagnosticCode
+  code: InfoNoteCode
   text: string
 }
 
@@ -117,6 +132,13 @@ const INFO_NOTE_TEXTS: Partial<Record<DiagnosticCode, string>> = {
 
 /** 未知の info コード（将来の階級再分類等）を黙って落とさないための汎用文 */
 const FALLBACK_INFO_NOTE_TEXT = '一部の情報を自動取得できていない可能性があります。'
+
+/**
+ * BS5世代（Moodle 5.x）観測時の情報ノート文言。観測は事実（docsリンクの版セグメント）
+ * だが影響は未確定なので、断定せず「可能性」のトーンに留める（§7 非技術的な一文）。
+ */
+const BS5_LAYOUT_NOTE_TEXT =
+  'LETUSの画面構成が新しくなった可能性を検出しました。課題の読み取りに影響が出る場合があります。'
 
 /**
  * 旧エラーバナー（スキャン失敗メッセージ）のログアウト趣旨判定キー。
@@ -153,14 +175,25 @@ export function shouldSuppressScanErrorBanner(
 
 /**
  * diagnosticsState からカバレッジ情報ノート（警告でない注記）を導出する。
- * 表示不要なら空配列。activeCodes 非空（警告バナー表示中）の間は常に空配列。
+ * 表示不要なら空配列。activeCodes 非空（警告バナー表示中）の間は常に空配列
+ * （BS5観測ノート含む: unreadable バナーが「画面構成が変わった可能性」を既に
+ * 伝えているため重ねない）。
+ *
+ * fingerprint（passive版フィンガープリントの最新観測・spec§5）が BS5世代
+ * （bs5=true）を示す場合、診断台帳と独立に BS5 観測ノートを1行追記する。
+ * 台帳が無い（state=null）だけの状態でも出す＝フィンガープリントは独立した観測。
+ * 既知 info コードの固定順（unsupported 先頭）の約束を崩さないよう末尾に置く。
  */
-export function buildInfoNotes(state: DiagnosticsState | null): InfoNote[] {
-  if (state === null || state.activeCodes.length > 0 || state.infoCodes.length === 0) {
+export function buildInfoNotes(
+  state: DiagnosticsState | null,
+  fingerprint?: Pick<StoredMoodleFingerprint, 'bs5'> | null,
+): InfoNote[] {
+  if (state !== null && state.activeCodes.length > 0) {
     return []
   }
-  const known = INFO_NOTE_ORDER.filter((code) => state.infoCodes.includes(code))
-  const unknown = state.infoCodes.filter((code) => !INFO_NOTE_ORDER.includes(code))
+  const infoCodes = state?.infoCodes ?? []
+  const known = INFO_NOTE_ORDER.filter((code) => infoCodes.includes(code))
+  const unknown = infoCodes.filter((code) => !INFO_NOTE_ORDER.includes(code))
   const notes: InfoNote[] = []
   const seenTexts = new Set<string>()
   for (const code of [...known, ...unknown]) {
@@ -168,6 +201,9 @@ export function buildInfoNotes(state: DiagnosticsState | null): InfoNote[] {
     if (seenTexts.has(text)) continue
     seenTexts.add(text)
     notes.push({ code, text })
+  }
+  if (fingerprint?.bs5 === true) {
+    notes.push({ code: BS5_LAYOUT_NOTE_CODE, text: BS5_LAYOUT_NOTE_TEXT })
   }
   return notes
 }

@@ -38,12 +38,13 @@ describe('定数と階級区分', () => {
     }
   })
 
-  it('hard階級 = スキャン整合性の4コード（isInfoDiagnosticCode が false）', () => {
+  it('hard階級 = スキャン整合性の5コード（isInfoDiagnosticCode が false）', () => {
     const hard: DiagnosticCode[] = [
       'LOGGED_OUT',
       'NOT_A_MOODLE_PAGE',
       'DASHBOARD_UNREADABLE',
       'COURSE_PAGE_NO_ACTIVITIES',
+      'COURSES_MAJORITY_LOST',
     ]
     for (const code of hard) {
       expect(isInfoDiagnosticCode(code)).toBe(false)
@@ -135,6 +136,19 @@ describe('applyScanOutcome: 成功（hardコード無し）', () => {
     expect(state?.consecutiveFailures).toBe(0)
     expect(state?.activeCodes).toEqual([])
     expect(state?.infoCodes).toEqual(['COURSE_LOST_ALL_ASSIGNMENTS'])
+  })
+
+  it('COURSES_MAJORITY_LOST（過半喪失の集計）は hard として閾値経由でエスカレーションする', () => {
+    // per-course の COURSE_LOST_ALL_ASSIGNMENTS（info・随伴）は昇格せず、
+    // 集計コードだけが警告バナーの根拠になる。lastGoodAt は失敗中は進まない。
+    const codes: DiagnosticCode[] = ['COURSE_LOST_ALL_ASSIGNMENTS', 'COURSES_MAJORITY_LOST']
+    const fail1 = applyScanOutcome(applyScanOutcome(null, outcome([], T1)), outcome(codes, T2))
+    expect(fail1.activeCodes).toEqual([])
+    expect(fail1.consecutiveFailures).toBe(1)
+    const fail2 = applyScanOutcome(fail1, outcome(codes, T3))
+    expect(fail2.activeCodes).toEqual(['COURSES_MAJORITY_LOST'])
+    expect(fail2.infoCodes).toEqual(['COURSE_LOST_ALL_ASSIGNMENTS'])
+    expect(fail2.lastGoodAt).toBe(T1)
   })
 })
 

@@ -3,6 +3,7 @@ import {
   DIAGNOSTIC_CODES,
   diagnoseDashboard,
   diagnoseCoursePage,
+  diagnoseCourseLossAggregate,
   diagnoseActivityPage,
   diagnoseAuthProbe,
   type DiagnosticCode,
@@ -10,13 +11,14 @@ import {
 } from './diagnose'
 
 describe('DIAGNOSTIC_CODES', () => {
-  it('spec§4の7コードを重複なく列挙する', () => {
+  it('spec§4の7コード＋集計コード（COURSES_MAJORITY_LOST）を重複なく列挙する', () => {
     expect([...DIAGNOSTIC_CODES].sort()).toEqual(
       [
         'DASHBOARD_UNREADABLE',
         'COURSE_PAGE_NO_ACTIVITIES',
         'DEADLINE_KEYWORD_NO_DATE',
         'COURSE_LOST_ALL_ASSIGNMENTS',
+        'COURSES_MAJORITY_LOST',
         'NOT_A_MOODLE_PAGE',
         'UNSUPPORTED_MODULE',
         'LOGGED_OUT',
@@ -161,6 +163,70 @@ describe('diagnoseCoursePage', () => {
     expect(
       diagnoseCoursePage({ pageAuthState, modAnchorCount, prevSignatureLen, hasCourseMarker }),
     ).toEqual(expected)
+  })
+})
+
+describe('diagnoseCourseLossAggregate', () => {
+  const cases: Array<{
+    name: string
+    lostCourseCount: number
+    trackedCourseCount: number
+    expected: DiagnosticCode[]
+  }> = [
+    {
+      name: '喪失なし（健全）は発火しない',
+      lostCourseCount: 0, trackedCourseCount: 5,
+      expected: [],
+    },
+    {
+      name: '既知コース0件（初回利用等）は発火しない',
+      lostCourseCount: 0, trackedCourseCount: 0,
+      expected: [],
+    },
+    {
+      name: '1コースのみの喪失は既知コースが何件でも発火しない（教員の全非表示という正当ケースの本命）',
+      lostCourseCount: 1, trackedCourseCount: 5,
+      expected: [],
+    },
+    {
+      name: '既知コース1件のユーザーの単独喪失も発火しない（info階級COURSE_LOST_ALL_ASSIGNMENTSの設計根拠を保存）',
+      lostCourseCount: 1, trackedCourseCount: 1,
+      expected: [],
+    },
+    {
+      name: '2/4喪失（ちょうど半数）は発火しない（厳密過半のみ＝迷ったら鳴らさない）',
+      lostCourseCount: 2, trackedCourseCount: 4,
+      expected: [],
+    },
+    {
+      name: '3/6喪失（ちょうど半数）も発火しない',
+      lostCourseCount: 3, trackedCourseCount: 6,
+      expected: [],
+    },
+    {
+      name: '2/3喪失（過半）→ COURSES_MAJORITY_LOST',
+      lostCourseCount: 2, trackedCourseCount: 3,
+      expected: ['COURSES_MAJORITY_LOST'],
+    },
+    {
+      name: '2/2喪失（全既知コース一斉）→ COURSES_MAJORITY_LOST',
+      lostCourseCount: 2, trackedCourseCount: 2,
+      expected: ['COURSES_MAJORITY_LOST'],
+    },
+    {
+      name: '5/5喪失（レイアウト破損の典型形＝全コース一様に0件化）→ COURSES_MAJORITY_LOST',
+      lostCourseCount: 5, trackedCourseCount: 5,
+      expected: ['COURSES_MAJORITY_LOST'],
+    },
+    {
+      name: '3/5喪失（過半だが全滅でない・一部コースだけ描画が壊れた場合）も発火する',
+      lostCourseCount: 3, trackedCourseCount: 5,
+      expected: ['COURSES_MAJORITY_LOST'],
+    },
+  ]
+
+  it.each(cases)('$name', ({ lostCourseCount, trackedCourseCount, expected }) => {
+    expect(diagnoseCourseLossAggregate({ lostCourseCount, trackedCourseCount })).toEqual(expected)
   })
 })
 

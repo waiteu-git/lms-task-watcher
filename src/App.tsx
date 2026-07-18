@@ -82,7 +82,7 @@ import {
   type ManualAssignment,
   type ManualAssignmentPatch,
 } from './core/manualAssignment'
-import { DEADLINE_OVERRIDES_KEY, MANUAL_ASSIGNMENTS_KEY } from './background/storageKeys'
+import { DEADLINE_OVERRIDES_KEY, MANUAL_ASSIGNMENTS_KEY, MOODLE_FINGERPRINT_KEY } from './background/storageKeys'
 import { AssignmentMemo } from './components/AssignmentMemo'
 import { ManualAssignmentCard } from './components/ManualAssignmentCard'
 import { TimetableSection } from './components/TimetableSection'
@@ -113,6 +113,7 @@ import {
   shouldSuppressScanErrorBanner,
 } from './core/diagnosticsBanner'
 import { DIAGNOSTICS_STATE_KEY, type DiagnosticsState } from './core/diagnosticsState'
+import type { StoredMoodleFingerprint } from './core/moodleFingerprint'
 
 // 自前バックエンドは凍結中（VITE_API_BASE_URL 未設定=空）。空なら syncToServer 等は no-op。
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL as string ?? ''
@@ -148,6 +149,7 @@ export default function App() {
   })
   const [message, setMessage] = useState('')
   const [diagnosticsState, setDiagnosticsState] = useState<DiagnosticsState | null>(null)
+  const [moodleFingerprint, setMoodleFingerprint] = useState<StoredMoodleFingerprint | null>(null)
   const [showOnboarding, setShowOnboarding] = useState(false)
   const [consentState, setConsentState] = useState<'loading' | 'needed' | 'ok'>('loading')
   const hasAutoRefreshCheckedRef = useRef(false)
@@ -341,19 +343,29 @@ export default function App() {
         const newValue = changes[DIAGNOSTICS_STATE_KEY].newValue as DiagnosticsState | undefined
         setDiagnosticsState(newValue ?? null)
       }
+      if (MOODLE_FINGERPRINT_KEY in changes) {
+        const newValue = changes[MOODLE_FINGERPRINT_KEY].newValue as StoredMoodleFingerprint | undefined
+        setMoodleFingerprint(newValue ?? null)
+      }
     }
 
     chrome.storage.local.onChanged.addListener(onStorageChanged)
     return () => chrome.storage.local.onChanged.removeListener(onStorageChanged)
   }, [])
 
-  // 自己診断台帳（diagnosticsState）の初期読込。以降の更新は上の onChanged が追従する。
+  // 自己診断台帳（diagnosticsState）とpassive版フィンガープリントの初期読込。
+  // 以降の更新は上の onChanged が追従する。
   useEffect(() => {
-    void chrome.storage.local.get(DIAGNOSTICS_STATE_KEY).then((stored) => {
-      setDiagnosticsState(
-        (stored[DIAGNOSTICS_STATE_KEY] as DiagnosticsState | undefined) ?? null,
-      )
-    })
+    void chrome.storage.local
+      .get([DIAGNOSTICS_STATE_KEY, MOODLE_FINGERPRINT_KEY])
+      .then((stored) => {
+        setDiagnosticsState(
+          (stored[DIAGNOSTICS_STATE_KEY] as DiagnosticsState | undefined) ?? null,
+        )
+        setMoodleFingerprint(
+          (stored[MOODLE_FINGERPRINT_KEY] as StoredMoodleFingerprint | undefined) ?? null,
+        )
+      })
   }, [])
 
   useEffect(() => {
@@ -553,9 +565,11 @@ export default function App() {
   // カバレッジ情報ノート（spec§7 unsupported-module 表示・§0「未対応と正直に示す」）。
   // hard/info 区分で activeCodes に載らない info コード（未対応モジュール等）の実配線。
   // 警告バナー表示中は buildInfoNotes が空配列を返す（重複排除）。CLASS対象外は同上。
+  // passive版フィンガープリントが BS5世代（Moodle 5.x）を観測していれば、
+  // 「画面構成が新しくなった可能性」の情報ノート1行を追加する（spec§5/§7 の最小配線）。
   const diagnosticsInfoNotes = useMemo(
-    () => buildInfoNotes(diagnosticsState),
-    [diagnosticsState],
+    () => buildInfoNotes(diagnosticsState, moodleFingerprint),
+    [diagnosticsState, moodleFingerprint],
   )
 
   const scanErrorMessage = useMemo(() => {

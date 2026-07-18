@@ -77,6 +77,7 @@ describe('buildBannerContent: unreadable（画面構成変更の可能性）', (
   const unreadableCodes: DiagnosticCode[] = [
     'DASHBOARD_UNREADABLE',
     'COURSE_PAGE_NO_ACTIVITIES',
+    'COURSES_MAJORITY_LOST',
     'NOT_A_MOODLE_PAGE',
     'DEADLINE_KEYWORD_NO_DATE',
     'COURSE_LOST_ALL_ASSIGNMENTS',
@@ -294,6 +295,48 @@ describe('buildInfoNotes: 複数コード・順序・未知コード', () => {
     const snapshot = structuredClone(state)
     buildInfoNotes(state)
     expect(state).toEqual(snapshot)
+  })
+})
+
+describe('buildInfoNotes: BS5世代観測ノート（passive版フィンガープリント・spec§5/§7の最小配線）', () => {
+  const BS5_NOTE = {
+    code: 'MOODLE_BS5_LAYOUT',
+    text: 'LETUSの画面構成が新しくなった可能性を検出しました。課題の読み取りに影響が出る場合があります。',
+  }
+
+  it('bs5=true なら診断台帳が無く（state=null）ても1行出す（独立した観測）', () => {
+    expect(buildInfoNotes(null, { bs5: true })).toEqual([BS5_NOTE])
+  })
+
+  it('bs5=true かつ infoCodes ありでは、既知の固定順の末尾に追記する', () => {
+    const notes = buildInfoNotes(infoStateWith(['UNSUPPORTED_MODULE']), { bs5: true })
+    expect(notes.map((n) => n.code)).toEqual(['UNSUPPORTED_MODULE', 'MOODLE_BS5_LAYOUT'])
+  })
+
+  it('警告バナー表示中（activeCodes非空）はBS5ノートも出さない（unreadableバナーが同趣旨を伝えるため重ねない）', () => {
+    const state = infoStateWith([], {
+      activeCodes: ['DASHBOARD_UNREADABLE'],
+      consecutiveFailures: 2,
+    })
+    expect(buildInfoNotes(state, { bs5: true })).toEqual([])
+  })
+
+  it('bs5=false（現行4.x観測）では出さない', () => {
+    expect(buildInfoNotes(null, { bs5: false })).toEqual([])
+    expect(buildInfoNotes(infoStateWith([]), { bs5: false })).toEqual([])
+  })
+
+  it('フィンガープリント未観測（引数省略/null/undefined）では従来と同一の出力', () => {
+    expect(buildInfoNotes(null)).toEqual([])
+    expect(buildInfoNotes(null, null)).toEqual([])
+    expect(buildInfoNotes(null, undefined)).toEqual([])
+    const state = infoStateWith(['DEADLINE_KEYWORD_NO_DATE'])
+    expect(buildInfoNotes(state, null)).toEqual(buildInfoNotes(state))
+  })
+
+  it('壊れた保存データ（bs5が真偽値でない）では出さない（fail closed）', () => {
+    const broken = { bs5: 'yes' } as unknown as { bs5: boolean }
+    expect(buildInfoNotes(null, broken)).toEqual([])
   })
 })
 
