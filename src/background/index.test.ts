@@ -835,13 +835,37 @@ describe('diagnosticsState 保存配線（runAutoScanのスキャン完了処理
     expect(ledger?.lastGoodAt).not.toBeNull()
     expect(ledger?.consecutiveFailures).toBe(0)
     expect(ledger?.activeCodes).toEqual([])
+    expect(ledger?.infoCodes).toEqual([])
     expect(ledger?.lastCodes).toEqual([])
   })
 
-  it('診断コード付きサイクルは1回目で昇格せず、2回連続で activeCodes に昇格する（debounce）', async () => {
+  it('hardコード付きサイクルは1回目で昇格せず、2回連続で activeCodes に昇格する（debounce）', async () => {
     store[TERMS_CONSENT_KEY] = consent
     store[COURSES_KEY] = [makeCourse()]
-    // 既知コース（前回シグネチャあり）が全課題を喪失した状況を2サイクル続ける
+
+    // Moodleでないページ（メンテ画面等）が2サイクル続けて応答する状況
+    vi.stubGlobal('fetch', vi.fn(async (url: string) => ({
+      ok: true,
+      url,
+      text: async () => 'ただいまメンテナンス中です',
+    })))
+
+    await runAutoScan(noopPacer)
+    const after1 = getLedger()
+    expect(after1?.consecutiveFailures).toBe(1)
+    expect(after1?.activeCodes).toEqual([]) // 単発ではバナーを出さない
+    expect(after1?.lastCodes).toEqual(['NOT_A_MOODLE_PAGE'])
+
+    await runAutoScan(noopPacer)
+    const after2 = getLedger()
+    expect(after2?.consecutiveFailures).toBe(2)
+    expect(after2?.activeCodes).toEqual(['NOT_A_MOODLE_PAGE'])
+  })
+
+  it('既知コースの全課題喪失は info として記録され、サイクルを失敗に数えない', async () => {
+    store[TERMS_CONSENT_KEY] = consent
+    store[COURSES_KEY] = [makeCourse()]
+    // 既知コース（前回シグネチャあり）が全課題を喪失（教員の全非表示という正当ケースあり）
     store['courseSignature:course-1'] = [
       { title: '課題1', url: 'https://letus.ed.tus.ac.jp/mod/assign/view.php?id=1' },
       { title: '課題2', url: 'https://letus.ed.tus.ac.jp/mod/assign/view.php?id=2' },
@@ -854,15 +878,39 @@ describe('diagnosticsState 保存配線（runAutoScanのスキャン完了処理
     })))
 
     await runAutoScan(noopPacer)
-    const after1 = getLedger()
-    expect(after1?.consecutiveFailures).toBe(1)
-    expect(after1?.activeCodes).toEqual([]) // 単発ではバナーを出さない
-    expect(after1?.lastCodes).toEqual(['COURSE_LOST_ALL_ASSIGNMENTS'])
+    await runAutoScan(noopPacer)
+
+    // skipSave で旧シグネチャが残り恒常発火しても、台帳は凍結しない（レビュー指摘対応）
+    const ledger = getLedger()
+    expect(ledger?.consecutiveFailures).toBe(0)
+    expect(ledger?.activeCodes).toEqual([])
+    expect(ledger?.infoCodes).toEqual(['COURSE_LOST_ALL_ASSIGNMENTS'])
+    expect(ledger?.lastGoodAt).not.toBeNull()
+  })
+
+  it('未知モジュール型を含むコースでも成功サイクルとして lastGoodAt が進む（恒久汚染の防止）', async () => {
+    store[TERMS_CONSENT_KEY] = consent
+    store[COURSES_KEY] = [makeCourse()]
+
+    vi.stubGlobal('fetch', vi.fn(async (url: string) => ({
+      ok: true,
+      url,
+      text: async () =>
+        url.includes('/mod/assign/')
+          ? '<script>M.cfg = {"wwwroot":"https:\\/\\/letus.ed.tus.ac.jp","sesskey":"AbCd012345"};</script>提出期限 2026年12月1日 23時59分'
+          : healthyCoursePage + '<a href="/mod/h5pactivity/view.php?id=9">教材ビデオ</a>',
+    })))
 
     await runAutoScan(noopPacer)
-    const after2 = getLedger()
-    expect(after2?.consecutiveFailures).toBe(2)
-    expect(after2?.activeCodes).toEqual(['COURSE_LOST_ALL_ASSIGNMENTS'])
+    await runAutoScan(noopPacer)
+
+    // UNSUPPORTED_MODULE は毎サイクル出るが info であり、失敗カウンタを駆動しない
+    const ledger = getLedger()
+    expect(ledger?.consecutiveFailures).toBe(0)
+    expect(ledger?.activeCodes).toEqual([])
+    expect(ledger?.infoCodes).toEqual(['UNSUPPORTED_MODULE'])
+    expect(ledger?.lastCodes).toEqual(['UNSUPPORTED_MODULE'])
+    expect(ledger?.lastGoodAt).not.toBeNull()
   })
 
   it('破損が直った次のサイクルで全クリアされ lastGoodAt が更新される', async () => {
@@ -871,8 +919,9 @@ describe('diagnosticsState 保存配線（runAutoScanのスキャン完了処理
     store[DIAGNOSTICS_STATE_KEY] = {
       lastGoodAt: null,
       consecutiveFailures: 2,
-      activeCodes: ['COURSE_LOST_ALL_ASSIGNMENTS'],
-      lastCodes: ['COURSE_LOST_ALL_ASSIGNMENTS'],
+      activeCodes: ['NOT_A_MOODLE_PAGE'],
+      infoCodes: [],
+      lastCodes: ['NOT_A_MOODLE_PAGE'],
       updatedAt: '2026-07-17T00:00:00.000Z',
     } satisfies DiagnosticsState
 
@@ -917,6 +966,7 @@ describe('diagnosticsState 保存配線（runAutoScanのスキャン完了処理
       lastGoodAt: '2026-07-17T00:00:00.000Z',
       consecutiveFailures: 1,
       activeCodes: [],
+      infoCodes: [],
       lastCodes: ['DASHBOARD_UNREADABLE'],
       updatedAt: '2026-07-17T00:00:00.000Z',
     }

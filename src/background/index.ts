@@ -61,6 +61,7 @@ import {
 import {
   applyScanOutcome,
   DIAGNOSTICS_STATE_KEY,
+  isInfoDiagnosticCode,
   type DiagnosticsState,
 } from '../core/diagnosticsState'
 
@@ -936,19 +937,23 @@ type ScanDiagnosticsResult = { ok: boolean; diagnostics?: DiagnosticCode[] }
  * コード付きで完了（失敗+1）→続く締切スキャンがコード無しで完了（成功=全リセット）の
  * 振動が毎サイクル起き、連続失敗が閾値に達しない＝エスカレーションが恒久に死ぬ。
  *
- * 記録規則:
- * - コードが1つでもあれば「失敗」として畳み込む（部分完了でも観測は観測）。
- * - コード無しで全スキャン ok なら「成功」として畳み込む（lastGoodAt 更新）。
- * - コード無しで ok でない（ネットワーク例外・already_running 等）は記録しない:
- *   ネットワーク問題はレイアウト診断の対象外であり、成功扱いで lastGoodAt を
- *   進めるのも失敗扱いでバナーを出すのも嘘になる（中立スキップ）。
+ * 記録規則（hard/info の区分は core/diagnosticsState.ts の INFO_DIAGNOSTIC_CODES 参照）:
+ * - hard（スキャン整合性）コードが1つでもあれば「失敗」として畳み込む。
+ * - hard コード無しで全スキャン ok なら「成功」として畳み込む（lastGoodAt 更新）。
+ *   info（カバレッジ情報）コードだけのサイクルもここに含める: 未対応モジュール型を
+ *   含むコース等では info が恒常発火するため、これを失敗に数えると lastGoodAt が
+ *   恒久凍結し debounce も恒久無効化される（reducer 側の infoCodes へ分離して保持）。
+ * - hard コード無しで ok でない（ネットワーク例外・already_running 等）は記録しない:
+ *   途中で死んだサイクルの観測は不完全で、成功扱いで lastGoodAt を進めるのも
+ *   失敗扱いでバナーを出すのも嘘になる（中立スキップ）。
  * - 保存失敗はスキャン本体を壊さない（握って console.error のみ）。
  */
 async function recordScanCycleOutcome(results: ScanDiagnosticsResult[]): Promise<void> {
   const codes: DiagnosticCode[] = []
   for (const result of results) codes.push(...(result.diagnostics ?? []))
   const allOk = results.length > 0 && results.every((result) => result.ok)
-  if (codes.length === 0 && !allOk) return
+  const hasHardCode = codes.some((code) => !isInfoDiagnosticCode(code))
+  if (!hasHardCode && !allOk) return
 
   try {
     const stored = await chrome.storage.local.get(DIAGNOSTICS_STATE_KEY)
@@ -1165,7 +1170,7 @@ async function runManualUpdate(): Promise<void> {
   const assignment = await scanAssignmentCandidatesInBackground('standard')
   if (!assignment.ok) {
     // 課題スキャンで打ち切り: このサイクルの観測（LOGGED_OUT等）だけで台帳へ畳み込む。
-    // コード無しの失敗（ネットワーク例外・already_running）は中立＝記録されない。
+    // hardコード無しの失敗（ネットワーク例外・already_running）は中立＝記録されない。
     await recordScanCycleOutcome([assignment])
     await notifyUpdateFailed(assignment.reason)
     return
