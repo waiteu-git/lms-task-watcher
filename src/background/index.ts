@@ -58,6 +58,11 @@ import {
   type DiagnosticCode,
   type PageAuthState,
 } from '../core/diagnose'
+import {
+  applyScanOutcome,
+  DIAGNOSTICS_STATE_KEY,
+  type DiagnosticsState,
+} from '../core/diagnosticsState'
 
 console.log('[LETUS Task Watcher] background service worker loaded')
 
@@ -500,7 +505,9 @@ export async function scanAssignmentCandidatesInBackground(
   errorMessage?: string
   /** コースページfetchの認証分類集計（piggyback・追加リクエスト0）。診断配線タスクが利用する */
   authProbe?: AuthProbeSummary
-  /** スキャン全体で発火した診断コード（spec§4の評価関数の出力・重複排除）。storage永続はT9 */
+  /** スキャン全体で発火した診断コード（spec§4の評価関数の出力・重複排除）。
+   * storage永続は呼び出し側（runManualUpdate/runAutoScan の recordScanCycleOutcome）が
+   * サイクル単位で行う */
   diagnostics?: DiagnosticCode[]
   /** UNSUPPORTED_MODULE の詳細: コースページのリンクに現れた未知モジュール型（重複排除・昇順） */
   unsupportedModuleTypes?: string[]
@@ -564,7 +571,7 @@ export async function scanAssignmentCandidatesInBackground(
 
         const html = await response.text()
         // 認証プローブ（piggyback）: 取得済みレスポンスをそのまま分類して集計する。
-        // 追加リクエストはしない。この時点では観測のみ（storage永続はT9）。
+        // 追加リクエストはしない。ここは観測のみ（storage永続は呼び出し側のサイクル記録）。
         const classification = classifyFetchedPage({ finalUrl: response.url ?? '', bodyText: html })
         authProbe = addToAuthProbeSummary(authProbe, classification)
         // 分類は classifyFetchedPage 内でマーカー優先順位（ログアウト証拠 > M.cfg）を
@@ -742,12 +749,15 @@ export async function scanDeadlinesInBackground(pacer: Pacer = letusPacer): Prom
   errorMessage?: string
   /** 活動ページfetchの認証分類集計（piggyback・追加リクエスト0）。診断配線タスクが利用する */
   authProbe?: AuthProbeSummary
+  /** スキャン全体で発火した診断コード（重複排除）。diagnosticsState への畳み込みに使う */
+  diagnostics?: DiagnosticCode[]
 }> {
   if (isDeadlineScanning) return { ok: false, reason: 'already_running' }
 
   isDeadlineScanning = true
   const startedAt = new Date().toISOString()
   let authProbe = emptyAuthProbeSummary()
+  const diagnosticCodes = new Set<DiagnosticCode>()
 
   const courses = await getCourses()
   const enabledCourses = courses.filter((c) => c.enabled)
@@ -761,6 +771,10 @@ export async function scanDeadlinesInBackground(pacer: Pacer = letusPacer): Prom
         ? NOT_LOGGED_IN_ERROR_MESSAGE
         : 'LETUSへの通信に失敗しました。ネットワーク接続を確認してください。'
 
+    // login_required はログアウトの実観測なので診断コードとして浮上させる。
+    // network_error はレイアウト診断の対象外（diagnose層の責務外）＝コード無し。
+    if (loginStatus === 'login_required') diagnosticCodes.add('LOGGED_OUT')
+
     await saveDeadlineScanStatus({
       state: 'error',
       startedAt,
@@ -772,7 +786,7 @@ export async function scanDeadlinesInBackground(pacer: Pacer = letusPacer): Prom
       errorMessage,
     })
     isDeadlineScanning = false
-    return { ok: false, reason: loginStatus, errorMessage }
+    return { ok: false, reason: loginStatus, errorMessage, diagnostics: Array.from(diagnosticCodes) }
   }
 
   const candidates = await getAssignmentCandidates()
@@ -805,11 +819,16 @@ export async function scanDeadlinesInBackground(pacer: Pacer = letusPacer): Prom
 
         const html = await response.text()
         // 認証プローブ（piggyback）: 取得済みレスポンスをそのまま分類して集計する。
-        // 追加リクエストはしない。この時点では観測のみ（storage永続・UIは診断配線側）。
-        authProbe = addToAuthProbeSummary(
-          authProbe,
-          classifyFetchedPage({ finalUrl: response.url ?? '', bodyText: html }),
-        )
+        // 追加リクエストはしない。診断コード化も同じ分類から導く（課題スキャンと同型）。
+        const classification = classifyFetchedPage({ finalUrl: response.url ?? '', bodyText: html })
+        authProbe = addToAuthProbeSummary(authProbe, classification)
+        for (const code of diagnoseAuthProbe({
+          fetchOk: true,
+          hasMcfg: classification === 'logged_in',
+          hasLoginMarker: classification === 'logged_out',
+        })) {
+          diagnosticCodes.add(code)
+        }
         const plainText = htmlToPlainText(html)
         const deadlineText = extractDeadlineText(plainText)
         const fieldDeadline = deadlineText ? parseDeadline(deadlineText) : null
@@ -881,7 +900,7 @@ export async function scanDeadlinesInBackground(pacer: Pacer = letusPacer): Prom
       errorMessage: null,
     })
 
-    return { ok: true, detectedCount, authProbe }
+    return { ok: true, detectedCount, authProbe, diagnostics: Array.from(diagnosticCodes) }
   } catch (error) {
     await saveDeadlineScanStatus({
       state: 'error',
@@ -893,9 +912,51 @@ export async function scanDeadlinesInBackground(pacer: Pacer = letusPacer): Prom
       detectedCount: assignments.filter((a) => a.deadline !== null).length,
       errorMessage: String(error),
     })
-    return { ok: false, reason: 'error', errorMessage: String(error), authProbe }
+    return {
+      ok: false,
+      reason: 'error',
+      errorMessage: String(error),
+      authProbe,
+      diagnostics: Array.from(diagnosticCodes),
+    }
   } finally {
     isDeadlineScanning = false
+  }
+}
+
+// ─── Diagnostics ledger (spec§4 永続層) ───────────────────────────────────────
+
+/** 各スキャンが返す診断関連フィールドの最小形（記録に必要な分だけ） */
+type ScanDiagnosticsResult = { ok: boolean; diagnostics?: DiagnosticCode[] }
+
+/**
+ * 1スキャンサイクル（課題スキャン＋締切スキャン）の観測を diagnosticsState へ畳み込む。
+ *
+ * サイクル単位で1回だけ記録する理由: スキャン毎に個別記録すると、課題スキャンが
+ * コード付きで完了（失敗+1）→続く締切スキャンがコード無しで完了（成功=全リセット）の
+ * 振動が毎サイクル起き、連続失敗が閾値に達しない＝エスカレーションが恒久に死ぬ。
+ *
+ * 記録規則:
+ * - コードが1つでもあれば「失敗」として畳み込む（部分完了でも観測は観測）。
+ * - コード無しで全スキャン ok なら「成功」として畳み込む（lastGoodAt 更新）。
+ * - コード無しで ok でない（ネットワーク例外・already_running 等）は記録しない:
+ *   ネットワーク問題はレイアウト診断の対象外であり、成功扱いで lastGoodAt を
+ *   進めるのも失敗扱いでバナーを出すのも嘘になる（中立スキップ）。
+ * - 保存失敗はスキャン本体を壊さない（握って console.error のみ）。
+ */
+async function recordScanCycleOutcome(results: ScanDiagnosticsResult[]): Promise<void> {
+  const codes: DiagnosticCode[] = []
+  for (const result of results) codes.push(...(result.diagnostics ?? []))
+  const allOk = results.length > 0 && results.every((result) => result.ok)
+  if (codes.length === 0 && !allOk) return
+
+  try {
+    const stored = await chrome.storage.local.get(DIAGNOSTICS_STATE_KEY)
+    const prev = (stored[DIAGNOSTICS_STATE_KEY] as DiagnosticsState | undefined) ?? null
+    const next = applyScanOutcome(prev, { codes, at: new Date().toISOString() })
+    await chrome.storage.local.set({ [DIAGNOSTICS_STATE_KEY]: next })
+  } catch (error) {
+    console.error('[LETUS Task Watcher] diagnostics state save failed', error)
   }
 }
 
@@ -1032,7 +1093,7 @@ export async function checkIsLoggedIn(
   }
 }
 
-export async function runAutoScan(): Promise<void> {
+export async function runAutoScan(pacer: Pacer = letusPacer): Promise<void> {
   // 規約に同意していない利用者のデータは一切扱わない。
   if (!(await isConsented())) return
 
@@ -1041,8 +1102,17 @@ export async function runAutoScan(): Promise<void> {
 
   if (enabledCourses.length === 0) return
 
-  const loginStatus = await checkIsLoggedIn(enabledCourses)
+  const loginStatus = await checkIsLoggedIn(enabledCourses, pacer)
   if (isLoginBlocking(loginStatus)) {
+    // login_required はログアウトの実観測: スキャン本体は走らないが台帳へは記録する
+    // （日次アラームで放置ログアウトが activeCodes に反映されるように）。
+    // network_error は中立（コード無し・ok=false）＝記録されない。
+    await recordScanCycleOutcome([
+      {
+        ok: false,
+        diagnostics: loginStatus === 'login_required' ? ['LOGGED_OUT'] : [],
+      },
+    ])
     await createNotification({
       id: 'task-watcher-login-required',
       title: 'LETUS Task Watcher',
@@ -1055,8 +1125,11 @@ export async function runAutoScan(): Promise<void> {
     return
   }
 
-  await scanAssignmentCandidatesInBackground('standard')
-  await scanDeadlinesInBackground()
+  const assignment = await scanAssignmentCandidatesInBackground('standard', pacer)
+  const deadline = await scanDeadlinesInBackground(pacer)
+  // スキャン完了処理（spec§4）: サイクル全体の診断観測を diagnosticsState へ畳み込む。
+  // 従来どおり結果の ok に関わらず最終処理へ進む挙動は変えない（記録は追加のみ）。
+  await recordScanCycleOutcome([assignment, deadline])
   await saveLastRefreshAt(new Date().toISOString())
   await checkDeadlineWarningNotifications()
 }
@@ -1091,10 +1164,16 @@ async function notifyUpdateFailed(reason: string | undefined): Promise<void> {
 async function runManualUpdate(): Promise<void> {
   const assignment = await scanAssignmentCandidatesInBackground('standard')
   if (!assignment.ok) {
+    // 課題スキャンで打ち切り: このサイクルの観測（LOGGED_OUT等）だけで台帳へ畳み込む。
+    // コード無しの失敗（ネットワーク例外・already_running）は中立＝記録されない。
+    await recordScanCycleOutcome([assignment])
     await notifyUpdateFailed(assignment.reason)
     return
   }
   const deadline = await scanDeadlinesInBackground()
+  // スキャン完了処理（spec§4）: 課題＋締切のサイクル全体で1回だけ記録する
+  // （スキャン毎の個別記録は成功/失敗が交互に畳まれて閾値に届かなくなる）。
+  await recordScanCycleOutcome([assignment, deadline])
   if (!deadline.ok) {
     await notifyUpdateFailed(deadline.reason)
     return

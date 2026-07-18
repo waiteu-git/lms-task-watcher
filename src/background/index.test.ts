@@ -11,6 +11,7 @@ import {
 } from './storageKeys'
 import { TABLE_MINIMAL } from '../core/timetable.fixtures'
 import { TERMS_VERSION } from '../legal/termsVersion'
+import { DIAGNOSTICS_STATE_KEY, type DiagnosticsState } from '../core/diagnosticsState'
 
 // 実時間の setTimeout を待たないよう、テストではペーシングを無効化する。
 const noopPacer = { acquire: async () => {} }
@@ -69,6 +70,7 @@ const {
   checkIsLoggedIn,
   scanAssignmentCandidatesInBackground,
   scanDeadlinesInBackground,
+  runAutoScan,
   handleInstalled,
   applyAutoSelect,
   ALARM_PERIOD_MINUTES,
@@ -747,6 +749,184 @@ describe('scanDeadlinesInBackground', () => {
       loggedOutCount: 0,
       notMoodleCount: 1,
     })
+    // 同じ分類から診断コードも導く（NOT_A_MOODLE_PAGE が浮上・追加fetch無し）
+    expect(result.diagnostics).toEqual(['NOT_A_MOODLE_PAGE'])
+  })
+
+  it('全活動ページ正常なら診断コードは空配列を返す', async () => {
+    store[COURSES_KEY] = [makeCourse()]
+    store[ASSIGNMENT_CANDIDATES_KEY] = [makeCandidate()]
+
+    vi.stubGlobal('fetch', vi.fn(async (url: string) => ({
+      ok: true,
+      url,
+      text: async () =>
+        '<script>M.cfg = {"wwwroot":"https:\\/\\/letus.ed.tus.ac.jp","sesskey":"AbCd012345"};</script>提出期限 2026年12月1日 23時59分',
+    })))
+
+    const result = await scanDeadlinesInBackground(noopPacer)
+
+    expect(result.ok).toBe(true)
+    expect(result.diagnostics).toEqual([])
+  })
+
+  it('未ログインでブロックされた場合はLOGGED_OUTを診断コードとして返す', async () => {
+    store[COURSES_KEY] = [makeCourse()]
+    store[ASSIGNMENT_CANDIDATES_KEY] = [makeCandidate()]
+
+    vi.stubGlobal('fetch', vi.fn(async () => ({ ok: true, url: 'https://letus.ed.tus.ac.jp/login/index.php' })))
+
+    const result = await scanDeadlinesInBackground(noopPacer)
+
+    expect(result.ok).toBe(false)
+    expect(result.reason).toBe('login_required')
+    expect(result.diagnostics).toEqual(['LOGGED_OUT'])
+  })
+
+  it('通信エラーでブロックされた場合は診断コードを出さない（ネットワークはレイアウト診断の対象外）', async () => {
+    store[COURSES_KEY] = [makeCourse()]
+    store[ASSIGNMENT_CANDIDATES_KEY] = [makeCandidate()]
+
+    vi.stubGlobal('fetch', vi.fn(async () => { throw new Error('Failed to fetch') }))
+
+    const result = await scanDeadlinesInBackground(noopPacer)
+
+    expect(result.ok).toBe(false)
+    expect(result.reason).toBe('network_error')
+    expect(result.diagnostics).toEqual([])
+  })
+})
+
+describe('diagnosticsState 保存配線（runAutoScanのスキャン完了処理）', () => {
+  const consent = { version: TERMS_VERSION, acceptedAt: '2026-07-10T00:00:00.000Z' }
+
+  /** M.cfg入りのログイン済みコースページ（assignリンクあり＝健全） */
+  const healthyCoursePage =
+    '<script>M.cfg = {"wwwroot":"https:\\/\\/letus.ed.tus.ac.jp","sesskey":"AbCd012345"};</script>' +
+    '<a href="/mod/assign/view.php?id=1">課題1</a>'
+
+  /** コースマーカーは残っているのに mod リンクが全滅したページ（破損の兆候） */
+  const lostAllPage =
+    '<body class="format-topics path-course-view">' +
+    '<script>M.cfg = {"wwwroot":"https:\\/\\/letus.ed.tus.ac.jp","sesskey":"AbCd012345"};</script>' +
+    'コース本文（課題リンク無し）</body>'
+
+  function getLedger(): DiagnosticsState | undefined {
+    return store[DIAGNOSTICS_STATE_KEY] as DiagnosticsState | undefined
+  }
+
+  it('健全なサイクル完了で成功として記録する（lastGoodAt刻印・activeCodes空）', async () => {
+    store[TERMS_CONSENT_KEY] = consent
+    store[COURSES_KEY] = [makeCourse()]
+
+    vi.stubGlobal('fetch', vi.fn(async (url: string) => ({
+      ok: true,
+      url,
+      text: async () =>
+        url.includes('/mod/assign/')
+          ? '<script>M.cfg = {"wwwroot":"https:\\/\\/letus.ed.tus.ac.jp","sesskey":"AbCd012345"};</script>提出期限 2026年12月1日 23時59分'
+          : healthyCoursePage,
+    })))
+
+    await runAutoScan(noopPacer)
+
+    const ledger = getLedger()
+    expect(ledger).toBeDefined()
+    expect(ledger?.lastGoodAt).not.toBeNull()
+    expect(ledger?.consecutiveFailures).toBe(0)
+    expect(ledger?.activeCodes).toEqual([])
+    expect(ledger?.lastCodes).toEqual([])
+  })
+
+  it('診断コード付きサイクルは1回目で昇格せず、2回連続で activeCodes に昇格する（debounce）', async () => {
+    store[TERMS_CONSENT_KEY] = consent
+    store[COURSES_KEY] = [makeCourse()]
+    // 既知コース（前回シグネチャあり）が全課題を喪失した状況を2サイクル続ける
+    store['courseSignature:course-1'] = [
+      { title: '課題1', url: 'https://letus.ed.tus.ac.jp/mod/assign/view.php?id=1' },
+      { title: '課題2', url: 'https://letus.ed.tus.ac.jp/mod/assign/view.php?id=2' },
+    ]
+
+    vi.stubGlobal('fetch', vi.fn(async (url: string) => ({
+      ok: true,
+      url,
+      text: async () => lostAllPage,
+    })))
+
+    await runAutoScan(noopPacer)
+    const after1 = getLedger()
+    expect(after1?.consecutiveFailures).toBe(1)
+    expect(after1?.activeCodes).toEqual([]) // 単発ではバナーを出さない
+    expect(after1?.lastCodes).toEqual(['COURSE_LOST_ALL_ASSIGNMENTS'])
+
+    await runAutoScan(noopPacer)
+    const after2 = getLedger()
+    expect(after2?.consecutiveFailures).toBe(2)
+    expect(after2?.activeCodes).toEqual(['COURSE_LOST_ALL_ASSIGNMENTS'])
+  })
+
+  it('破損が直った次のサイクルで全クリアされ lastGoodAt が更新される', async () => {
+    store[TERMS_CONSENT_KEY] = consent
+    store[COURSES_KEY] = [makeCourse()]
+    store[DIAGNOSTICS_STATE_KEY] = {
+      lastGoodAt: null,
+      consecutiveFailures: 2,
+      activeCodes: ['COURSE_LOST_ALL_ASSIGNMENTS'],
+      lastCodes: ['COURSE_LOST_ALL_ASSIGNMENTS'],
+      updatedAt: '2026-07-17T00:00:00.000Z',
+    } satisfies DiagnosticsState
+
+    vi.stubGlobal('fetch', vi.fn(async (url: string) => ({
+      ok: true,
+      url,
+      text: async () =>
+        url.includes('/mod/assign/')
+          ? '<script>M.cfg = {"wwwroot":"https:\\/\\/letus.ed.tus.ac.jp","sesskey":"AbCd012345"};</script>提出期限 2026年12月1日 23時59分'
+          : healthyCoursePage,
+    })))
+
+    await runAutoScan(noopPacer)
+
+    const ledger = getLedger()
+    expect(ledger?.activeCodes).toEqual([])
+    expect(ledger?.consecutiveFailures).toBe(0)
+    expect(ledger?.lastGoodAt).not.toBeNull()
+  })
+
+  it('ログイン切れの自動スキャンは LOGGED_OUT を即 activeCodes に記録する（閾値の例外）', async () => {
+    store[TERMS_CONSENT_KEY] = consent
+    store[COURSES_KEY] = [makeCourse()]
+
+    vi.stubGlobal('fetch', vi.fn(async () => ({
+      ok: true,
+      url: 'https://letus.ed.tus.ac.jp/login/index.php',
+    })))
+
+    await runAutoScan(noopPacer)
+
+    const ledger = getLedger()
+    expect(ledger?.consecutiveFailures).toBe(1)
+    expect(ledger?.activeCodes).toEqual(['LOGGED_OUT'])
+    expect(ledger?.lastGoodAt).toBeNull()
+  })
+
+  it('ネットワークエラーは中立＝台帳を書き換えない（成功にも破損にも数えない）', async () => {
+    store[TERMS_CONSENT_KEY] = consent
+    store[COURSES_KEY] = [makeCourse()]
+    const before: DiagnosticsState = {
+      lastGoodAt: '2026-07-17T00:00:00.000Z',
+      consecutiveFailures: 1,
+      activeCodes: [],
+      lastCodes: ['DASHBOARD_UNREADABLE'],
+      updatedAt: '2026-07-17T00:00:00.000Z',
+    }
+    store[DIAGNOSTICS_STATE_KEY] = before
+
+    vi.stubGlobal('fetch', vi.fn(async () => { throw new Error('Failed to fetch') }))
+
+    await runAutoScan(noopPacer)
+
+    expect(getLedger()).toEqual(before)
   })
 })
 
