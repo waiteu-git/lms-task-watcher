@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import {
   buildBannerContent,
+  buildInfoNotes,
   type BannerContent,
   type BannerKind,
 } from './diagnosticsBanner'
@@ -173,5 +174,124 @@ describe('buildBannerContent: 純粋性と網羅性', () => {
       expect(content.title.length).toBeGreaterThan(0)
       expect(content.body.length).toBeGreaterThan(0)
     }
+  })
+})
+
+/** infoCodes だけ差し替えた健全状態（activeCodes空）を作るヘルパ */
+function infoStateWith(
+  infoCodes: DiagnosticCode[],
+  overrides: Partial<DiagnosticsState> = {},
+): DiagnosticsState {
+  return {
+    lastGoodAt: T_GOOD,
+    consecutiveFailures: 0,
+    activeCodes: [],
+    infoCodes,
+    lastCodes: infoCodes,
+    updatedAt: T_NOW,
+    ...overrides,
+  }
+}
+
+describe('buildInfoNotes: 非表示（空配列）', () => {
+  it('state=null（未スキャン・保存無し）では出さない', () => {
+    expect(buildInfoNotes(null)).toEqual([])
+  })
+
+  it('infoCodes が空（健全・注記なし）では出さない', () => {
+    expect(buildInfoNotes(infoStateWith([]))).toEqual([])
+  })
+
+  it('activeCodes 非空（警告バナー表示中）は infoCodes があっても出さない（重複排除）', () => {
+    const state = infoStateWith(['UNSUPPORTED_MODULE'], {
+      activeCodes: ['DASHBOARD_UNREADABLE'],
+      consecutiveFailures: 2,
+    })
+    expect(buildInfoNotes(state)).toEqual([])
+  })
+})
+
+describe('buildInfoNotes: 既知 info コードの文言（spec§0「未対応と正直に示す」の実配線）', () => {
+  it('UNSUPPORTED_MODULE で未対応注記を返す（バナー unsupported と同一文）', () => {
+    const notes = buildInfoNotes(infoStateWith(['UNSUPPORTED_MODULE']))
+    expect(notes).toEqual([
+      {
+        code: 'UNSUPPORTED_MODULE',
+        text: '一部の活動はまだ締切の自動取得に対応していません。',
+      },
+    ])
+    // バナー防御枝（旧形式データ）と同じ文言＝単一情報源の確認
+    expect(notes[0].text).toBe(
+      buildBannerContent(stateWith(['UNSUPPORTED_MODULE'])).body,
+    )
+  })
+
+  it('DEADLINE_KEYWORD_NO_DATE で日時未読取の注記を返す', () => {
+    expect(buildInfoNotes(infoStateWith(['DEADLINE_KEYWORD_NO_DATE']))).toEqual([
+      {
+        code: 'DEADLINE_KEYWORD_NO_DATE',
+        text: '一部の活動で締切らしい記載を見つけましたが、日時を読み取れませんでした。',
+      },
+    ])
+  })
+
+  it('COURSE_LOST_ALL_ASSIGNMENTS で last-good 保持の注記を返す（正当な非表示化でも発火するため断定しない）', () => {
+    expect(buildInfoNotes(infoStateWith(['COURSE_LOST_ALL_ASSIGNMENTS']))).toEqual([
+      {
+        code: 'COURSE_LOST_ALL_ASSIGNMENTS',
+        text: '一部のコースで課題が見つからなくなりました。以前に取得した課題は引き続き表示しています。',
+      },
+    ])
+  })
+})
+
+describe('buildInfoNotes: 複数コード・順序・未知コード', () => {
+  it('複数コードは全件を固定順（unsupported 先頭）で返し、入力順に依存しない', () => {
+    const a = buildInfoNotes(
+      infoStateWith(['COURSE_LOST_ALL_ASSIGNMENTS', 'UNSUPPORTED_MODULE']),
+    )
+    const b = buildInfoNotes(
+      infoStateWith(['UNSUPPORTED_MODULE', 'COURSE_LOST_ALL_ASSIGNMENTS']),
+    )
+    expect(a.map((n) => n.code)).toEqual([
+      'UNSUPPORTED_MODULE',
+      'COURSE_LOST_ALL_ASSIGNMENTS',
+    ])
+    expect(a).toEqual(b)
+  })
+
+  it('未知の info コード（将来の階級再分類等）は汎用文へ倒す（黙って落とさない）', () => {
+    const future = 'SOME_FUTURE_INFO_CODE' as DiagnosticCode
+    expect(buildInfoNotes(infoStateWith([future]))).toEqual([
+      { code: future, text: '一部の情報を自動取得できていない可能性があります。' },
+    ])
+  })
+
+  it('未知コードが複数あっても同一の汎用文は1つに束ねる', () => {
+    const f1 = 'FUTURE_A' as DiagnosticCode
+    const f2 = 'FUTURE_B' as DiagnosticCode
+    const notes = buildInfoNotes(infoStateWith([f1, f2]))
+    expect(notes).toHaveLength(1)
+    expect(notes[0].text).toBe('一部の情報を自動取得できていない可能性があります。')
+  })
+
+  it('既知コードと未知コードの混在では既知の固定順→未知の順で全文言が出る', () => {
+    const future = 'FUTURE_A' as DiagnosticCode
+    const notes = buildInfoNotes(
+      infoStateWith([future, 'UNSUPPORTED_MODULE', 'DEADLINE_KEYWORD_NO_DATE']),
+    )
+    expect(notes.map((n) => n.code)).toEqual([
+      'UNSUPPORTED_MODULE',
+      'DEADLINE_KEYWORD_NO_DATE',
+      future,
+    ])
+    expect(new Set(notes.map((n) => n.text)).size).toBe(3)
+  })
+
+  it('state を変異させない', () => {
+    const state = infoStateWith(['UNSUPPORTED_MODULE', 'DEADLINE_KEYWORD_NO_DATE'])
+    const snapshot = structuredClone(state)
+    buildInfoNotes(state)
+    expect(state).toEqual(snapshot)
   })
 })

@@ -107,7 +107,7 @@ import {
 } from './utils/manualAssignment'
 import { isConsented, saveConsent } from './legal/termsConsent'
 import { TermsConsentScreen } from './components/TermsConsentScreen'
-import { buildBannerContent } from './core/diagnosticsBanner'
+import { buildBannerContent, buildInfoNotes } from './core/diagnosticsBanner'
 import { DIAGNOSTICS_STATE_KEY, type DiagnosticsState } from './core/diagnosticsState'
 
 // 自前バックエンドは凍結中（VITE_API_BASE_URL 未設定=空）。空なら syncToServer 等は no-op。
@@ -543,6 +543,14 @@ export default function App() {
   // CLASS（時間割）はMoodle診断の対象外なので、このバナーはCLASS系セクションに置かない。
   const diagnosticsBanner = useMemo(
     () => buildBannerContent(diagnosticsState),
+    [diagnosticsState],
+  )
+
+  // カバレッジ情報ノート（spec§7 unsupported-module 表示・§0「未対応と正直に示す」）。
+  // hard/info 区分で activeCodes に載らない info コード（未対応モジュール等）の実配線。
+  // 警告バナー表示中は buildInfoNotes が空配列を返す（重複排除）。CLASS対象外は同上。
+  const diagnosticsInfoNotes = useMemo(
+    () => buildInfoNotes(diagnosticsState),
     [diagnosticsState],
   )
 
@@ -1156,6 +1164,14 @@ export default function App() {
               再試行
             </button>
           </div>
+        </section>
+      )}
+
+      {diagnosticsInfoNotes.length > 0 && (
+        <section className="diagnosticsInfoNotes" role="note">
+          {diagnosticsInfoNotes.map((note) => (
+            <span key={note.code}>{note.text}</span>
+          ))}
         </section>
       )}
 

@@ -325,6 +325,19 @@ h2 {
 .diagnosticsBannerFooter button:hover { filter: brightness(1.06); }
 .diagnosticsBannerFooter button:disabled { opacity: 0.55; cursor: default; }
 
+/* カバレッジ情報ノート（infoCodes・spec§7 unsupported表示）。警告でない情報トーン:
+   警告色・再試行ボタンを持たず --muted で控えめに示す。テーマトークンのみ使用。 */
+.diagnosticsInfoNotes {
+  display: grid;
+  gap: 4px;
+  margin: 0 0 12px;
+  padding: 10px 14px;
+  border-radius: 12px;
+  background: var(--card);
+  border: 1px solid var(--border);
+}
+.diagnosticsInfoNotes span { color: var(--muted); font-size: 11.5px; font-weight: 600; line-height: 1.5; }
+
 .undoToast {
   display: flex;
   align-items: center;
