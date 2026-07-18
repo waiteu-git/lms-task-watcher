@@ -38,6 +38,12 @@ import { selectCoursesByTimetable } from '../core/courseSelect'
 import { academicYear } from '../core/syllabus'
 import { createPacer, LETUS_MIN_REQUEST_GAP_MS, type Pacer } from '../core/pacer'
 import { createKeepAlive } from '../core/keepAlive'
+import {
+  classifyFetchedPage,
+  emptyAuthProbeSummary,
+  addToAuthProbeSummary,
+  type AuthProbeSummary,
+} from '../core/authProbe'
 
 console.log('[LETUS Task Watcher] background service worker loaded')
 
@@ -504,11 +510,19 @@ chrome.notifications.onClosed.addListener(async (notificationId) => {
 export async function scanAssignmentCandidatesInBackground(
   scanLevel: ScanLevel = 'standard',
   pacer: Pacer = letusPacer,
-): Promise<{ ok: boolean; reason?: string; detectedCount?: number; errorMessage?: string }> {
+): Promise<{
+  ok: boolean
+  reason?: string
+  detectedCount?: number
+  errorMessage?: string
+  /** コースページfetchの認証分類集計（piggyback・追加リクエスト0）。診断配線タスクが利用する */
+  authProbe?: AuthProbeSummary
+}> {
   if (isAssignmentScanning) return { ok: false, reason: 'already_running' }
 
   isAssignmentScanning = true
   const startedAt = new Date().toISOString()
+  let authProbe = emptyAuthProbeSummary()
   const courses = await getCourses()
   const enabledCourses = courses.filter((c) => c.enabled)
   const enabledCourseIds = new Set(enabledCourses.map((c) => c.id))
@@ -552,6 +566,12 @@ export async function scanAssignmentCandidatesInBackground(
         if (!response.ok) return null
 
         const html = await response.text()
+        // 認証プローブ（piggyback）: 取得済みレスポンスをそのまま分類して集計する。
+        // 追加リクエストはしない。この時点では観測のみ（storage永続・UIは診断配線側）。
+        authProbe = addToAuthProbeSummary(
+          authProbe,
+          classifyFetchedPage({ finalUrl: response.url ?? '', bodyText: html }),
+        )
         const links = extractLinksFromHtml(html, course.url)
 
         try {
@@ -622,7 +642,7 @@ export async function scanAssignmentCandidatesInBackground(
       errorMessage: null,
     })
 
-    return { ok: true, detectedCount: assignmentCandidates.length }
+    return { ok: true, detectedCount: assignmentCandidates.length, authProbe }
   } catch (error) {
     await saveAssignmentScanStatus({
       state: 'error',
@@ -634,7 +654,7 @@ export async function scanAssignmentCandidatesInBackground(
       detectedCount: assignmentMap.size,
       errorMessage: String(error),
     })
-    return { ok: false, reason: 'error', errorMessage: String(error) }
+    return { ok: false, reason: 'error', errorMessage: String(error), authProbe }
   } finally {
     isAssignmentScanning = false
   }
@@ -647,17 +667,22 @@ export async function scanDeadlinesInBackground(pacer: Pacer = letusPacer): Prom
   reason?: string
   detectedCount?: number
   errorMessage?: string
+  /** 活動ページfetchの認証分類集計（piggyback・追加リクエスト0）。診断配線タスクが利用する */
+  authProbe?: AuthProbeSummary
 }> {
   if (isDeadlineScanning) return { ok: false, reason: 'already_running' }
 
   isDeadlineScanning = true
   const startedAt = new Date().toISOString()
+  let authProbe = emptyAuthProbeSummary()
 
   const courses = await getCourses()
   const enabledCourses = courses.filter((c) => c.enabled)
   const loginStatus = await checkIsLoggedIn(enabledCourses, pacer)
 
-  if (loginStatus !== 'ok') {
+  // unknown（enabledコース0件＝判定不能）はブロックしない: 候補が残っていれば
+  // スキャン本体は従来どおり走らせ、偽のログインエラーをUIに出さない。
+  if (isLoginBlocking(loginStatus)) {
     const errorMessage =
       loginStatus === 'login_required'
         ? 'LETUSにログインしていないため更新できませんでした。'
@@ -706,6 +731,12 @@ export async function scanDeadlinesInBackground(pacer: Pacer = letusPacer): Prom
         if (!response.ok) return null
 
         const html = await response.text()
+        // 認証プローブ（piggyback）: 取得済みレスポンスをそのまま分類して集計する。
+        // 追加リクエストはしない。この時点では観測のみ（storage永続・UIは診断配線側）。
+        authProbe = addToAuthProbeSummary(
+          authProbe,
+          classifyFetchedPage({ finalUrl: response.url ?? '', bodyText: html }),
+        )
         const plainText = htmlToPlainText(html)
         const deadlineText = extractDeadlineText(plainText)
         const fieldDeadline = deadlineText ? parseDeadline(deadlineText) : null
@@ -777,7 +808,7 @@ export async function scanDeadlinesInBackground(pacer: Pacer = letusPacer): Prom
       errorMessage: null,
     })
 
-    return { ok: true, detectedCount }
+    return { ok: true, detectedCount, authProbe }
   } catch (error) {
     await saveDeadlineScanStatus({
       state: 'error',
@@ -789,7 +820,7 @@ export async function scanDeadlinesInBackground(pacer: Pacer = letusPacer): Prom
       detectedCount: assignments.filter((a) => a.deadline !== null).length,
       errorMessage: String(error),
     })
-    return { ok: false, reason: 'error', errorMessage: String(error) }
+    return { ok: false, reason: 'error', errorMessage: String(error), authProbe }
   } finally {
     isDeadlineScanning = false
   }
@@ -882,16 +913,30 @@ export const ALARM_PERIOD_MINUTES = 1440
 
 const LETUS_LOGIN_URL = 'https://letus.ed.tus.ac.jp/login/index.php'
 
-function isNotLoggedInPageContent(html: string): boolean {
-  return html.includes('あなたはログインしていません') || html.includes('You are not logged in')
+/**
+ * ログイン確認の結果。
+ * - 'unknown': プローブ対象（enabledコース）が無く判定不能。以前はここで無条件 'ok' を
+ *   返しており「ログイン済みだが0コース」を区別できなかった（spec§6）。unknown は
+ *   スキャンを阻害してはならない値であり、呼び出し側のブロック条件は必ず
+ *   isLoginBlocking()（login_required / network_error のみ）で判定すること。
+ */
+export type LoginCheckStatus = 'ok' | 'login_required' | 'network_error' | 'unknown'
+
+/**
+ * スキャン中止・エラー通知に値する失敗か。unknown（判定不能）と ok は非ブロック。
+ * 「loginStatus !== 'ok'」比較だと unknown を偽エラー（network_error扱い）に
+ * 落としてしまうため、ブロック条件はこの関数へ一本化する。
+ */
+function isLoginBlocking(status: LoginCheckStatus): status is 'login_required' | 'network_error' {
+  return status === 'login_required' || status === 'network_error'
 }
 
 export async function checkIsLoggedIn(
   courses: Course[],
   pacer: Pacer = letusPacer,
-): Promise<'ok' | 'login_required' | 'network_error'> {
+): Promise<LoginCheckStatus> {
   const course = courses.find((c) => c.enabled)
-  if (!course) return 'ok'
+  if (!course) return 'unknown'
   try {
     await pacer.acquire()
     const response = await fetch(course.url, {
@@ -904,7 +949,11 @@ export async function checkIsLoggedIn(
     if (!response.ok) return 'network_error'
     if (response.url.includes('/login/')) return 'login_required'
     const html = await response.text()
-    return isNotLoggedInPageContent(html) ? 'login_required' : 'ok'
+    // 本文分類は core/authProbe に一元化。logged_out だけをブロックし、
+    // not_moodle_page は従来挙動どおりここでは 'ok'（矛盾検知は診断配線側の責務）。
+    return classifyFetchedPage({ finalUrl: response.url, bodyText: html }) === 'logged_out'
+      ? 'login_required'
+      : 'ok'
   } catch {
     return 'network_error'
   }
@@ -920,7 +969,7 @@ export async function runAutoScan(): Promise<void> {
   if (enabledCourses.length === 0) return
 
   const loginStatus = await checkIsLoggedIn(enabledCourses)
-  if (loginStatus !== 'ok') {
+  if (isLoginBlocking(loginStatus)) {
     await createNotification({
       id: 'task-watcher-login-required',
       title: 'LETUS Task Watcher',
@@ -1113,7 +1162,8 @@ function handleCollectingMessage(
       const courses = await getCourses()
       const enabledCourses = courses.filter((c) => c.enabled)
       const loginStatus = await checkIsLoggedIn(enabledCourses)
-      if (loginStatus !== 'ok') {
+      // unknown（enabledコース0件）は従来の 'ok' と同じく開始を許す（偽エラーを返さない）。
+      if (isLoginBlocking(loginStatus)) {
         sendResponse({
           ok: false,
           reason: loginStatus === 'login_required' ? 'not_logged_in' : 'network_error',
@@ -1139,7 +1189,8 @@ function handleCollectingMessage(
       const courses = await getCourses()
       const enabledCourses = courses.filter((c) => c.enabled)
       const loginStatus = await checkIsLoggedIn(enabledCourses)
-      if (loginStatus !== 'ok') {
+      // unknown（enabledコース0件）は従来の 'ok' と同じく開始を許す（偽エラーを返さない）。
+      if (isLoginBlocking(loginStatus)) {
         sendResponse({
           ok: false,
           reason: loginStatus === 'login_required' ? 'not_logged_in' : 'network_error',

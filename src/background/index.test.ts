@@ -203,9 +203,14 @@ describe('upsertAssignments', () => {
 })
 
 describe('checkIsLoggedIn', () => {
-  it('有効なコースがない場合はokを返す', async () => {
+  it('有効なコースがない場合はfetchせずunknownを返す（無条件okにしない）', async () => {
+    // 以前は無条件 'ok' で「ログイン済みだが0コース」を検出不能だった（spec§6）。
+    // unknown はスキャンを阻害しない明示値（ブロックは login_required/network_error のみ）。
+    const fetchSpy = vi.fn()
+    vi.stubGlobal('fetch', fetchSpy)
     const result = await checkIsLoggedIn([makeCourse({ enabled: false })], noopPacer)
-    expect(result).toBe('ok')
+    expect(result).toBe('unknown')
+    expect(fetchSpy).not.toHaveBeenCalled()
   })
 
   it('ログイン済みの場合はokを返す', async () => {
@@ -324,6 +329,59 @@ describe('scanAssignmentCandidatesInBackground', () => {
     const saved = store[ASSIGNMENT_CANDIDATES_KEY] as AssignmentCandidate[]
     expect(saved.some((c) => c.id === 'cand-course-2')).toBe(true)
     expect(saved.some((c) => c.courseId === 'course-2' && c.title === '新課題')).toBe(true)
+  })
+
+  it('fetch成功したコースページを分類したauthProbe集計を返す（piggyback・追加リクエスト0）', async () => {
+    store[COURSES_KEY] = [
+      makeCourse({ id: 'course-1', url: 'https://letus.ed.tus.ac.jp/course/view.php?id=1' }),
+      makeCourse({ id: 'course-2', url: 'https://letus.ed.tus.ac.jp/course/view.php?id=2', name: '講義2' }),
+    ]
+
+    const fetchSpy = vi.fn(async (url: string) => {
+      if (url.includes('id=2')) {
+        // M.cfgも未ログインマーカーも無い応答（メンテページ等）
+        return { ok: true, url, text: async () => '<html><body>メンテナンス中</body></html>' }
+      }
+      return {
+        ok: true,
+        url,
+        text: async () =>
+          '<script>M.cfg = {"wwwroot":"https:\\/\\/letus.ed.tus.ac.jp","sesskey":"AbCd012345"};</script>' +
+          '<a href="/mod/assign/view.php?id=1">課題1</a>',
+      }
+    })
+    vi.stubGlobal('fetch', fetchSpy)
+
+    const result = await scanAssignmentCandidatesInBackground('standard', noopPacer)
+
+    expect(result.ok).toBe(true)
+    expect(result.authProbe).toEqual({
+      probedCount: 2,
+      loggedInCount: 1,
+      loggedOutCount: 0,
+      notMoodleCount: 1,
+    })
+    // piggyback制約: fetchはコースページ2件のみ（認証プローブ用の追加リクエスト無し）
+    expect(fetchSpy).toHaveBeenCalledTimes(2)
+  })
+
+  it('未ログイン応答のコースページはauthProbeでlogged_outに集計される', async () => {
+    store[COURSES_KEY] = [makeCourse()]
+
+    vi.stubGlobal('fetch', vi.fn(async (url: string) => ({
+      ok: true,
+      url,
+      text: async () => '<span>あなたはログインしていません。</span>',
+    })))
+
+    const result = await scanAssignmentCandidatesInBackground('standard', noopPacer)
+
+    expect(result.authProbe).toEqual({
+      probedCount: 1,
+      loggedInCount: 0,
+      loggedOutCount: 1,
+      notMoodleCount: 0,
+    })
   })
 })
 
@@ -446,6 +504,60 @@ describe('scanDeadlinesInBackground', () => {
     const kept = saved.find((a) => a.id === 'cand-2')
     expect(kept?.title).toBe('既存の課題2')
     expect(saved.some((a) => a.id === 'cand-1')).toBe(true)
+  })
+
+  it('enabledコース0件（ログイン判定unknown）でもスキャンを阻害せず候補を処理する', async () => {
+    // 以前の無条件 'ok' と同じく走行し続けることの後方互換確認。
+    // unknown を「!== ok」でエラー扱いすると偽のログインエラーがUIに出る。
+    store[COURSES_KEY] = [makeCourse({ enabled: false })]
+    store[ASSIGNMENT_CANDIDATES_KEY] = [makeCandidate()]
+
+    const fetchSpy = vi.fn(async (url: string) => ({
+      ok: true,
+      url,
+      text: async () => '提出期限 2026年12月1日 23時59分',
+    }))
+    vi.stubGlobal('fetch', fetchSpy)
+
+    const result = await scanDeadlinesInBackground(noopPacer)
+
+    expect(result.ok).toBe(true)
+    expect(result.detectedCount).toBe(1)
+    // checkIsLoggedIn はプローブ対象が無いので fetch しない＝候補1件分だけ
+    expect(fetchSpy).toHaveBeenCalledTimes(1)
+    const status = store[DEADLINE_SCAN_STATUS_KEY] as { state: string }
+    expect(status.state).toBe('completed')
+  })
+
+  it('fetch成功した活動ページを分類したauthProbe集計を返す（piggyback・追加リクエスト0）', async () => {
+    store[COURSES_KEY] = [makeCourse()]
+    store[ASSIGNMENT_CANDIDATES_KEY] = [
+      makeCandidate({ id: 'cand-1', url: 'https://letus.ed.tus.ac.jp/mod/assign/view.php?id=1' }),
+      makeCandidate({ id: 'cand-2', url: 'https://letus.ed.tus.ac.jp/mod/assign/view.php?id=2' }),
+    ]
+
+    vi.stubGlobal('fetch', vi.fn(async (url: string) => {
+      if (url.includes('mod/assign') && url.includes('id=2')) {
+        return { ok: true, url, text: async () => '<html><body>ポータルにリダイレクトされました</body></html>' }
+      }
+      return {
+        ok: true,
+        url,
+        text: async () =>
+          '<script>M.cfg = {"wwwroot":"https:\\/\\/letus.ed.tus.ac.jp","sesskey":"AbCd012345"};</script>提出期限 2026年12月1日 23時59分',
+      }
+    }))
+
+    const result = await scanDeadlinesInBackground(noopPacer)
+
+    expect(result.ok).toBe(true)
+    // checkIsLoggedIn の分は集計対象外（スキャン本体のfetchのみを分類する）
+    expect(result.authProbe).toEqual({
+      probedCount: 2,
+      loggedInCount: 1,
+      loggedOutCount: 0,
+      notMoodleCount: 1,
+    })
   })
 })
 
