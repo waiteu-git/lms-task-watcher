@@ -82,7 +82,7 @@ import {
   type ManualAssignment,
   type ManualAssignmentPatch,
 } from './core/manualAssignment'
-import { DEADLINE_OVERRIDES_KEY, MANUAL_ASSIGNMENTS_KEY } from './background/storageKeys'
+import { DEADLINE_OVERRIDES_KEY, MANUAL_ASSIGNMENTS_KEY, MOODLE_FINGERPRINT_KEY } from './background/storageKeys'
 import { AssignmentMemo } from './components/AssignmentMemo'
 import { ManualAssignmentCard } from './components/ManualAssignmentCard'
 import { TimetableSection } from './components/TimetableSection'
@@ -107,6 +107,13 @@ import {
 } from './utils/manualAssignment'
 import { isConsented, saveConsent } from './legal/termsConsent'
 import { TermsConsentScreen } from './components/TermsConsentScreen'
+import {
+  buildBannerContent,
+  buildInfoNotes,
+  shouldSuppressScanErrorBanner,
+} from './core/diagnosticsBanner'
+import { DIAGNOSTICS_STATE_KEY, type DiagnosticsState } from './core/diagnosticsState'
+import type { StoredMoodleFingerprint } from './core/moodleFingerprint'
 
 // 自前バックエンドは凍結中（VITE_API_BASE_URL 未設定=空）。空なら syncToServer 等は no-op。
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL as string ?? ''
@@ -141,6 +148,8 @@ export default function App() {
     courseOverrides: {},
   })
   const [message, setMessage] = useState('')
+  const [diagnosticsState, setDiagnosticsState] = useState<DiagnosticsState | null>(null)
+  const [moodleFingerprint, setMoodleFingerprint] = useState<StoredMoodleFingerprint | null>(null)
   const [showOnboarding, setShowOnboarding] = useState(false)
   const [consentState, setConsentState] = useState<'loading' | 'needed' | 'ok'>('loading')
   const hasAutoRefreshCheckedRef = useRef(false)
@@ -330,10 +339,33 @@ export default function App() {
         const newValue = changes[MANUAL_ASSIGNMENTS_KEY].newValue as ManualAssignment[] | undefined
         setManualAssignments(newValue ?? [])
       }
+      if (DIAGNOSTICS_STATE_KEY in changes) {
+        const newValue = changes[DIAGNOSTICS_STATE_KEY].newValue as DiagnosticsState | undefined
+        setDiagnosticsState(newValue ?? null)
+      }
+      if (MOODLE_FINGERPRINT_KEY in changes) {
+        const newValue = changes[MOODLE_FINGERPRINT_KEY].newValue as StoredMoodleFingerprint | undefined
+        setMoodleFingerprint(newValue ?? null)
+      }
     }
 
     chrome.storage.local.onChanged.addListener(onStorageChanged)
     return () => chrome.storage.local.onChanged.removeListener(onStorageChanged)
+  }, [])
+
+  // 自己診断台帳（diagnosticsState）とpassive版フィンガープリントの初期読込。
+  // 以降の更新は上の onChanged が追従する。
+  useEffect(() => {
+    void chrome.storage.local
+      .get([DIAGNOSTICS_STATE_KEY, MOODLE_FINGERPRINT_KEY])
+      .then((stored) => {
+        setDiagnosticsState(
+          (stored[DIAGNOSTICS_STATE_KEY] as DiagnosticsState | undefined) ?? null,
+        )
+        setMoodleFingerprint(
+          (stored[MOODLE_FINGERPRINT_KEY] as StoredMoodleFingerprint | undefined) ?? null,
+        )
+      })
   }, [])
 
   useEffect(() => {
@@ -522,6 +554,24 @@ export default function App() {
     deadlineScanStatus,
   ])
 
+  // 正直な「読めませんでした」バナー（spec§7）。エスカレーション済みの activeCodes が
+  // 非空のときのみ表示される（判定は buildBannerContent 内・kind: 'none' なら非表示）。
+  // CLASS（時間割）はMoodle診断の対象外なので、このバナーはCLASS系セクションに置かない。
+  const diagnosticsBanner = useMemo(
+    () => buildBannerContent(diagnosticsState),
+    [diagnosticsState],
+  )
+
+  // カバレッジ情報ノート（spec§7 unsupported-module 表示・§0「未対応と正直に示す」）。
+  // hard/info 区分で activeCodes に載らない info コード（未対応モジュール等）の実配線。
+  // 警告バナー表示中は buildInfoNotes が空配列を返す（重複排除）。CLASS対象外は同上。
+  // passive版フィンガープリントが BS5世代（Moodle 5.x）を観測していれば、
+  // 「画面構成が新しくなった可能性」の情報ノート1行を追加する（spec§5/§7 の最小配線）。
+  const diagnosticsInfoNotes = useMemo(
+    () => buildInfoNotes(diagnosticsState, moodleFingerprint),
+    [diagnosticsState, moodleFingerprint],
+  )
+
   const scanErrorMessage = useMemo(() => {
     if (assignmentScanStatus.state === 'error') {
       return normalizeUpdateError(assignmentScanStatus.errorMessage ?? '')
@@ -531,6 +581,18 @@ export default function App() {
     }
     return null
   }, [assignmentScanStatus, deadlineScanStatus])
+
+  // 診断バナー（logged_out）表示中は、旧エラーバナーの同趣旨メッセージ
+  // 「LETUSにログインしていないため更新できませんでした」を抑制する（二重表示の解消）。
+  // 再ログイン案内・最終取得時刻・再試行導線は診断バナー側が持つため情報は失われない。
+  // 別趣旨（ネットワーク等）の失敗メッセージは抑制しない（判定は core の純関数）。
+  const visibleScanErrorMessage = useMemo(
+    () =>
+      shouldSuppressScanErrorBanner(diagnosticsBanner.kind, scanErrorMessage)
+        ? null
+        : scanErrorMessage,
+    [diagnosticsBanner.kind, scanErrorMessage],
+  )
 
   const workingLabel = useMemo(() => {
     if (assignmentScanStatus.state === 'running') {
@@ -1111,11 +1173,36 @@ export default function App() {
         )}
       </div>
 
-      {scanErrorMessage && (
+      {visibleScanErrorMessage && (
         <div className="errorBanner">
           <strong>更新に失敗しました。前回のデータを表示しています。</strong>
-          <span>{scanErrorMessage}</span>
+          <span>{visibleScanErrorMessage}</span>
         </div>
+      )}
+
+      {diagnosticsBanner.kind !== 'none' && (
+        <section className="diagnosticsBanner" role="status">
+          <strong>{diagnosticsBanner.title}</strong>
+          <span>{diagnosticsBanner.body}</span>
+          <div className="diagnosticsBannerFooter">
+            <span>最終取得: {formatDateTime(diagnosticsBanner.lastGoodAt)}</span>
+            <button
+              type="button"
+              onClick={updateNow}
+              disabled={isUpdating || isBackgroundRunning}
+            >
+              再試行
+            </button>
+          </div>
+        </section>
+      )}
+
+      {diagnosticsInfoNotes.length > 0 && (
+        <section className="diagnosticsInfoNotes" role="note">
+          {diagnosticsInfoNotes.map((note) => (
+            <span key={note.code}>{note.text}</span>
+          ))}
+        </section>
       )}
 
       {message && <p className="message">{message}</p>}

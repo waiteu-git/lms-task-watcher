@@ -18,6 +18,7 @@ import {
   TERMS_CONSENT_KEY,
   WELCOME_GUIDE_SHOWN_KEY,
   TIMETABLE_IMPORT_NOTIFIED_KEY,
+  MOODLE_FINGERPRINT_KEY,
 } from './storageKeys'
 import { isConsented } from '../legal/termsConsent'
 import type { AssignmentScanStatus, DeadlineScanStatus } from '../core/scanStatus'
@@ -28,8 +29,18 @@ import { extractDeadlineText, parseDeadline, parseDeadlineFromTitle } from './de
 import { shouldNotifyCourseUpdate } from './notificationRules'
 import { computeDeadlineNotifications, type DeadlineTarget } from '../core/deadlineNotify'
 import { applyDeadlineOverrides, getDeadlineOverrides } from '../core/deadlineOverride'
-import { normalizeText, stripTags, decodeHtmlEntities } from '../core/htmlText'
+import { normalizeText, htmlToPlainText } from '../core/htmlText'
 import { extractLinksFromHtml } from '../core/letusLinks'
+import {
+  STRICT_MODULE_PATHS,
+  STANDARD_MODULE_PATHS,
+  BROAD_MODULE_PATHS,
+  NON_ASSIGNMENT_PATHS,
+  collectUnknownModuleTypes,
+  extractModuleType,
+  isStatusSupportedModuleType,
+} from '../core/moduleTypes'
+import { fingerprintPage, type MoodleFingerprint, type StoredMoodleFingerprint } from '../core/moodleFingerprint'
 import { computeCourseUpdate } from '../core/courseUpdates'
 import { pickFirstImportNotification, buildFirstImportNotification } from '../core/timetableImportNotify'
 import { getCourseSignature, saveCourseSignature, addUnreadUpdates } from './courseUpdatesStore'
@@ -38,6 +49,28 @@ import { selectCoursesByTimetable } from '../core/courseSelect'
 import { academicYear } from '../core/syllabus'
 import { createPacer, LETUS_MIN_REQUEST_GAP_MS, type Pacer } from '../core/pacer'
 import { createKeepAlive } from '../core/keepAlive'
+import {
+  classifyFetchedPage,
+  emptyAuthProbeSummary,
+  addToAuthProbeSummary,
+  type AuthProbeSummary,
+  type PageAuthClassification,
+} from '../core/authProbe'
+import {
+  diagnoseActivityPage,
+  diagnoseAuthProbe,
+  diagnoseCourseLossAggregate,
+  diagnoseCoursePage,
+  diagnoseDashboard,
+  type DiagnosticCode,
+  type PageAuthState,
+} from '../core/diagnose'
+import {
+  applyScanOutcome,
+  DIAGNOSTICS_STATE_KEY,
+  isInfoDiagnosticCode,
+  type DiagnosticsState,
+} from '../core/diagnosticsState'
 
 console.log('[LETUS Task Watcher] background service worker loaded')
 
@@ -101,21 +134,6 @@ function createAssignmentCandidateId(courseId: string, url: string): string {
   return createId(`${courseId}:${url}`)
 }
 
-function htmlToPlainText(html: string): string {
-  return decodeHtmlEntities(
-    stripTags(
-      String(html)
-        .replace(/<br\s*\/?>/gi, '\n')
-        .replace(/<\/p>/gi, '\n')
-        .replace(/<\/div>/gi, '\n')
-        .replace(/<\/li>/gi, '\n')
-        .replace(/<\/tr>/gi, '\n')
-        .replace(/<\/th>/gi, ' ')
-        .replace(/<\/td>/gi, ' '),
-    ),
-  )
-}
-
 // ─── Concurrency helper ───────────────────────────────────────────────────────
 
 async function mapWithConcurrency<T, R>(
@@ -158,65 +176,22 @@ async function mapWithConcurrency<T, R>(
 
 type ScanLevel = 'strict' | 'standard' | 'broad'
 
+// 許可/除外リストの実体は src/core/moduleTypes.ts（単一情報源）。
+// 未知モジュール型のcatch-all診断（collectUnknownModuleTypes）と同じリストを共有する。
 function isTargetActivityUrl(url: string, scanLevel: ScanLevel): boolean {
   const normalizedUrl = url.toLowerCase()
-
-  const strictModulePaths = [
-    '/mod/assign/view.php',
-    '/mod/quiz/view.php',
-    '/mod/turnitintool/view.php',
-    '/mod/turnitintooltwo/view.php',
-  ]
-
-  const standardModulePaths = [
-    ...strictModulePaths,
-    '/mod/workshop/view.php',
-    '/mod/feedback/view.php',
-    '/mod/choice/view.php',
-    '/mod/questionnaire/view.php',
-    '/mod/lti/view.php',
-  ]
-
-  const broadModulePaths = [
-    ...standardModulePaths,
-    '/mod/forum/view.php',
-    '/mod/survey/view.php',
-    '/mod/lesson/view.php',
-  ]
-
-  if (scanLevel === 'strict') {
-    return strictModulePaths.some((path) => normalizedUrl.includes(path))
-  }
-  if (scanLevel === 'broad') {
-    return broadModulePaths.some((path) => normalizedUrl.includes(path))
-  }
-  return standardModulePaths.some((path) => normalizedUrl.includes(path))
+  const modulePaths =
+    scanLevel === 'strict'
+      ? STRICT_MODULE_PATHS
+      : scanLevel === 'broad'
+        ? BROAD_MODULE_PATHS
+        : STANDARD_MODULE_PATHS
+  return modulePaths.some((path) => normalizedUrl.includes(path))
 }
 
 function isClearlyNonAssignmentUrl(url: string): boolean {
   const normalizedUrl = url.toLowerCase()
-  const excludedPaths = [
-    '/grade/',
-    '/grade/report/',
-    '/reportbuilder/',
-    '/user/',
-    '/calendar/',
-    '/message/',
-    '/blog/',
-    '/badges/',
-    '/competency/',
-    '/course/report/',
-    '/course/view.php',
-    '/mod/resource/',
-    '/mod/folder/',
-    '/mod/page/',
-    '/mod/url/',
-    '/mod/book/',
-    '/mod/label/',
-    '/mod/glossary/',
-    '/mod/wiki/',
-  ]
-  return excludedPaths.some((path) => normalizedUrl.includes(path))
+  return NON_ASSIGNMENT_PATHS.some((path) => normalizedUrl.includes(path))
 }
 
 function hasAssignmentKeyword(text: string, url: string): boolean {
@@ -245,7 +220,7 @@ function isAssignmentLikeLink(text: string, url: string, scanLevel: ScanLevel): 
 
 // ─── Submission & lifecycle status ────────────────────────────────────────────
 
-function extractSubmissionStatus(
+export function extractSubmissionStatus(
   plainText: string,
   url: string,
 ): AssignmentSubmissionStatus {
@@ -273,7 +248,17 @@ function extractSubmissionStatus(
   if (text.includes('提出済み') || text.includes('submitted')) {
     return 'submitted'
   }
-  if (text.includes('未提出') || text.includes('not submitted')) {
+  if (
+    text.includes('未提出') ||
+    text.includes('not submitted') ||
+    // TUS実機4.5.8／Moodle 5.2（Mount Orange）実測の未提出状態値（2026-07-19採取）。
+    // 従来は上記いずれの includes にも不一致で unknown に落ちていた（現行本番の実バグ）。
+    // text は normalizeText＋toLowerCase 済み＝大文字小文字に頑健・includes 判定＝末尾句点
+    // 「。」の有無にも頑健。提出済み判定を先に評価する優先順位は不変（説明文への誤爆防止）。
+    text.includes('まだ提出されていません') ||
+    text.includes('no submissions have been made yet') ||
+    text.includes('no submission')
+  ) {
     return 'not_submitted'
   }
   return 'unknown'
@@ -516,14 +501,56 @@ chrome.notifications.onClosed.addListener(async (notificationId) => {
 
 // ─── Assignment scan ──────────────────────────────────────────────────────────
 
+/** deadlineスキャンのログインガードと同一文言（ログイン切れをUIに正直に示す） */
+const NOT_LOGGED_IN_ERROR_MESSAGE = 'LETUSにログインしていないため更新できませんでした。'
+
+/**
+ * classifyFetchedPage の分類を diagnose 層の PageAuthState へ写像する薄いアダプタ。
+ * not_moodle_page は「ログイン/ログアウトどちらの証拠も無い」＝ unknown に倒し、
+ * コースページ系の矛盾検知を誤発火させない（NOT_A_MOODLE_PAGE は diagnoseAuthProbe が担う）。
+ */
+function toPageAuthState(classification: PageAuthClassification): PageAuthState {
+  return classification === 'not_moodle_page' ? 'unknown' : classification
+}
+
 export async function scanAssignmentCandidatesInBackground(
   scanLevel: ScanLevel = 'standard',
   pacer: Pacer = letusPacer,
-): Promise<{ ok: boolean; reason?: string; detectedCount?: number; errorMessage?: string }> {
+): Promise<{
+  ok: boolean
+  reason?: string
+  detectedCount?: number
+  errorMessage?: string
+  /** コースページfetchの認証分類集計（piggyback・追加リクエスト0）。診断配線タスクが利用する */
+  authProbe?: AuthProbeSummary
+  /** スキャン全体で発火した診断コード（spec§4の評価関数の出力・重複排除）。
+   * storage永続は呼び出し側（runManualUpdate/runAutoScan の recordScanCycleOutcome）が
+   * サイクル単位で行う */
+  diagnostics?: DiagnosticCode[]
+  /** UNSUPPORTED_MODULE の詳細: コースページのリンクに現れた未知モジュール型（重複排除・昇順） */
+  unsupportedModuleTypes?: string[]
+}> {
   if (isAssignmentScanning) return { ok: false, reason: 'already_running' }
 
   isAssignmentScanning = true
   const startedAt = new Date().toISOString()
+  let authProbe = emptyAuthProbeSummary()
+  // ログインガード（spec§6）: コースページの応答が logged_out と分類されたら立てる。
+  // 以降のコースのfetchを打ち切り、既存データを一切変更せずエラーとして報告する。
+  let loggedOutDetected = false
+  const diagnosticCodes = new Set<DiagnosticCode>()
+  const unsupportedModuleTypes = new Set<string>()
+  // passive版フィンガープリント（spec§5/§8）: 版が読めた最新観測をスキャン完了後に
+  // 1回だけ永続する（並走ハンドラの後勝ちで良い＝どの観測も同一サイトの実測値）。
+  // ref オブジェクト形式なのは TS の制御フロー解析対策（クロージャ内でしか代入されない
+  // let は use 箇所で初期値 null に狭められ、null チェックが never 型になるため）。
+  const latestFingerprint: { current: MoodleFingerprint | null } = { current: null }
+  // コース横断の喪失集計（diagnoseCourseLossAggregate の入力）: diagnosticCodes は
+  // Set なので per-course の多重度が失われる。「1コースの正当な非表示化」と
+  // 「既知コースの過半が一斉喪失（レイアウト破損の強い兆候）」を区別するため、
+  // ログイン済みと分類できた既知コース（prevシグネチャ>0）の観測数と、そのうち
+  // COURSE_LOST_ALL_ASSIGNMENTS を発火した数を別カウンタで数える。
+  const courseLossTally = { lost: 0, tracked: 0 }
   const courses = await getCourses()
   const enabledCourses = courses.filter((c) => c.enabled)
   const enabledCourseIds = new Set(enabledCourses.map((c) => c.id))
@@ -557,6 +584,11 @@ export async function scanAssignmentCandidatesInBackground(
       enabledCourses,
       3,
       async (course) => {
+        // ログインガード: 先行コースで logged_out を検知済みなら fetch 自体を行わない
+        // （無駄な大学向けリクエストの抑制）。並走中だった fetch は完走するが、
+        // 下の logged_out 早期 return で既存データには触れない。
+        if (loggedOutDetected) return null
+
         let response: Response
         try {
           await pacer.acquire()
@@ -567,11 +599,77 @@ export async function scanAssignmentCandidatesInBackground(
         if (!response.ok) return null
 
         const html = await response.text()
+        // 認証プローブ（piggyback）: 取得済みレスポンスをそのまま分類して集計する。
+        // 追加リクエストはしない。ここは観測のみ（storage永続は呼び出し側のサイクル記録）。
+        const classification = classifyFetchedPage({ finalUrl: response.url ?? '', bodyText: html })
+        authProbe = addToAuthProbeSummary(authProbe, classification)
+        // 分類は classifyFetchedPage 内でマーカー優先順位（ログアウト証拠 > M.cfg）を
+        // 織り込み済みなので、diagnoseAuthProbe の入力へそのまま復元できる。
+        for (const code of diagnoseAuthProbe({
+          fetchOk: true,
+          hasMcfg: classification === 'logged_in',
+          hasLoginMarker: classification === 'logged_out',
+        })) {
+          diagnosticCodes.add(code)
+        }
+
+        if (classification === 'logged_out') {
+          // 未ログインHTML(200)から候補抽出・シグネチャ保存をすると、空データが
+          // 既存候補やベースラインを汚染する（skipSave黙殺の温床）。このページは
+          // 一切処理せず、スキャン全体をログインエラーへ倒す（deadlineスキャンの
+          // checkIsLoggedIn ガードと同じ結末）。
+          loggedOutDetected = true
+          return null
+        }
+
         const links = extractLinksFromHtml(html, course.url)
+
+        // catch-all診断（spec§3原則5）: 許可/除外どちらのリストにも無い
+        // /mod/<type>/view.php リンクを silent drop せず「未対応モジュールがある」
+        // 事実として浮上させる。未知型ページを追加でスキャンしには行かない
+        // （パース対象は広げない＝大学向けリクエスト増ゼロ・観測のみ）。
+        // Moodleと認識できないページ（メンテ等）のリンクで誤発火しないよう logged_in に限定。
+        if (classification === 'logged_in') {
+          const unknownTypes = collectUnknownModuleTypes(links.map((link) => link.url))
+          if (unknownTypes.length > 0) {
+            diagnosticCodes.add('UNSUPPORTED_MODULE')
+            for (const type of unknownTypes) unsupportedModuleTypes.add(type)
+          }
+
+          // passive版フィンガープリント（spec§5）: 取得済みコースHTMLの docs.moodle.org
+          // ヘルプリンクから稼働版を読む（piggyback・追加リクエスト0）。ログイン済みと
+          // 分類できたページに限定し、SSO/メンテ画面等の無関係リンクで誤記録しない。
+          const fingerprint = fingerprintPage(html)
+          if (fingerprint.version !== null) latestFingerprint.current = fingerprint
+        }
 
         try {
           const prevSig = await getCourseSignature(course.id)
           const upd = computeCourseUpdate(prevSig, html, course.url, new Date().toISOString())
+          // skipSave の明示化（spec§4）: スキップを含む観測結果を評価関数に流し、
+          // 「既知コースの全課題喪失/ページ不読」を診断コードとして浮上させる。
+          const coursePageCodes = diagnoseCoursePage({
+            pageAuthState: toPageAuthState(classification),
+            modAnchorCount: upd.diagnostic.modAnchorCount,
+            prevSignatureLen: upd.diagnostic.prevSignatureLen,
+            hasCourseMarker: upd.diagnostic.hasCourseMarker,
+          })
+          for (const code of coursePageCodes) {
+            diagnosticCodes.add(code)
+          }
+          // 喪失集計: 分母はログイン済みと分類できた既知コース（prev>0）の観測。
+          // fetch失敗・ログアウト分類・初回/空コースは分母に入らない（観測できていない
+          // か、そもそも喪失を定義できない）。COURSE_PAGE_NO_ACTIVITIES のコースは
+          // 分母に入る（既知コースの観測ではある＝過半判定がより保守的になる方向）。
+          if (
+            classification === 'logged_in' &&
+            (upd.diagnostic.prevSignatureLen ?? 0) > 0
+          ) {
+            courseLossTally.tracked += 1
+            if (coursePageCodes.includes('COURSE_LOST_ALL_ASSIGNMENTS')) {
+              courseLossTally.lost += 1
+            }
+          }
           if (!upd.skipSave) {
             await saveCourseSignature(course.id, upd.signature)
             if (upd.added.length > 0) {
@@ -620,6 +718,60 @@ export async function scanAssignmentCandidatesInBackground(
       },
     )
 
+    // コース横断の喪失集計を単一の hard コードへ畳み込む（per-course info 判定の
+    // 死角の補完）。ログアウト検知時は観測が不完全（残コースを打ち切っている）な上、
+    // 原因は LOGGED_OUT に一元化すべきなので集計しない。
+    if (!loggedOutDetected) {
+      for (const code of diagnoseCourseLossAggregate({
+        lostCourseCount: courseLossTally.lost,
+        trackedCourseCount: courseLossTally.tracked,
+      })) {
+        diagnosticCodes.add(code)
+      }
+    }
+
+    // passive版フィンガープリントの記録（spec§8の監視前提）: 版が読めた観測があれば
+    // 最新1件だけ保存する。読めなかったスキャンでは既存の記録を消さない（last-good維持）。
+    // 途中でログアウト検知しても、検知前に読めた観測は有効なので保存する。
+    // 保存失敗はスキャン本体を壊さない（診断台帳の保存と同じ方針）。
+    const observedFingerprint = latestFingerprint.current
+    if (observedFingerprint !== null && observedFingerprint.version !== null) {
+      try {
+        await chrome.storage.local.set({
+          [MOODLE_FINGERPRINT_KEY]: {
+            version: observedFingerprint.version,
+            bs5: observedFingerprint.bs5,
+            observedAt: new Date().toISOString(),
+          } satisfies StoredMoodleFingerprint,
+        })
+      } catch (error) {
+        console.error('[LETUS Task Watcher] moodle fingerprint save failed', error)
+      }
+    }
+
+    if (loggedOutDetected) {
+      // deadlineスキャンの checkIsLoggedIn ガードと整合: 既存候補・シグネチャは
+      // 一切変更せず（最終保存・除去も行わず）、ログインエラーとして正直に報告する。
+      await saveAssignmentScanStatus({
+        state: 'error',
+        startedAt,
+        finishedAt: new Date().toISOString(),
+        totalCourses: enabledCourses.length,
+        completedCourses: 0,
+        currentCourseName: '',
+        detectedCount: assignmentMap.size,
+        errorMessage: NOT_LOGGED_IN_ERROR_MESSAGE,
+      })
+      return {
+        ok: false,
+        reason: 'login_required',
+        errorMessage: NOT_LOGGED_IN_ERROR_MESSAGE,
+        authProbe,
+        diagnostics: Array.from(diagnosticCodes),
+        unsupportedModuleTypes: Array.from(unsupportedModuleTypes).sort(),
+      }
+    }
+
     const finishedAt = new Date().toISOString()
     const assignmentCandidates = Array.from(assignmentMap.values()).filter((c) =>
       enabledCourseIds.has(c.courseId),
@@ -637,7 +789,13 @@ export async function scanAssignmentCandidatesInBackground(
       errorMessage: null,
     })
 
-    return { ok: true, detectedCount: assignmentCandidates.length }
+    return {
+      ok: true,
+      detectedCount: assignmentCandidates.length,
+      authProbe,
+      diagnostics: Array.from(diagnosticCodes),
+      unsupportedModuleTypes: Array.from(unsupportedModuleTypes).sort(),
+    }
   } catch (error) {
     await saveAssignmentScanStatus({
       state: 'error',
@@ -649,7 +807,14 @@ export async function scanAssignmentCandidatesInBackground(
       detectedCount: assignmentMap.size,
       errorMessage: String(error),
     })
-    return { ok: false, reason: 'error', errorMessage: String(error) }
+    return {
+      ok: false,
+      reason: 'error',
+      errorMessage: String(error),
+      authProbe,
+      diagnostics: Array.from(diagnosticCodes),
+      unsupportedModuleTypes: Array.from(unsupportedModuleTypes).sort(),
+    }
   } finally {
     isAssignmentScanning = false
   }
@@ -662,21 +827,33 @@ export async function scanDeadlinesInBackground(pacer: Pacer = letusPacer): Prom
   reason?: string
   detectedCount?: number
   errorMessage?: string
+  /** 活動ページfetchの認証分類集計（piggyback・追加リクエスト0）。診断配線タスクが利用する */
+  authProbe?: AuthProbeSummary
+  /** スキャン全体で発火した診断コード（重複排除）。diagnosticsState への畳み込みに使う */
+  diagnostics?: DiagnosticCode[]
 }> {
   if (isDeadlineScanning) return { ok: false, reason: 'already_running' }
 
   isDeadlineScanning = true
   const startedAt = new Date().toISOString()
+  let authProbe = emptyAuthProbeSummary()
+  const diagnosticCodes = new Set<DiagnosticCode>()
 
   const courses = await getCourses()
   const enabledCourses = courses.filter((c) => c.enabled)
   const loginStatus = await checkIsLoggedIn(enabledCourses, pacer)
 
-  if (loginStatus !== 'ok') {
+  // unknown（enabledコース0件＝判定不能）はブロックしない: 候補が残っていれば
+  // スキャン本体は従来どおり走らせ、偽のログインエラーをUIに出さない。
+  if (isLoginBlocking(loginStatus)) {
     const errorMessage =
       loginStatus === 'login_required'
-        ? 'LETUSにログインしていないため更新できませんでした。'
+        ? NOT_LOGGED_IN_ERROR_MESSAGE
         : 'LETUSへの通信に失敗しました。ネットワーク接続を確認してください。'
+
+    // login_required はログアウトの実観測なので診断コードとして浮上させる。
+    // network_error はレイアウト診断の対象外（diagnose層の責務外）＝コード無し。
+    if (loginStatus === 'login_required') diagnosticCodes.add('LOGGED_OUT')
 
     await saveDeadlineScanStatus({
       state: 'error',
@@ -689,7 +866,7 @@ export async function scanDeadlinesInBackground(pacer: Pacer = letusPacer): Prom
       errorMessage,
     })
     isDeadlineScanning = false
-    return { ok: false, reason: loginStatus, errorMessage }
+    return { ok: false, reason: loginStatus, errorMessage, diagnostics: Array.from(diagnosticCodes) }
   }
 
   const candidates = await getAssignmentCandidates()
@@ -721,6 +898,17 @@ export async function scanDeadlinesInBackground(pacer: Pacer = letusPacer): Prom
         if (!response.ok) return null
 
         const html = await response.text()
+        // 認証プローブ（piggyback）: 取得済みレスポンスをそのまま分類して集計する。
+        // 追加リクエストはしない。診断コード化も同じ分類から導く（課題スキャンと同型）。
+        const classification = classifyFetchedPage({ finalUrl: response.url ?? '', bodyText: html })
+        authProbe = addToAuthProbeSummary(authProbe, classification)
+        for (const code of diagnoseAuthProbe({
+          fetchOk: true,
+          hasMcfg: classification === 'logged_in',
+          hasLoginMarker: classification === 'logged_out',
+        })) {
+          diagnosticCodes.add(code)
+        }
         const plainText = htmlToPlainText(html)
         const deadlineText = extractDeadlineText(plainText)
         const fieldDeadline = deadlineText ? parseDeadline(deadlineText) : null
@@ -735,6 +923,24 @@ export async function scanDeadlinesInBackground(pacer: Pacer = letusPacer): Prom
             : null
         const submissionStatus = extractSubmissionStatus(plainText, candidate.url)
         const lifecycleStatus = resolveLifecycleStatus(plainText, submissionStatus, deadline)
+
+        // 活動ページ診断（spec§4）: 算出済みのキーワード/日付/状態フラグをそのまま
+        // 評価関数へ流す（追加リクエスト0）。DEADLINE_KEYWORD_NO_DATE（キーワード有るのに
+        // 日付null＝相対日付モード/書式変更の兆候）と UNSUPPORTED_MODULE（締切の証拠が
+        // 在るのに状態不明な未対応型）の本番生産経路。誤検知抑制（logged_in 限定・
+        // 対応型のstatus unknown非発火等）は diagnoseActivityPage 側に内蔵済み。
+        const moduleType = extractModuleType(candidate.url)
+        for (const code of diagnoseActivityPage({
+          pageAuthState: toPageAuthState(classification),
+          keywordFound: deadlineText !== '',
+          dateParsed: deadline !== null,
+          statusResolved: submissionStatus !== 'unknown',
+          moduleType,
+          moduleSupported: isStatusSupportedModuleType(moduleType),
+        })) {
+          diagnosticCodes.add(code)
+        }
+
         const now = new Date().toISOString()
 
         return {
@@ -792,7 +998,7 @@ export async function scanDeadlinesInBackground(pacer: Pacer = letusPacer): Prom
       errorMessage: null,
     })
 
-    return { ok: true, detectedCount }
+    return { ok: true, detectedCount, authProbe, diagnostics: Array.from(diagnosticCodes) }
   } catch (error) {
     await saveDeadlineScanStatus({
       state: 'error',
@@ -804,10 +1010,87 @@ export async function scanDeadlinesInBackground(pacer: Pacer = letusPacer): Prom
       detectedCount: assignments.filter((a) => a.deadline !== null).length,
       errorMessage: String(error),
     })
-    return { ok: false, reason: 'error', errorMessage: String(error) }
+    return {
+      ok: false,
+      reason: 'error',
+      errorMessage: String(error),
+      authProbe,
+      diagnostics: Array.from(diagnosticCodes),
+    }
   } finally {
     isDeadlineScanning = false
   }
+}
+
+// ─── Diagnostics ledger (spec§4 永続層) ───────────────────────────────────────
+
+/** 各スキャンが返す診断関連フィールドの最小形（記録に必要な分だけ） */
+type ScanDiagnosticsResult = { ok: boolean; diagnostics?: DiagnosticCode[] }
+
+/**
+ * 1スキャンサイクル（課題スキャン＋締切スキャン）の観測を diagnosticsState へ畳み込む。
+ *
+ * サイクル単位で1回だけ記録する理由: スキャン毎に個別記録すると、課題スキャンが
+ * コード付きで完了（失敗+1）→続く締切スキャンがコード無しで完了（成功=全リセット）の
+ * 振動が毎サイクル起き、連続失敗が閾値に達しない＝エスカレーションが恒久に死ぬ。
+ *
+ * 記録規則（hard/info の区分は core/diagnosticsState.ts の INFO_DIAGNOSTIC_CODES 参照）:
+ * - hard（スキャン整合性）コードが1つでもあれば「失敗」として畳み込む。
+ * - hard コード無しで全スキャン ok なら「成功」として畳み込む（lastGoodAt 更新）。
+ *   info（カバレッジ情報）コードだけのサイクルもここに含める: 未対応モジュール型を
+ *   含むコース等では info が恒常発火するため、これを失敗に数えると lastGoodAt が
+ *   恒久凍結し debounce も恒久無効化される（reducer 側の infoCodes へ分離して保持）。
+ * - hard コード無しで ok でない（ネットワーク例外・already_running 等）は記録しない:
+ *   途中で死んだサイクルの観測は不完全で、成功扱いで lastGoodAt を進めるのも
+ *   失敗扱いでバナーを出すのも嘘になる（中立スキップ）。
+ * - 保存失敗はスキャン本体を壊さない（握って console.error のみ）。
+ */
+async function recordScanCycleOutcome(results: ScanDiagnosticsResult[]): Promise<void> {
+  const codes: DiagnosticCode[] = []
+  for (const result of results) codes.push(...(result.diagnostics ?? []))
+  const allOk = results.length > 0 && results.every((result) => result.ok)
+  const hasHardCode = codes.some((code) => !isInfoDiagnosticCode(code))
+  if (!hasHardCode && !allOk) return
+
+  await foldIntoDiagnosticsLedger(codes)
+}
+
+/** 診断コード群を1回の観測として diagnosticsState 台帳へ畳み込む（保存失敗は握って console.error のみ） */
+async function foldIntoDiagnosticsLedger(codes: DiagnosticCode[]): Promise<void> {
+  try {
+    const stored = await chrome.storage.local.get(DIAGNOSTICS_STATE_KEY)
+    const prev = (stored[DIAGNOSTICS_STATE_KEY] as DiagnosticsState | undefined) ?? null
+    const next = applyScanOutcome(prev, { codes, at: new Date().toISOString() })
+    await chrome.storage.local.set({ [DIAGNOSTICS_STATE_KEY]: next })
+  } catch (error) {
+    console.error('[LETUS Task Watcher] diagnostics state save failed', error)
+  }
+}
+
+/**
+ * content script の COURSE_DETECTION_EMPTY（コース面で予算切れまで0コース・spec§6 T4）を
+ * diagnoseDashboard で判定し、診断台帳へ畳み込む。
+ *
+ * - pageAuthState は 'logged_in' 固定とする: content script は same-origin で描画された
+ *   LETUSページ上でしか実行されず、TUS の未ログイン /my/ は SAML SSO（クロスオリジン）へ
+ *   リダイレクトされて content script 自体が走らない（実機採取 2026-07-19 で確定）。
+ *   ゆえに「コース面の DOM を読めた＝ログイン済み」とみなせる。
+ * - 診断コード無し（既知コース0件＝初回利用の正当な空）は中立スキップ:
+ *   ページ単発の観測はスキャンサイクルの完走ではないため、成功として lastGoodAt を
+ *   進めたり activeCodes を消したりしない（recordScanCycleOutcome と同じ非対称原則）。
+ * - コード有りのみ失敗観測として畳み込む。連続失敗のエスカレーション閾値
+ *   （ESCALATION_THRESHOLD）は台帳 reducer の既存規則にそのまま従う＝
+ *   単発の一過性0件ではバナーを出さない。
+ */
+async function recordDashboardEmptyReport(): Promise<void> {
+  const knownCourses = await getCourses()
+  const codes = diagnoseDashboard({
+    pageAuthState: 'logged_in',
+    courseAnchorCount: 0,
+    knownCourseCount: knownCourses.length,
+  })
+  if (codes.length === 0) return
+  await foldIntoDiagnosticsLedger(codes)
 }
 
 // ─── Additional storage helpers ──────────────────────────────────────────────
@@ -897,16 +1180,30 @@ export const ALARM_PERIOD_MINUTES = 1440
 
 const LETUS_LOGIN_URL = 'https://letus.ed.tus.ac.jp/login/index.php'
 
-function isNotLoggedInPageContent(html: string): boolean {
-  return html.includes('あなたはログインしていません') || html.includes('You are not logged in')
+/**
+ * ログイン確認の結果。
+ * - 'unknown': プローブ対象（enabledコース）が無く判定不能。以前はここで無条件 'ok' を
+ *   返しており「ログイン済みだが0コース」を区別できなかった（spec§6）。unknown は
+ *   スキャンを阻害してはならない値であり、呼び出し側のブロック条件は必ず
+ *   isLoginBlocking()（login_required / network_error のみ）で判定すること。
+ */
+export type LoginCheckStatus = 'ok' | 'login_required' | 'network_error' | 'unknown'
+
+/**
+ * スキャン中止・エラー通知に値する失敗か。unknown（判定不能）と ok は非ブロック。
+ * 「loginStatus !== 'ok'」比較だと unknown を偽エラー（network_error扱い）に
+ * 落としてしまうため、ブロック条件はこの関数へ一本化する。
+ */
+function isLoginBlocking(status: LoginCheckStatus): status is 'login_required' | 'network_error' {
+  return status === 'login_required' || status === 'network_error'
 }
 
 export async function checkIsLoggedIn(
   courses: Course[],
   pacer: Pacer = letusPacer,
-): Promise<'ok' | 'login_required' | 'network_error'> {
+): Promise<LoginCheckStatus> {
   const course = courses.find((c) => c.enabled)
-  if (!course) return 'ok'
+  if (!course) return 'unknown'
   try {
     await pacer.acquire()
     const response = await fetch(course.url, {
@@ -919,13 +1216,17 @@ export async function checkIsLoggedIn(
     if (!response.ok) return 'network_error'
     if (response.url.includes('/login/')) return 'login_required'
     const html = await response.text()
-    return isNotLoggedInPageContent(html) ? 'login_required' : 'ok'
+    // 本文分類は core/authProbe に一元化。logged_out だけをブロックし、
+    // not_moodle_page は従来挙動どおりここでは 'ok'（矛盾検知は診断配線側の責務）。
+    return classifyFetchedPage({ finalUrl: response.url, bodyText: html }) === 'logged_out'
+      ? 'login_required'
+      : 'ok'
   } catch {
     return 'network_error'
   }
 }
 
-export async function runAutoScan(): Promise<void> {
+export async function runAutoScan(pacer: Pacer = letusPacer): Promise<void> {
   // 規約に同意していない利用者のデータは一切扱わない。
   if (!(await isConsented())) return
 
@@ -934,8 +1235,17 @@ export async function runAutoScan(): Promise<void> {
 
   if (enabledCourses.length === 0) return
 
-  const loginStatus = await checkIsLoggedIn(enabledCourses)
-  if (loginStatus !== 'ok') {
+  const loginStatus = await checkIsLoggedIn(enabledCourses, pacer)
+  if (isLoginBlocking(loginStatus)) {
+    // login_required はログアウトの実観測: スキャン本体は走らないが台帳へは記録する
+    // （日次アラームで放置ログアウトが activeCodes に反映されるように）。
+    // network_error は中立（コード無し・ok=false）＝記録されない。
+    await recordScanCycleOutcome([
+      {
+        ok: false,
+        diagnostics: loginStatus === 'login_required' ? ['LOGGED_OUT'] : [],
+      },
+    ])
     await createNotification({
       id: 'task-watcher-login-required',
       title: 'LETUS Task Watcher',
@@ -948,8 +1258,11 @@ export async function runAutoScan(): Promise<void> {
     return
   }
 
-  await scanAssignmentCandidatesInBackground('standard')
-  await scanDeadlinesInBackground()
+  const assignment = await scanAssignmentCandidatesInBackground('standard', pacer)
+  const deadline = await scanDeadlinesInBackground(pacer)
+  // スキャン完了処理（spec§4）: サイクル全体の診断観測を diagnosticsState へ畳み込む。
+  // 従来どおり結果の ok に関わらず最終処理へ進む挙動は変えない（記録は追加のみ）。
+  await recordScanCycleOutcome([assignment, deadline])
   await saveLastRefreshAt(new Date().toISOString())
   await checkDeadlineWarningNotifications()
 }
@@ -984,10 +1297,16 @@ async function notifyUpdateFailed(reason: string | undefined): Promise<void> {
 async function runManualUpdate(): Promise<void> {
   const assignment = await scanAssignmentCandidatesInBackground('standard')
   if (!assignment.ok) {
+    // 課題スキャンで打ち切り: このサイクルの観測（LOGGED_OUT等）だけで台帳へ畳み込む。
+    // hardコード無しの失敗（ネットワーク例外・already_running）は中立＝記録されない。
+    await recordScanCycleOutcome([assignment])
     await notifyUpdateFailed(assignment.reason)
     return
   }
   const deadline = await scanDeadlinesInBackground()
+  // スキャン完了処理（spec§4）: 課題＋締切のサイクル全体で1回だけ記録する
+  // （スキャン毎の個別記録は成功/失敗が交互に畳まれて閾値に届かなくなる）。
+  await recordScanCycleOutcome([assignment, deadline])
   if (!deadline.ok) {
     await notifyUpdateFailed(deadline.reason)
     return
@@ -1128,7 +1447,8 @@ function handleCollectingMessage(
       const courses = await getCourses()
       const enabledCourses = courses.filter((c) => c.enabled)
       const loginStatus = await checkIsLoggedIn(enabledCourses)
-      if (loginStatus !== 'ok') {
+      // unknown（enabledコース0件）は従来の 'ok' と同じく開始を許す（偽エラーを返さない）。
+      if (isLoginBlocking(loginStatus)) {
         sendResponse({
           ok: false,
           reason: loginStatus === 'login_required' ? 'not_logged_in' : 'network_error',
@@ -1154,7 +1474,8 @@ function handleCollectingMessage(
       const courses = await getCourses()
       const enabledCourses = courses.filter((c) => c.enabled)
       const loginStatus = await checkIsLoggedIn(enabledCourses)
-      if (loginStatus !== 'ok') {
+      // unknown（enabledコース0件）は従来の 'ok' と同じく開始を許す（偽エラーを返さない）。
+      if (isLoginBlocking(loginStatus)) {
         sendResponse({
           ok: false,
           reason: loginStatus === 'login_required' ? 'not_logged_in' : 'network_error',
@@ -1180,6 +1501,25 @@ function handleCollectingMessage(
     })
     return
   }
+
+  if (message.type === 'COURSE_DETECTION_EMPTY') {
+    const path = typeof message.path === 'string' ? message.path : ''
+    // コース面（Dashboard/マイコース一覧）以外からの報告は受け付けない（ノイズ防止）。
+    // 判定は content 側 courseDetectorCore.isDashboardPath と同値。content 配下の
+    // モジュールを background から import すると Rollup が共有チャンク化して
+    // dist/content.js に import 文が残るため、ここに複製する（termsConsent と同じ理由）。
+    const isDashboard =
+      path === '/my' || path === '/my/' || path === '/my/index.php' || path === '/my/courses.php'
+    if (!isDashboard) {
+      sendResponse({ ok: false, reason: 'not_dashboard' })
+      return
+    }
+    sendResponse({ ok: true })
+    recordDashboardEmptyReport().catch((error) => {
+      console.error('[LETUS Task Watcher] course detection empty handling failed', error)
+    })
+    return
+  }
 }
 
 chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
@@ -1193,7 +1533,13 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
   // 収集を伴うメッセージは、規約同意まで一切受け付けない。
   // popup の自動 refresh は React の useEffect であり画面ゲートでは止まらないため、
   // ここが実効的な防波堤になる。
-  const COLLECTING_MESSAGES = ['UPSERT_COURSES', 'START_ASSIGNMENT_SCAN', 'START_DEADLINE_SCAN', 'START_FULL_UPDATE']
+  const COLLECTING_MESSAGES = [
+    'UPSERT_COURSES',
+    'START_ASSIGNMENT_SCAN',
+    'START_DEADLINE_SCAN',
+    'START_FULL_UPDATE',
+    'COURSE_DETECTION_EMPTY',
+  ]
   if (COLLECTING_MESSAGES.includes(message?.type)) {
     void isConsented().then((consented) => {
       if (!consented) {

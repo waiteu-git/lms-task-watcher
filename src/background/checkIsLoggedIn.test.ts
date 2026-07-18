@@ -34,6 +34,23 @@ const courses: Course[] = [
 afterEach(() => vi.unstubAllGlobals())
 
 describe('checkIsLoggedIn', () => {
+  it('enabledコースが無ければfetchせずunknown（スキャンを阻害しない明示値）', async () => {
+    // 以前は無条件 'ok'（「ログイン済みだが0コース」を検出不能・spec§6）。
+    // 呼び出し側は login_required / network_error のみをブロック条件にする。
+    const fetchSpy = vi.fn()
+    vi.stubGlobal('fetch', fetchSpy)
+    expect(await checkIsLoggedIn([], noopPacer)).toBe('unknown')
+    expect(fetchSpy).not.toHaveBeenCalled()
+  })
+  it('M.cfg入りのログイン済みページなら ok', async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => ({
+      type: 'basic',
+      ok: true,
+      url: courses[0].url,
+      text: async () => '<script>M.cfg = {"wwwroot":"https:\\/\\/letus.ed.tus.ac.jp","sesskey":"AbCd012345"};</script>',
+    })) as unknown as typeof fetch)
+    expect(await checkIsLoggedIn(courses, noopPacer)).toBe('ok')
+  })
   it('未ログインで外部SSOへリダイレクト(opaqueredirect)なら login_required', async () => {
     vi.stubGlobal('fetch', vi.fn(async () => ({ type: 'opaqueredirect', ok: false, url: '', text: async () => '' })) as unknown as typeof fetch)
     expect(await checkIsLoggedIn(courses, noopPacer)).toBe('login_required')

@@ -290,6 +290,54 @@ h2 {
 .errorBanner strong { color: var(--danger); font-size: 13px; font-weight: 800; }
 .errorBanner span { color: var(--danger); font-size: 12px; font-weight: 600; line-height: 1.5; }
 
+/* 正直な「読めませんでした」バナー（自己診断・spec§7）。
+   テーマトークンのみ使用（ダークテーマで白箱化させない）。 */
+.diagnosticsBanner {
+  display: grid;
+  gap: 6px;
+  margin: 0 0 12px;
+  padding: 12px 14px;
+  border-radius: 12px;
+  background: var(--urgency-week-bg);
+  border: 1px solid var(--urgency-week-border);
+}
+.diagnosticsBanner strong { color: var(--urgency-week); font-size: 13px; font-weight: 800; }
+.diagnosticsBanner > span { color: var(--text); font-size: 12px; font-weight: 600; line-height: 1.55; }
+.diagnosticsBannerFooter {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 2px;
+}
+.diagnosticsBannerFooter span { color: var(--muted); font-size: 11.5px; font-weight: 700; }
+.diagnosticsBannerFooter button {
+  flex: 0 0 auto;
+  padding: 6px 12px;
+  border-radius: 999px;
+  background: var(--card);
+  border: 1px solid var(--urgency-week-border);
+  color: var(--urgency-week);
+  font-size: 11px;
+  font-weight: 800;
+  cursor: pointer;
+}
+.diagnosticsBannerFooter button:hover { filter: brightness(1.06); }
+.diagnosticsBannerFooter button:disabled { opacity: 0.55; cursor: default; }
+
+/* カバレッジ情報ノート（infoCodes・spec§7 unsupported表示）。警告でない情報トーン:
+   警告色・再試行ボタンを持たず --muted で控えめに示す。テーマトークンのみ使用。 */
+.diagnosticsInfoNotes {
+  display: grid;
+  gap: 4px;
+  margin: 0 0 12px;
+  padding: 10px 14px;
+  border-radius: 12px;
+  background: var(--card);
+  border: 1px solid var(--border);
+}
+.diagnosticsInfoNotes span { color: var(--muted); font-size: 11.5px; font-weight: 600; line-height: 1.5; }
+
 .undoToast {
   display: flex;
   align-items: center;
