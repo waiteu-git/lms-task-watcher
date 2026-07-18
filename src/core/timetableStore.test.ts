@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { saveTimetableCapture, getTimetableCapture, listCapturedSemesters, setOverride, getOverride, getOverrides, setPreferredView, getPreferredView } from './timetableStore'
+import { saveTimetableCapture, getTimetableCapture, listCapturedSemesters, setOverride, getOverride, getOverrides, setPreferredView, getPreferredView, getCurrentQuarter, setCurrentQuarter } from './timetableStore'
 
 const store: Record<string, unknown> = {}
 vi.stubGlobal('chrome', {
@@ -12,6 +12,11 @@ vi.stubGlobal('chrome', {
         return Promise.resolve(out)
       },
       set: (obj: Record<string, unknown>) => { Object.assign(store, obj); return Promise.resolve() },
+      remove: (keys: string | string[]) => {
+        const arr = Array.isArray(keys) ? keys : [keys]
+        for (const k of arr) delete store[k]
+        return Promise.resolve()
+      },
     },
   },
 })
@@ -48,5 +53,41 @@ describe('timetableStore', () => {
     expect(got['9973344']?.room).toBe('Y教室')
     expect('0000000' in got).toBe(false)
     expect(await getOverrides(2026, 'zenki', [])).toEqual({})
+  })
+
+  it('setOverride は既存フィールドを消さずにマージする（教室編集で quarter が飛ばない）', async () => {
+    await setOverride(2026, 'zenki', '9983343', { quarter: 'second' })
+    await setOverride(2026, 'zenki', '9983343', { room: '別教室' })
+    const got = await getOverride(2026, 'zenki', '9983343')
+    expect(got).toEqual({ quarter: 'second', room: '別教室' })
+  })
+
+  it('setOverride は quarter 指定で既存 room を消さない（逆方向）', async () => {
+    await setOverride(2026, 'zenki', '9983365', { room: 'E101教室' })
+    await setOverride(2026, 'zenki', '9983365', { quarter: 'first' })
+    expect(await getOverride(2026, 'zenki', '9983365')).toEqual({ room: 'E101教室', quarter: 'first' })
+  })
+
+  it('undefined を明示するとそのフィールドだけ消える', async () => {
+    await setOverride(2026, 'zenki', '9983343', { room: 'X', quarter: 'first' })
+    await setOverride(2026, 'zenki', '9983343', { quarter: undefined })
+    expect(await getOverride(2026, 'zenki', '9983343')).toEqual({ room: 'X' })
+  })
+
+  it('全フィールドが消えたらキーごと削除する（ゴミを残さない）', async () => {
+    await setOverride(2026, 'zenki', '9983343', { quarter: 'first' })
+    await setOverride(2026, 'zenki', '9983343', { quarter: undefined })
+    expect(await getOverride(2026, 'zenki', '9983343')).toBeNull()
+    expect('timetableOverrides:2026:zenki:9983343' in store).toBe(false)
+  })
+
+  it('現在の半期トグルを保存・取得でき、null で未指定に戻せる', async () => {
+    expect(await getCurrentQuarter(2026, 'zenki')).toBeNull()
+    await setCurrentQuarter(2026, 'zenki', 'second')
+    expect(await getCurrentQuarter(2026, 'zenki')).toBe('second')
+    // 学期ごとに独立
+    expect(await getCurrentQuarter(2026, 'kouki')).toBeNull()
+    await setCurrentQuarter(2026, 'zenki', null)
+    expect(await getCurrentQuarter(2026, 'zenki')).toBeNull()
   })
 })

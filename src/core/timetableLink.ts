@@ -1,4 +1,4 @@
-import type { TimetableSlot, DayOfWeek } from './timetable'
+import type { TimetableSlot, DayOfWeek, Quarter } from './timetable'
 import type { Course, Assignment } from './types'
 import type { ManualAssignment } from './manualAssignment'
 import { extractCourseCodes, firstCourseCode } from './courseCode'
@@ -6,7 +6,7 @@ import { deadlineTier, type DeadlineTier } from '../utils/date'
 import { isSubmittedAssignment } from '../utils/assignment'
 
 export type Semester = 'zenki' | 'kouki'
-export type TimetableOverride = { room?: string }
+export type TimetableOverride = { room?: string; quarter?: Quarter }
 export type SemesterCapture = { semester: Semester; capturedAt: string }
 export type AssignmentSlotInfo = {
   day: DayOfWeek
@@ -42,10 +42,55 @@ export function applyOverrides(
     ...s,
     classes: s.classes.map((c) => {
       const ov = overrides[c.courseCode]
-      if (!ov || ov.room === undefined) return c
-      return { ...c, room: ov.room, isRemote: ov.room.includes('遠隔') }
+      if (!ov) return c
+      let next = c
+      if (ov.room !== undefined) next = { ...next, room: ov.room, isRemote: ov.room.includes('遠隔') }
+      if (ov.quarter !== undefined) next = { ...next, quarter: ov.quarter }
+      return next
     }),
   }))
+}
+
+/**
+ * 同一コマに2科目以上ある＝クォーター（半期）科目の可能性が高いコマ。
+ * 同じ曜限に通期科目が2つ並ぶことは無いため、積まれていること自体が半期科目のシグナルになる。
+ * CLASSは1Q/2Qを公開しないので、どちらが前半かはここでは決められない（ユーザー指定）。
+ */
+export function isQuarterSlot(slot: TimetableSlot): boolean {
+  return slot.classes.length >= 2
+}
+
+/**
+ * 「現在が前半か後半か」の既定値を日付から推定する。あくまでトグルの初期値で、
+ * 正確なクォーター境界日はCLASSに無く年度で動くため、最終的な判断はユーザーのトグルに従う。
+ * 前期: 4–5月=前半 / 6–9月=後半、後期: 10–11月=前半 / 12–3月=後半。
+ */
+export function defaultCurrentQuarter(now: Date, semester: Semester): Quarter {
+  const month = now.getMonth() + 1
+  if (semester === 'zenki') return month >= 4 && month <= 5 ? 'first' : 'second'
+  return month >= 10 && month <= 11 ? 'first' : 'second'
+}
+
+/**
+ * 表示に使う「現在の半期」。手動指定(pref)が最優先、無ければ日付からの既定値。学期未確定なら 'first'。
+ * TimetableSection と TodayTimetable で同一判断を使うため純関数として一本化する（Litusでも再利用）。
+ */
+export function resolveCurrentQuarter(pref: Quarter | null, now: Date, semester: Semester | null): Quarter {
+  if (pref !== null) return pref
+  if (!semester) return 'first'
+  return defaultCurrentQuarter(now, semester)
+}
+
+/**
+ * 積みコマ（半期科目）の科目を薄表示すべきか。前半/後半が指定済みで、現在の半期と異なるときだけ true。
+ * 未指定(undefined)や非積みコマは薄くしない（＝消さずに全件見せる方針）。
+ */
+export function isDimmedForCurrentQuarter(
+  quarter: Quarter | undefined,
+  currentQuarter: Quarter,
+  stacked: boolean,
+): boolean {
+  return stacked && quarter !== undefined && quarter !== currentQuarter
 }
 
 const TIER_RANK: Record<DeadlineTier, number> = { none: 0, week: 1, today: 2 }

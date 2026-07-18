@@ -16,13 +16,19 @@ export async function resolveViewSemester(year: number, now: Date): Promise<Seme
   return pref?.semester ?? resolveSemester(now, await listCapturedSemesters(year))
 }
 
-/** courses に含まれる全科目コード分の教室オーバーライドをまとめて読む。 */
+/**
+ * オーバーライドをまとめて読む。対象コードは LETUSコース名由来 ∪ 取得済み時間割由来。
+ * 時間割にしか存在しない科目（LETUSで未登録・未追跡のクォーター科目など）の指定を
+ * 取りこぼさないため、courses だけに頼らない。
+ */
 export async function loadCourseOverrides(
   year: number,
   semester: Semester,
   courses: Course[],
 ): Promise<Record<string, TimetableOverride>> {
-  const codes = Array.from(new Set(courses.flatMap((c) => extractCourseCodes(c.name))))
+  const fromCourses = courses.flatMap((c) => extractCourseCodes(c.name))
+  const fromTimetable = await getCapturedCourseCodes(year, semester)
+  const codes = Array.from(new Set([...fromCourses, ...fromTimetable]))
   return getOverrides(year, semester, codes)
 }
 

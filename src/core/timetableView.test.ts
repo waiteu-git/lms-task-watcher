@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { TABLE_MINIMAL } from './timetable.fixtures'
+import { TABLE_MINIMAL, TABLE_STACKED_QUARTER } from './timetable.fixtures'
 
 const store: Record<string, unknown> = {}
 vi.stubGlobal('chrome', {
@@ -15,7 +15,7 @@ vi.stubGlobal('chrome', {
   },
 })
 
-const { getCapturedCourseCodes, resolveDisplayDay } = await import('./timetableView')
+const { getCapturedCourseCodes, resolveDisplayDay, loadCourseOverrides } = await import('./timetableView')
 
 beforeEach(() => { for (const k of Object.keys(store)) delete store[k] })
 
@@ -27,6 +27,31 @@ describe('getCapturedCourseCodes', () => {
     store['timetable:2026:zenki'] = { rawTableHtml: TABLE_MINIMAL, jigenText: '', capturedAt: '2026-07-08T00:00:00.000Z' }
     const codes = await getCapturedCourseCodes(2026, 'zenki')
     expect(codes).toContain('9973337')
+  })
+
+  it('積みコマ(クォーター科目)は両科目のコードを返す（LETUS自動選択がどちらにも効く土台・表示バグの影響外）', async () => {
+    store['timetable:2026:zenki'] = { rawTableHtml: TABLE_STACKED_QUARTER, jigenText: '', capturedAt: '2026-07-08T00:00:00.000Z' }
+    const codes = await getCapturedCourseCodes(2026, 'zenki')
+    expect(codes).toContain('9983343') // 有機化学・基礎(前半/後半のどちらか)
+    expect(codes).toContain('9983365') // 微生物学(もう一方)
+  })
+})
+
+describe('loadCourseOverrides', () => {
+  it('LETUSコースに無くても、時間割にある科目のオーバーライドを読む（未追跡のクォーター科目対策）', async () => {
+    store['timetable:2026:zenki'] = { rawTableHtml: TABLE_MINIMAL, jigenText: '', capturedAt: '2026-07-08T00:00:00.000Z' }
+    store['timetableOverrides:2026:zenki:9973337'] = { quarter: 'second' }
+    // courses は空＝LETUS側に該当コースが無い状況
+    const got = await loadCourseOverrides(2026, 'zenki', [])
+    expect(got['9973337']).toEqual({ quarter: 'second' })
+  })
+
+  it('LETUSコース名由来のコードも従来どおり読む', async () => {
+    store['timetableOverrides:2026:zenki:9973337'] = { room: 'X教室' }
+    const got = await loadCourseOverrides(2026, 'zenki', [
+      { id: '1', name: '9973337 電気数学', url: '' } as never,
+    ])
+    expect(got['9973337']).toEqual({ room: 'X教室' })
   })
 })
 
