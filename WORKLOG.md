@@ -552,20 +552,17 @@ v1.2.0の残タスク（Phase A）着手前に、`develop`が`qa/v1.1.x-release`
 
 **セキュリティ構成（外部ネットワークからの開発アクセス）**
 - Tailscale（WireGuard VPN）をラズパイ・開発PCの両方にインストール・接続完了
-  - ラズパイ Tailscale IP: `100.98.8.76`（tailnet: `y2studyabout@gmail.com`）
-  - 開発PC Tailscale IP: `100.125.177.110`
+  - 両機はtailnet内部IPで相互接続（IP・tailnetアカウント・鍵は非公開管理）
 - ufw を設定: SSH(22)・監視ツールポートを tailscale0 経由のみ許可、外部ポート開放なし
 - fail2ban を設定: SSH 3回失敗で1時間 BAN
 - SSH パスワード認証を無効化（鍵認証のみ）
-  - 使用鍵: `~/.ssh/lmspi_key`
-- 接続コマンド: `ssh -i ~/.ssh/lmspi_key pi@100.98.8.76`（または `ssh raspi`）
+- 接続はTailscale経由のSSHエイリアス（`ssh raspi`）
 
 **サーバー監視環境**
 - Glances v4.5.5 をインストール（venv: `/opt/glances-venv`、uvicorn で動作）
-  - アクセス: `http://100.98.8.76:61208`（tailscale0のみ）
+  - アクセス: tailscale0 経由の内部IP:61208 のみ
 - Cockpit v337 をインストール（systemd サービス管理 WebUI）
-  - アクセス: `https://100.98.8.76:9090`（tailscale0のみ）
-  - ログイン: `pi` / SSHパスワード
+  - アクセス: tailscale0 経由の内部IP:9090 のみ
 
 **ポート使用状況の把握**
 
