@@ -71,7 +71,7 @@ const BANNER_TEXTS: Record<Exclude<BannerKind, 'none'>, { title: string; body: s
   },
   unsupported: {
     title: '一部の活動は自動取得に未対応です',
-    body: '一部の活動はまだ締切の自動取得に対応していません。',
+    body: '一部の活動（投票・アンケートなど）は、提出状況の自動判定にまだ対応していません。',
   },
 }
 

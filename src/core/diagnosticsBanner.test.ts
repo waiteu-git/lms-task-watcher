@@ -104,7 +104,7 @@ describe('buildBannerContent: unsupported（未対応モジュール）', () => 
     const content = buildBannerContent(stateWith(['UNSUPPORTED_MODULE']))
     expect(content.kind).toBe('unsupported')
     expect(content.title).toBe('一部の活動は自動取得に未対応です')
-    expect(content.body).toBe('一部の活動はまだ締切の自動取得に対応していません。')
+    expect(content.body).toBe('一部の活動（投票・アンケートなど）は、提出状況の自動判定にまだ対応していません。')
     expect(content.lastGoodAt).toBe(T_GOOD)
   })
 })
@@ -219,7 +219,7 @@ describe('buildInfoNotes: 既知 info コードの文言（spec§0「未対応�
     expect(notes).toEqual([
       {
         code: 'UNSUPPORTED_MODULE',
-        text: '一部の活動はまだ締切の自動取得に対応していません。',
+        text: '一部の活動（投票・アンケートなど）は、提出状況の自動判定にまだ対応していません。',
       },
     ])
     // バナー防御枝（旧形式データ）と同じ文言＝単一情報源の確認
