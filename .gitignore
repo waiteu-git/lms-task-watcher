@@ -8,3 +8,10 @@ dist
 .mcp.json
 .superpowers/
 data/
+
+# 内部の設計・計画・提出メモは非公開（ローカル保持・develop と同方針）
+# ※ docs/ ではなく docs/* にすること。末尾スラッシュだと配下を ! で再includeできない。
+docs/*
+
+# ただし規約の正典は公開物（develop で scripts/gen-terms.mjs が単一正典として使う）。
+!docs/legal/
