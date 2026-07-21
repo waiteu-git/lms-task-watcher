@@ -38,14 +38,16 @@ manifest version: **1.3.0**（**公開中の 1.2.2 からの通常アップデ�
 - [x] `dist/manifest.json` の `version` が **1.3.0**、`host_permissions` は `letus.ed.tus.ac.jp` と `class.admin.tus.ac.jp` の2つのみ（**新規ホスト追加なし**）
 - [x] SDD（subagent駆動開発）: 実装14タスク×各2レビュア＋最終whole-branchレビュー2本×2周＋修正で計53エージェント・実バグ8件以上を出荷前に検出・修正（相対日付の締切捏造2種・未配線2件・info汚染・バナー到達不能ほか）
 - [x] develop へ fold 済み（`ed6268f`・マージ後 675緑を再検証・landing 無変更）
-- [ ] **実機確認（未・ユーザーゲート）**: ①新バナーが平常時に**出ない**こと（休眠確認・最重要） ②クォーター科目の表示/トグル/課題出現 ③未提出課題が「未提出」表示になること ④ログアウト状態でバナーが1つだけ出て、ログインで自動回復すること
+- [x] **実機確認（2026-07-22 実施・ユーザー報告）**: ①新バナーが平常時に**出ない**こと（休眠確認・最重要） ②クォーター科目の表示/トグル/課題出現 ③未提出課題が「未提出」表示になること ④ログアウト状態でバナーが1つだけ出て、ログインで自動回復すること
 
 ## 1. パッケージ
 
 1. `pnpm build` で `dist/` を生成（version 1.3.0）
 2. `letus-task-watcher-1.3.0.zip` を forward-slash で作成（旧 `letus-task-watcher-1.2.2.zip` はアップロードしないこと）
 3. Chrome ウェブストア デベロッパー ダッシュボード → 既存アイテムの「パッケージ」タブから **1.3.0** をアップロード
-4. Edge Add-ons にも同じ zip で申請（Edge は現在 v1.2.1 のまま＝1.2.2 未申請なら 1.3.0 で追い越し可）
+4. Edge Add-ons にも同じ zip で申請。**掲載版は v1.2.1 ではなく v1.0.6（2026-07-21 に getproductdetailsbycrxid で実測・installs 0）**＝3世代の追い越しになる。
+   - ⚠**Privacy Policy URL を必ず `https://lms.waiteu.dev/privacy` へ差し替える。** 掲載中の `https://waiteu-git.github.io/lms-task-watcher/privacy-policy.html` は 2026-07-22 に GitHub Pages を停止したため **404**（内部設計書が同じ docs/ 配下から全世界公開されていたため停止）。404 のまま審査に出すと落ちうる。なお github.io 版は v1.0.x 世代で CLASS への言及がゼロ＝もともと実挙動と不一致だった。
+   - ⚠掲載中の英文説明に `The extension only activates on letus.ed.tus.ac.jp` があり、`class.admin.tus.ac.jp` を追加する 1.3.0 では虚偽記載になる。説明文も差し替える。
 
 ## 2. ストア掲載の「変更点（What's new）」テキスト
 
