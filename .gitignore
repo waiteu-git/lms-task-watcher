@@ -15,3 +15,9 @@ docs/*
 
 # ただし規約の正典は公開物（develop で scripts/gen-terms.mjs が単一正典として使う）。
 !docs/legal/
+
+# バックエンド（letus-api）の正典は非公開リポ waiteu-git/letus-api。
+# ここに残っていた api/ は 2026-07-16 の分離前の複製で、本番稼働中APIの
+# 認証・課金・webhook の実装が公開されていた（実際の秘密は含まれていない）。
+# develop では既に除去済み。main も追跡から外す。
+/api/
