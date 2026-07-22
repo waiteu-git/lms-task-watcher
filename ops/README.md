@@ -8,7 +8,7 @@
 | スクリプト | 実行 | 内容 | 通知 |
 |---|---|---|---|
 | `nightly.sh` | 毎日 03:30 | developのCIクローンで install/build/lint/vitest/api-test | 毎回1行（失敗時はログ末尾付き） |
-| `canary.sh` | 毎日 07:30 | LETUSログインページ生存・DOMマーカー・iCalエクスポート形式 | 異常時のみ |
+| `canary.sh` | 毎日 07:30 | 対象LMSのログインページ生存・DOMマーカー・カレンダーエクスポート形式 | 異常時のみ |
 | `raspi-health.sh` | 毎日 07:00 | 公開API/内部API/ディスク/バックアップ最終結果 | 異常時のみ＋月曜ハートビート |
 | `competitor-watch.sh` | 毎週月 09:00 | LETask（App Store）のバージョン・評価数の変化 | 変化時のみ |
 | `dev-digest.sh` | 毎日 07:15 | 残タスク＋前日進捗の朝サマリー（任意でLLM要約1行） | 毎回1通（#dev-digest） |
@@ -19,10 +19,21 @@
 
    ```bash
    OPS_WEBHOOK_URL='https://discord.com/api/webhooks/...'   # #ops-alerts のwebhook
-   # 任意: 設定するとcanaryがiCalエクスポートも監視する
+
+   # canary の監視先（未設定だと生存確認をスキップし、異常として通知される）
+   CANARY_LOGIN_URL='<LMSのログインページURL>'
+
+   # 任意: 設定するとcanaryがカレンダーエクスポートも監視する
    # 値に & を含むため、必ずシングルクォートで囲む（囲まないとsource時に壊れる）
-   # MOODLE_ICAL_URL='https://letus.ed.tus.ac.jp/calendar/export_execute.php?...&authtoken=...'
+   # MOODLE_ICAL_URL='https://<lms>/calendar/export_execute.php?...&authtoken=...'
+
+   # raspi-health の接続先（未設定だと内部確認をスキップし、異常として通知される）
+   # RASPI_SSH_HOST='<user>@<host>'
+   # RASPI_SSH_KEY='<秘密鍵のパス>'          # 既定 ~/.ssh/id_raspi
+   # RASPI_PUBLIC_HEALTH_URL='<URL>'        # 既定 公開APIの /health
    ```
+
+   ホスト名・ユーザー名・鍵のパスといった構成情報は、この公開リポジトリには書かない。
 
 2. 固定ランチャーを設置（スクリプト本体は実行前にCIクローン経由でorigin/developへ自動同期される）:
 
@@ -33,10 +44,10 @@
 3. スケジュールはWindowsタスクスケジューラで登録（WSL停止中でも起動される）:
 
    ```cmd
-   schtasks /create /f /tn LMS-Nightly         /sc daily  /st 03:30 /tr "wsl.exe -d Ubuntu -u ysou5 -- /home/ysou5/ops/run.sh nightly"
-   schtasks /create /f /tn LMS-RaspiHealth     /sc daily  /st 07:00 /tr "wsl.exe -d Ubuntu -u ysou5 -- /home/ysou5/ops/run.sh raspi-health"
-   schtasks /create /f /tn LMS-Canary          /sc daily  /st 07:30 /tr "wsl.exe -d Ubuntu -u ysou5 -- /home/ysou5/ops/run.sh canary"
-   schtasks /create /f /tn LMS-CompetitorWatch /sc weekly /d MON /st 09:00 /tr "wsl.exe -d Ubuntu -u ysou5 -- /home/ysou5/ops/run.sh competitor-watch"
+   schtasks /create /f /tn LMS-Nightly         /sc daily  /st 03:30 /tr "wsl.exe -d Ubuntu -u <user> -- /home/<user>/ops/run.sh nightly"
+   schtasks /create /f /tn LMS-RaspiHealth     /sc daily  /st 07:00 /tr "wsl.exe -d Ubuntu -u <user> -- /home/<user>/ops/run.sh raspi-health"
+   schtasks /create /f /tn LMS-Canary          /sc daily  /st 07:30 /tr "wsl.exe -d Ubuntu -u <user> -- /home/<user>/ops/run.sh canary"
+   schtasks /create /f /tn LMS-CompetitorWatch /sc weekly /d MON /st 09:00 /tr "wsl.exe -d Ubuntu -u <user> -- /home/<user>/ops/run.sh competitor-watch"
    ```
 
    注意: タスクは「ユーザーがログオンしているときのみ」実行される既定設定。
@@ -54,7 +65,7 @@
 
 ## 設計方針
 
-- 通知はDiscordの `#ops-alerts`（webhook、Botトークンは使わない・ラズパイから出さない）
+- 通知はDiscordの `#ops-alerts`（webhook、Botトークンは使わない・サーバー側からは出さない）
 - 「異常を検知したら自動修正」はしない。検知と事実の通知まで。修正は指示があったときのみ
 - canary Stage B（実セッションでスクレイパー実走）は認証方式決定後に追加予定
 
@@ -137,7 +148,7 @@ DIGEST_MONTHLY_BUDGET_USD=0.50           # 月予算。到達すると自動停�
 ### スケジュール登録（Windowsタスクスケジューラ）
 
 ```cmd
-schtasks /create /f /tn LMS-DevDigest /sc daily /st 07:15 /tr "wsl.exe -d Ubuntu -u ysou5 -- /home/ysou5/ops/run.sh dev-digest"
+schtasks /create /f /tn LMS-DevDigest /sc daily /st 07:15 /tr "wsl.exe -d Ubuntu -u <user> -- /home/<user>/ops/run.sh dev-digest"
 ```
 
 （raspi-health 07:00 と canary 07:30 の間。デプロイは origin/develop に push するだけ。）
