@@ -42,14 +42,14 @@ pre { white-space: pre-wrap; word-wrap: break-word; font-family: inherit; font-s
 <main><pre>${escapeHtml(markdown)}</pre></main>
   <footer style="background:#0f172a;color:rgba(255,255,255,0.55);padding:32px 24px;text-align:center;">
     <div style="display:flex;justify-content:center;gap:22px;margin-bottom:14px;flex-wrap:wrap;">
-      <a href="/" style="color:rgba(255,255,255,0.75);font-size:13.5px;font-weight:700;">トップページ</a>
-      <a href="/terms" style="color:rgba(255,255,255,0.75);font-size:13.5px;font-weight:700;">利用規約</a>
-      <a href="/privacy" style="color:rgba(255,255,255,0.75);font-size:13.5px;font-weight:700;">プライバシーポリシー</a>
-      <a href="/transparency" style="color:rgba(255,255,255,0.75);font-size:13.5px;font-weight:700;">透明性レポート</a>
-      <a href="https://chromewebstore.google.com/detail/letus-task-watcher/eofgkmpiadoeckkliialkddacidcinml" target="_blank" rel="noopener" style="color:rgba(255,255,255,0.75);font-size:13.5px;font-weight:700;">Chrome Web Store</a>
-      <a href="https://microsoftedge.microsoft.com/addons/detail/femdjgdgelnbdpgnfehacobmpbfmbdoa" target="_blank" rel="noopener" style="color:rgba(255,255,255,0.75);font-size:13.5px;font-weight:700;">Edge Add-ons</a>
-      <a href="https://litus.waiteu.dev/" target="_blank" rel="noopener" style="color:rgba(255,255,255,0.75);font-size:13.5px;font-weight:700;">リタス（スマホアプリ）</a>
-      <a href="https://waiteu.dev/" target="_blank" rel="noopener" style="color:rgba(255,255,255,0.75);font-size:13.5px;font-weight:700;">開発者サイト</a>
+      <a href="/" style="color:rgba(255,255,255,0.75);font-size:13.5px;font-weight:700;text-decoration:none;">トップページ</a>
+      <a href="/terms" style="color:rgba(255,255,255,0.75);font-size:13.5px;font-weight:700;text-decoration:none;">利用規約</a>
+      <a href="/privacy" style="color:rgba(255,255,255,0.75);font-size:13.5px;font-weight:700;text-decoration:none;">プライバシーポリシー</a>
+      <a href="/transparency" style="color:rgba(255,255,255,0.75);font-size:13.5px;font-weight:700;text-decoration:none;">透明性レポート</a>
+      <a href="https://chromewebstore.google.com/detail/letus-task-watcher/eofgkmpiadoeckkliialkddacidcinml" target="_blank" rel="noopener" style="color:rgba(255,255,255,0.75);font-size:13.5px;font-weight:700;text-decoration:none;">Chrome Web Store</a>
+      <a href="https://microsoftedge.microsoft.com/addons/detail/femdjgdgelnbdpgnfehacobmpbfmbdoa" target="_blank" rel="noopener" style="color:rgba(255,255,255,0.75);font-size:13.5px;font-weight:700;text-decoration:none;">Edge Add-ons</a>
+      <a href="https://litus.waiteu.dev/" target="_blank" rel="noopener" style="color:rgba(255,255,255,0.75);font-size:13.5px;font-weight:700;text-decoration:none;">リタス（スマホアプリ）</a>
+      <a href="https://waiteu.dev/" target="_blank" rel="noopener" style="color:rgba(255,255,255,0.75);font-size:13.5px;font-weight:700;text-decoration:none;">開発者サイト</a>
     </div>
     <p style="font-size:12.5px;font-weight:600;">© 2026 waiteu. 東京理科大学非公式の学生個人プロジェクトです。</p>
   </footer>
