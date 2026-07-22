@@ -46,7 +46,7 @@ litus の進捗を「自分用ダイジェスト／X下書き／devlogエント�
    ```
 
 ## 公開（レビュー後）
-- X: Discordの `## X下書き` をコピペして @yning_y2 で投稿（手動）。
+- X: Discordの `## X下書き` をコピペして @waiteu_dev で投稿（手動）。
 - devlog（webへ公開）: ワンコマンド。
 
   ```bash
