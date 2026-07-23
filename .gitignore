@@ -3,6 +3,7 @@ dist
 dist-dev
 dist-beta
 *.zip
+*.bak
 .env
 *.env.development
 *.env.local
