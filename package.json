@@ -10,7 +10,8 @@
     "build:beta": "tsc -b && vite build --mode beta",
     "lint": "eslint .",
     "preview": "vite preview",
-    "gen:terms": "node scripts/gen-terms.mjs"
+    "gen:terms": "node scripts/gen-terms.mjs",
+    "check:footers": "node scripts/check-footer-consistency.mjs"
   },
   "dependencies": {
     "node-html-parser": "^7.0.1",
