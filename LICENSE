@@ -57,7 +57,18 @@ haya9924 氏が開発するアプリ「cabetus」（github.com/haya9924/cabetus�
 貢献の提出をもって、貢献者は CONTRIBUTING.md に定める権利許諾条項
 （原著作性の保証、著作権者への利用・改変・頒布・再ライセンス等の許諾、
 著作者人格権の不行使を含む）に同意したものとみなす。受け入れられた貢献は
-本ライセンスの下で公開される。（貢献受け入れ開始日: 2026-07-23）
+本ライセンスの下で公開される。
+
+貢献を準備・提出する目的に限り、上記の禁止条項にかかわらず、次の行為を
+許可する（貢献目的の例外）:
+1. GitHub 上で本リポジトリを fork すること
+2. 貢献の作成に必要な範囲でソースコードを改変すること
+3. 当該改変を、fork リポジトリおよび Pull Request として GitHub 上で
+   公開すること
+この例外は貢献の準備・提出以外の利用を許可するものではない。fork
+リポジトリを本ソフトウェアの配布・提供の手段として利用すること
+（ビルド済み成果物の配布を含む）はできない。
+（貢献受け入れ開始日: 2026-07-23）
 
 【English】
 
@@ -119,6 +130,19 @@ CONTRIBUTING.md, including the certification of originality, the grant to
 the copyright holder of rights to use, modify, distribute, and relicense
 the contribution, and the waiver of assertion of moral rights. Accepted
 contributions are published under this license.
+
+Solely for the purpose of preparing and submitting a contribution, and
+notwithstanding the prohibitions above, the following are permitted
+(contribution-purpose exception):
+1. Forking this repository on GitHub;
+2. Modifying the source code to the extent necessary to create the
+   contribution; and
+3. Publishing such modifications on GitHub as a forked repository and as
+   a pull request.
+This exception does not permit any use other than preparing and submitting
+a contribution. A forked repository may not be used as a means of
+distributing or providing this software (including distribution of built
+artifacts).
 (Contributions accepted from: 2026-07-23)
 
 In case of any discrepancy between the Japanese and English texts, the
