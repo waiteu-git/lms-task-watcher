@@ -16,13 +16,23 @@ import { buildCalendarIcs, icsFileName } from '../core/icsExport'
 type Props = {
   /** 統合済みタイムライン（スキャン＋手動・オーバーライド適用済み・非表示除外済み） */
   items: TimelineItem[]
-  /** 締切未設定のスキャン課題にユーザー締切を設定する */
+  /** スキャン課題にユーザー締切を設定/変更する */
   onSetScanDeadline: (assignmentId: string, deadlineIso: string) => void
+  /** ユーザー締切を外して自動検出に戻す */
+  onClearScanDeadline: (assignmentId: string) => void
   /** スキャン課題をリストから非表示にする */
   onHideScanAssignment: (assignmentId: string) => void
   /** 手動課題の部分更新（締切変更時の通知再アームは呼び出し側が持つ） */
   onUpdateManualAssignment: (id: string, patch: ManualAssignmentPatch) => void
 }
+
+type ChipHandlers = Pick<
+  Props,
+  | 'onSetScanDeadline'
+  | 'onClearScanDeadline'
+  | 'onHideScanAssignment'
+  | 'onUpdateManualAssignment'
+>
 
 function formatChipTime(iso: string): string {
   const d = new Date(iso)
@@ -63,19 +73,26 @@ function ChipBody({ item, withTime }: { item: TimelineItem; withTime: boolean })
   )
 }
 
-/** 締切入力の小型インラインエディタ（保存/キャンセルのみ）。 */
+/** 締切入力の小型インラインエディタ。手動課題では提出状況も同時に編集できる。 */
 function DeadlineEditor({
   initialIso,
   submitLabel,
+  submittedInitial,
   onSave,
+  onClear,
   onCancel,
 }: {
   initialIso: string | null
   submitLabel: string
-  onSave: (iso: string) => void
+  /** undefined なら提出状況チェックを出さない（スキャン課題） */
+  submittedInitial?: boolean
+  onSave: (iso: string, submitted?: boolean) => void
+  /** ユーザー締切のクリア（自動検出に戻す）。不要なら省略 */
+  onClear?: () => void
   onCancel: () => void
 }) {
   const [value, setValue] = useState(toLocalInputValue(initialIso))
+  const [submitted, setSubmitted] = useState(submittedInitial ?? false)
   return (
     <div className="calendarChipEditor">
       <input
@@ -84,7 +101,22 @@ function DeadlineEditor({
         onChange={(e) => setValue(e.target.value)}
         aria-label="締切日時"
       />
+      {submittedInitial !== undefined && (
+        <label className="calendarChipEditorCheck">
+          <input
+            type="checkbox"
+            checked={submitted}
+            onChange={(e) => setSubmitted(e.target.checked)}
+          />
+          提出済み
+        </label>
+      )}
       <div className="calendarChipEditorActions">
+        {onClear && (
+          <button type="button" className="calendarChipBtn danger" onClick={onClear}>
+            クリア
+          </button>
+        )}
         <button type="button" className="calendarChipBtn" onClick={onCancel}>
           キャンセル
         </button>
@@ -95,7 +127,7 @@ function DeadlineEditor({
           onClick={() => {
             const parsed = new Date(value)
             if (Number.isNaN(parsed.getTime())) return
-            onSave(parsed.toISOString())
+            onSave(parsed.toISOString(), submittedInitial !== undefined ? submitted : undefined)
           }}
         >
           {submitLabel}
@@ -109,65 +141,98 @@ function CalendarChip({
   item,
   withTime,
   onSetScanDeadline,
+  onClearScanDeadline,
   onHideScanAssignment,
   onUpdateManualAssignment,
 }: {
   item: TimelineItem
   withTime: boolean
-} & Pick<Props, 'onSetScanDeadline' | 'onHideScanAssignment' | 'onUpdateManualAssignment'>) {
+} & ChipHandlers) {
   const [editing, setEditing] = useState(false)
   const submitted = isTimelineItemSubmitted(item)
   const isManual = item.kind === 'manual'
+  const isUserDeadlineScan =
+    item.kind === 'scan' && item.assignment.deadlineSource === 'user'
   const isUndatedScan = item.kind === 'scan' && !item.assignment.deadline
+  // 右上✎ = ユーザーが自分で入れたもの（手動課題・手動締切）だけ編集できる
+  const editable = isManual || isUserDeadlineScan
 
-  const className = `calendarChip${submitted ? ' submitted' : ''}${isManual ? ' manual' : ''}`
+  const iconCount = editing ? 0 : editable ? 1 : isUndatedScan ? 2 : 0
+  const className = `calendarChip${submitted ? ' submitted' : ''}${isManual ? ' manual' : ''}${iconCount > 0 ? ` hasIcons${iconCount}` : ''}`
 
   return (
     <div className={className}>
-      <ChipBody item={item} withTime={withTime} />
-
-      {isManual && !editing && (
-        <div className="calendarChipActions">
+      {editable && !editing && (
+        <div className="calendarChipIcons">
           <button
             type="button"
-            className="calendarChipBtn"
-            onClick={() =>
-              onUpdateManualAssignment(item.assignment.id, { submitted: !submitted })
-            }
+            className="calendarChipIconBtn"
+            title={isManual ? '手動課題を編集' : '手動設定した締切を編集'}
+            aria-label={isManual ? '手動課題を編集' : '手動設定した締切を編集'}
+            onClick={() => setEditing(true)}
           >
-            {submitted ? '未提出に戻す' : '提出済みにする'}
-          </button>
-          <button type="button" className="calendarChipBtn" onClick={() => setEditing(true)}>
-            ✎ 締切
+            ✎
           </button>
         </div>
       )}
+
+      {isUndatedScan && !editing && (
+        <div className="calendarChipIcons">
+          <button
+            type="button"
+            className="calendarChipIconBtn"
+            title="締切を設定"
+            aria-label="締切を設定"
+            onClick={() => setEditing(true)}
+          >
+            ＋
+          </button>
+          <button
+            type="button"
+            className="calendarChipIconBtn danger"
+            title="この課題をリストから非表示にする"
+            aria-label="この課題をリストから非表示にする"
+            onClick={() => onHideScanAssignment(item.assignment.id)}
+          >
+            ×
+          </button>
+        </div>
+      )}
+
+      <ChipBody item={item} withTime={withTime} />
+
       {isManual && editing && (
         <DeadlineEditor
           initialIso={item.assignment.deadline}
           submitLabel="変更"
+          submittedInitial={item.assignment.submitted}
           onCancel={() => setEditing(false)}
-          onSave={(iso) => {
-            onUpdateManualAssignment(item.assignment.id, { deadline: iso })
+          onSave={(iso, nextSubmitted) => {
+            onUpdateManualAssignment(item.assignment.id, {
+              deadline: iso,
+              ...(nextSubmitted !== undefined ? { submitted: nextSubmitted } : {}),
+            })
             setEditing(false)
           }}
         />
       )}
 
-      {isUndatedScan && !editing && (
-        <div className="calendarChipActions">
-          <button type="button" className="calendarChipBtn" onClick={() => setEditing(true)}>
-            ＋締切
-          </button>
-          <button
-            type="button"
-            className="calendarChipBtn"
-            onClick={() => onHideScanAssignment(item.assignment.id)}
-          >
-            非表示
-          </button>
-        </div>
+      {isUserDeadlineScan && editing && (
+        <DeadlineEditor
+          initialIso={item.assignment.deadline}
+          submitLabel="変更"
+          onCancel={() => setEditing(false)}
+          onClear={() => {
+            onClearScanDeadline(item.assignment.id)
+            setEditing(false)
+          }}
+          onSave={(iso) => {
+            onSetScanDeadline(item.assignment.id, iso)
+            setEditing(false)
+          }}
+        />
       )}
+
       {isUndatedScan && editing && (
         <DeadlineEditor
           initialIso={null}
@@ -186,6 +251,7 @@ function CalendarChip({
 export function WeeklyCalendarSection({
   items,
   onSetScanDeadline,
+  onClearScanDeadline,
   onHideScanAssignment,
   onUpdateManualAssignment,
 }: Props) {
@@ -223,8 +289,9 @@ export function WeeklyCalendarSection({
     URL.revokeObjectURL(url)
   }
 
-  const chipHandlers = {
+  const chipHandlers: ChipHandlers = {
     onSetScanDeadline,
+    onClearScanDeadline,
     onHideScanAssignment,
     onUpdateManualAssignment,
   }
@@ -314,10 +381,7 @@ function UndatedArea({
   chipHandlers,
 }: {
   items: TimelineItem[]
-  chipHandlers: Pick<
-    Props,
-    'onSetScanDeadline' | 'onHideScanAssignment' | 'onUpdateManualAssignment'
-  >
+  chipHandlers: ChipHandlers
 }) {
   const [showSubmitted, setShowSubmitted] = useState(false)
   const active = items.filter((item) => !isTimelineItemSubmitted(item))

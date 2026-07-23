@@ -57,7 +57,7 @@ import {
 import { createNotification, normalizeUpdateError } from './utils/notification'
 import { classifyScanStartResponse, type ScanStartResponse } from './utils/scanResponse'
 import { computeDeadlineNotifications, type DeadlineTarget } from './core/deadlineNotify'
-import { applyDeadlineOverrides, getDeadlineOverrides, setDeadlineOverride } from './core/deadlineOverride'
+import { applyDeadlineOverrides, clearDeadlineOverride, getDeadlineOverrides, setDeadlineOverride } from './core/deadlineOverride'
 import { resolveEffectiveTheme } from './core/theme'
 import { AssignmentCard } from './components/AssignmentCard'
 import { CollapsibleSection, Section } from './components/Section'
@@ -927,11 +927,11 @@ export default function App() {
     setMessage('非表示にした課題をすべて再表示しました。')
   }
 
-  // 週間カレンダーの「＋締切」。締切未設定のスキャン課題にユーザー締切を重ねる。
-  // 締切なし→設定の一方向なので、既発火の通知キー剥がし（再アーム）は不要。
+  // 週間カレンダーの「＋締切」/✎。スキャン課題にユーザー締切を設定・変更する。
   async function setScanDeadlineFromCalendar(assignmentId: string, deadlineIso: string) {
     const target = assignments.find((assignment) => assignment.id === assignmentId)
     if (!target) return
+    const hadDeadline = target.deadline !== null
     await setDeadlineOverride(target.url, deadlineIso)
     setAssignments((prev) =>
       prev.map((assignment) =>
@@ -940,7 +940,27 @@ export default function App() {
           : assignment,
       ),
     )
+    // 締切の変更（延長）では既発火の通知キーを剥がして再通知を有効にする。
+    // 未設定→初設定は通知キーが存在しないため不要。
+    if (hadDeadline && target.deadline !== deadlineIso) {
+      await rearmDeadlineNotificationsForId(assignmentId)
+    }
     setMessage('締切を設定しました。設定した締切にも通知が届きます。')
+  }
+
+  // 週間カレンダーの✎→クリア。ユーザー締切を外して自動検出値へ戻す。
+  // 元のパース済み締切はstate上で上書きされているため、storageから再構成する。
+  async function clearScanDeadlineFromCalendar(assignmentId: string) {
+    const target = assignments.find((assignment) => assignment.id === assignmentId)
+    if (!target) return
+    await clearDeadlineOverride(target.url)
+    const [savedAssignments, overrides] = await Promise.all([
+      getAssignments(),
+      getDeadlineOverrides(),
+    ])
+    setAssignments(applyDeadlineOverrides(savedAssignments, overrides))
+    await rearmDeadlineNotificationsForId(assignmentId)
+    setMessage('締切を自動検出に戻しました。')
   }
 
   async function handleDeleteManualAssignment(id: string) {
@@ -1432,6 +1452,7 @@ export default function App() {
           <WeeklyCalendarSection
             items={calendarTimeline}
             onSetScanDeadline={(id, iso) => void setScanDeadlineFromCalendar(id, iso)}
+            onClearScanDeadline={(id) => void clearScanDeadlineFromCalendar(id)}
             onHideScanAssignment={(id) => void hideAssignment(id)}
             onUpdateManualAssignment={(id, patch) =>
               void handleUpdateManualAssignment(id, patch)

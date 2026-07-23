@@ -37,3 +37,11 @@ export async function setDeadlineOverride(url: string, iso: string): Promise<voi
     [DEADLINE_OVERRIDES_KEY]: { ...current, [normalizeUrl(url)]: iso },
   })
 }
+
+/** ユーザー設定の締切を外し、自動検出値に戻す。 */
+export async function clearDeadlineOverride(url: string): Promise<void> {
+  const current = await getDeadlineOverrides()
+  const next = { ...current }
+  delete next[normalizeUrl(url)]
+  await chrome.storage.local.set({ [DEADLINE_OVERRIDES_KEY]: next })
+}
