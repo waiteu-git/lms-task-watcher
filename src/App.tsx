@@ -57,7 +57,7 @@ import {
 import { createNotification, normalizeUpdateError } from './utils/notification'
 import { classifyScanStartResponse, type ScanStartResponse } from './utils/scanResponse'
 import { computeDeadlineNotifications, type DeadlineTarget } from './core/deadlineNotify'
-import { applyDeadlineOverrides, getDeadlineOverrides } from './core/deadlineOverride'
+import { applyDeadlineOverrides, clearDeadlineOverride, getDeadlineOverrides, setDeadlineOverride } from './core/deadlineOverride'
 import { resolveEffectiveTheme } from './core/theme'
 import { AssignmentCard } from './components/AssignmentCard'
 import { CollapsibleSection, Section } from './components/Section'
@@ -98,6 +98,7 @@ import { resolveViewSemester, loadCourseOverrides } from './core/timetableView'
 import { SyllabusContext, type OpenSyllabus } from './core/syllabusContext'
 import { SyllabusModal } from './components/SyllabusModal'
 import { mergeTimeline } from './utils/timeline'
+import { WeeklyCalendarSection } from './components/WeeklyCalendarSection'
 import {
   getManualUrgent,
   getManualTomorrow,
@@ -771,6 +772,12 @@ export default function App() {
     [submittedAssignments, manualSubmitted],
   )
 
+  // 週間カレンダー用の全件タイムライン（非表示課題は除外・提出済みは含める）
+  const calendarTimeline = useMemo(
+    () => mergeTimeline(visibleAssignments, manualAssignments),
+    [visibleAssignments, manualAssignments],
+  )
+
   const isBackgroundRunning =
     assignmentScanStatus.state === 'running' ||
     deadlineScanStatus.state === 'running'
@@ -920,6 +927,42 @@ export default function App() {
     setMessage('非表示にした課題をすべて再表示しました。')
   }
 
+  // 週間カレンダーの「＋締切」/✎。スキャン課題にユーザー締切を設定・変更する。
+  async function setScanDeadlineFromCalendar(assignmentId: string, deadlineIso: string) {
+    const target = assignments.find((assignment) => assignment.id === assignmentId)
+    if (!target) return
+    const hadDeadline = target.deadline !== null
+    await setDeadlineOverride(target.url, deadlineIso)
+    setAssignments((prev) =>
+      prev.map((assignment) =>
+        assignment.id === assignmentId
+          ? { ...assignment, deadline: deadlineIso, deadlineSource: 'user' }
+          : assignment,
+      ),
+    )
+    // 締切の変更（延長）では既発火の通知キーを剥がして再通知を有効にする。
+    // 未設定→初設定は通知キーが存在しないため不要。
+    if (hadDeadline && target.deadline !== deadlineIso) {
+      await rearmDeadlineNotificationsForId(assignmentId)
+    }
+    setMessage('締切を設定しました。設定した締切にも通知が届きます。')
+  }
+
+  // 週間カレンダーの✎→クリア。ユーザー締切を外して自動検出値へ戻す。
+  // 元のパース済み締切はstate上で上書きされているため、storageから再構成する。
+  async function clearScanDeadlineFromCalendar(assignmentId: string) {
+    const target = assignments.find((assignment) => assignment.id === assignmentId)
+    if (!target) return
+    await clearDeadlineOverride(target.url)
+    const [savedAssignments, overrides] = await Promise.all([
+      getAssignments(),
+      getDeadlineOverrides(),
+    ])
+    setAssignments(applyDeadlineOverrides(savedAssignments, overrides))
+    await rearmDeadlineNotificationsForId(assignmentId)
+    setMessage('締切を自動検出に戻しました。')
+  }
+
   async function handleDeleteManualAssignment(id: string) {
     const target = manualAssignments.find((a) => a.id === id)
     await deleteManualAssignment(id)
@@ -1017,6 +1060,21 @@ export default function App() {
   function openDashboard() {
     chrome.tabs.create({
       url: chrome.runtime.getURL('index.html#dashboard'),
+    })
+  }
+
+  // サマリータイル→該当セクションへスクロール（折りたたみ先は開いてから）
+  function jumpToSection(id: string) {
+    const el = document.getElementById(id)
+    if (!el) return
+    if (el instanceof HTMLDetailsElement) el.open = true
+    el.scrollIntoView({ behavior: 'smooth', block: 'start' })
+  }
+
+  function openCalendar() {
+    // hash は '#dashboard' 完全一致で判定しているため、クエリで導線を伝える
+    chrome.tabs.create({
+      url: chrome.runtime.getURL('index.html?focus=calendar#dashboard'),
     })
   }
 
@@ -1339,6 +1397,14 @@ export default function App() {
             ダッシュボードを開く
           </button>
 
+          <button
+            type="button"
+            className="dashboardBtn"
+            onClick={openCalendar}
+          >
+            週間カレンダーで見る
+          </button>
+
           <footer className="feedbackFooter">
             <button type="button" onClick={openFeedbackForm}>
               バグ報告・ご意見
@@ -1355,40 +1421,48 @@ export default function App() {
               <h1>課題ダッシュボード</h1>
             </div>
 
-            <p>
-              課題の詳細確認、対象コースの選択、開始前・提出済み・期限切れの確認はこちらで行います。
-              不要な課題はカード右下の「非表示」からリストから外せます。
-            </p>
+            {/* JSXの改行は半角スペースとして描画され行頭・行末に不自然な空きを作るため、1文字列で書く */}
+            <p>課題の詳細確認、対象コースの選択、開始前・提出済み・期限切れの確認はこちらで行います。不要な課題はカード右下の「非表示」からリストから外せます。自動で見つからない課題は、LETUSコースページ右下の「課題を追加」や項目横の「+」から手動で追加できます。</p>
           </section>
 
           <section className="miniSummary dashboardSummary">
-            <div>
+            <button type="button" onClick={() => jumpToSection('sec-urgent')}>
               <span>24時間以内</span>
               <strong>{urgentAssignments.length}</strong>
-            </div>
+            </button>
 
-            <div>
+            <button type="button" onClick={() => jumpToSection('sec-tomorrow')}>
               <span>明日まで</span>
               <strong>{tomorrowAssignments.length}</strong>
-            </div>
+            </button>
 
-            <div>
+            <button type="button" onClick={() => jumpToSection('sec-thisweek')}>
               <span>今週</span>
               <strong>{thisWeekAssignments.length}</strong>
-            </div>
+            </button>
 
-            <div>
+            <button type="button" onClick={() => jumpToSection('sec-submitted')}>
               <span>提出済み</span>
               <strong>{submittedAssignments.length}</strong>
-            </div>
+            </button>
 
-            <div>
+            <button type="button" onClick={() => jumpToSection('sec-passed')}>
               <span>期限切れ</span>
               <strong>
                 {activePassedAssignments.length + oldPassedAssignments.length}
               </strong>
-            </div>
+            </button>
           </section>
+
+          <WeeklyCalendarSection
+            items={calendarTimeline}
+            onSetScanDeadline={(id, iso) => void setScanDeadlineFromCalendar(id, iso)}
+            onClearScanDeadline={(id) => void clearScanDeadlineFromCalendar(id)}
+            onHideScanAssignment={(id) => void hideAssignment(id)}
+            onUpdateManualAssignment={(id, patch) =>
+              void handleUpdateManualAssignment(id, patch)
+            }
+          />
 
           <TimetableSection
             courses={courses}
@@ -1400,6 +1474,7 @@ export default function App() {
           <CourseUpdatesSection courses={courses} />
 
           <Section
+            id="sec-urgent"
             title="24時間以内"
             count={urgentTimeline.length}
             emptyText="24時間以内の提出物はありません。"
@@ -1430,6 +1505,7 @@ export default function App() {
           </Section>
 
           <Section
+            id="sec-tomorrow"
             title="明日まで"
             count={tomorrowTimeline.length}
             emptyText="明日までの課題はありません。"
@@ -1460,6 +1536,7 @@ export default function App() {
           </Section>
 
           <Section
+            id="sec-thisweek"
             title="今週"
             count={thisWeekTimeline.length}
             emptyText="今週中の課題はありません。"
@@ -1535,6 +1612,7 @@ export default function App() {
           </CollapsibleSection>
 
           <CollapsibleSection
+            id="sec-submitted"
             title="提出済み・完了"
             count={submittedTimeline.length}
             emptyText="提出済みの課題はありません。"
@@ -1561,6 +1639,7 @@ export default function App() {
           </CollapsibleSection>
 
           <CollapsibleSection
+            id="sec-passed"
             title="期限切れ"
             count={activePassedAssignments.length}
             emptyText="期限切れの課題はありません。"

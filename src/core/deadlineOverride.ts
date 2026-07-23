@@ -26,3 +26,22 @@ export async function getDeadlineOverrides(): Promise<Record<string, string>> {
   }
   return result[DEADLINE_OVERRIDES_KEY] ?? {}
 }
+
+/**
+ * ユーザー設定の締切を保存する（週間カレンダーの「＋締切」等・popup/dashboard側の書き込み口）。
+ * content script 側（manualTaskWidget の openDeadlineEditor）と同じキー・同じ正規化。
+ */
+export async function setDeadlineOverride(url: string, iso: string): Promise<void> {
+  const current = await getDeadlineOverrides()
+  await chrome.storage.local.set({
+    [DEADLINE_OVERRIDES_KEY]: { ...current, [normalizeUrl(url)]: iso },
+  })
+}
+
+/** ユーザー設定の締切を外し、自動検出値に戻す。 */
+export async function clearDeadlineOverride(url: string): Promise<void> {
+  const current = await getDeadlineOverrides()
+  const next = { ...current }
+  delete next[normalizeUrl(url)]
+  await chrome.storage.local.set({ [DEADLINE_OVERRIDES_KEY]: next })
+}

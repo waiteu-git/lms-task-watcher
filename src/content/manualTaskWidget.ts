@@ -457,7 +457,17 @@ function buildWidgetInto(
   })
 }
 
-const BADGE_TARGET_MODULE_TYPES = ['assign', 'resource', 'folder', 'url', 'page', 'forum', 'quiz']
+// 「+」クイック追加バッジを出すモジュール型。手動追加の入口であり、
+// スキャン対象判定（src/core/moduleTypes.ts）とは役割が違うため意図的に統合しない。
+// バッジは誤検知の概念がない（押さなければ何も起きない）ので、
+// /mod/<type>/view.php リンクとして現れる既知型は広く対象にする（v1.4.0で拡張）。
+// label はリンクにならないため対象外。
+const BADGE_TARGET_MODULE_TYPES = [
+  'assign', 'resource', 'folder', 'url', 'page', 'forum', 'quiz',
+  // v1.4.0 追加分（動画・小テスト外の課題型を手動追加しやすくする）
+  'lti', 'lesson', 'workshop', 'feedback', 'choice', 'questionnaire',
+  'h5pactivity', 'scorm', 'survey', 'glossary', 'wiki', 'book', 'data',
+]
 
 function findAssignmentLinks(): HTMLAnchorElement[] {
   const selector = BADGE_TARGET_MODULE_TYPES.map(
