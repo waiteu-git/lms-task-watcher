@@ -1,0 +1,581 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>LETUS Task Watcher | LETUSの課題締切を自動収集・通知（東京理科大生向け・無料）</title>
+<link rel="icon" type="image/svg+xml" href="favicon.svg">
+<link rel="icon" type="image/png" sizes="48x48" href="favicon-48.png">
+<link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<meta name="description" content="東京理科大学のLMS「LETUS（レタス）」から課題の締切を自動収集し、締切前にデスクトップ通知する無料のChrome / Edge拡張機能。課題一覧・提出状況をダッシュボードで管理。理科大生の課題見逃しを防ぎます。">
+<link rel="canonical" href="https://lms.waiteu.dev/">
+<meta name="google-site-verification" content="qQAI4ASYhDklAUmVy_WE5ch0h78_Dqvuiw_R6JEYxeQ">
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://lms.waiteu.dev/">
+<meta property="og:title" content="LETUS Task Watcher — 課題の締切、もう見逃さない。">
+<meta property="og:description" content="東京理科大学のLMS「LETUS」の課題締切を自動収集・通知するChrome拡張機能。インストールするだけで課題を締切順に一覧表示・デスクトップ通知。">
+<meta property="og:image" content="https://lms.waiteu.dev/og-image.png">
+<meta property="og:locale" content="ja_JP">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="LETUS Task Watcher — 課題の締切、もう見逃さない。">
+<meta name="twitter:description" content="東京理科大学のLMS「LETUS」の課題締切を自動収集・通知するChrome拡張機能。インストールするだけで課題を締切順に一覧表示・デスクトップ通知。">
+<meta name="twitter:image" content="https://lms.waiteu.dev/og-image.png">
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "SoftwareApplication",
+  "name": "LETUS Task Watcher",
+  "url": "https://lms.waiteu.dev/",
+  "image": "https://lms.waiteu.dev/og-image.png",
+  "description": "東京理科大学のLMS「LETUS」から課題の締切を自動収集し、締切前にデスクトップ通知するブラウザ拡張機能。",
+  "applicationCategory": "BrowserApplication",
+  "operatingSystem": "Google Chrome / Microsoft Edge",
+  "offers": { "@type": "Offer", "price": "0", "priceCurrency": "JPY" },
+  "installUrl": "https://chromewebstore.google.com/detail/letus-task-watcher/eofgkmpiadoeckkliialkddacidcinml",
+  "inLanguage": "ja"
+}
+</script>
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "FAQPage",
+  "mainEntity": [
+    { "@type": "Question", "name": "無料で使えますか？", "acceptedAnswer": { "@type": "Answer", "text": "はい。課題の自動収集・締切通知・ダッシュボードなどの基本機能はすべて無料で利用できます。Chrome Web Store / Microsoft Edge Add-onsからインストールするだけで、料金は一切かかりません。" } },
+    { "@type": "Question", "name": "LETUSのパスワードやログイン情報は安全ですか？", "acceptedAnswer": { "@type": "Answer", "text": "ログインID・パスワードは一切読み取りません。ブラウザ上でログイン済みのセッションを利用して課題ページを読み取るだけで、収集したデータはブラウザ内のローカルストレージにのみ保存されます。外部サーバーへの送信は行いません。" } },
+    { "@type": "Question", "name": "東京理科大学の公式ツールですか？", "acceptedAnswer": { "@type": "Answer", "text": "いいえ。理科大生の有志による個人開発の非公式ツールです。大学およびLETUS（Moodle）の運営とは関係ありません。" } },
+    { "@type": "Question", "name": "どのブラウザで使えますか？", "acceptedAnswer": { "@type": "Answer", "text": "Google ChromeとMicrosoft Edgeに対応しています。それぞれChrome Web Store / Microsoft Edge Add-onsから無料でインストールできます。なお現在、最新版はChrome版のみで、Edge版は旧バージョンのままです（CLASS時間割連携などの新機能はまだ含まれていません）。Edge版の更新は順次進めています。" } },
+    { "@type": "Question", "name": "スマートフォンでも使えますか？", "acceptedAnswer": { "@type": "Answer", "text": "現在はPC版のChrome / Edgeのみ対応です。スマホ単体でLETUSの課題通知を受け取れるモバイルアプリ（iOS / Android）を開発中です。" } }
+  ]
+}
+</script>
+<style>
+  *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+  html{scroll-behavior:smooth}
+  body{font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color:#0f172a;background:#ffffff;line-height:1.7;-webkit-font-smoothing:antialiased;overflow-x:hidden}
+  a{color:#4f46e5;text-decoration:none}
+  a:hover{text-decoration:underline}
+  ::selection{background:#ddd6fe;color:#3730a3}
+  details>summary{list-style:none}
+  details>summary::-webkit-details-marker{display:none}
+  @keyframes rise{from{opacity:0;transform:translateY(22px)}to{opacity:1;transform:translateY(0)}}
+  @keyframes wmTop{from{opacity:0;transform:translateY(-0.5em)}to{opacity:1;transform:translateY(0)}}
+  @keyframes wmBot{from{opacity:0;transform:translateY(0.5em)}to{opacity:1;transform:translateY(0)}}
+  @keyframes floatUp{from{opacity:0;transform:translateY(46px)}to{opacity:1;transform:translateY(0)}}
+  @keyframes toastIn{from{opacity:0;transform:translateY(-14px) scale(0.96)}to{opacity:1;transform:translateY(0) scale(1)}}
+  @keyframes pulseRing{0%{box-shadow:0 0 0 0 rgba(139,92,246,0.5)}70%{box-shadow:0 0 0 11px rgba(139,92,246,0)}100%{box-shadow:0 0 0 0 rgba(139,92,246,0)}}
+  /* ---- v1.2.2 新機能デモ（固定ステージのループアニメ・GIF化前提） ---- */
+  .nf-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(280px,100%),1fr));gap:16px}
+  .nf-scale{width:340px;max-width:100%;margin:0 auto;overflow:hidden}
+  .nf-stage{position:relative;width:340px;height:210px;transform-origin:top left;background:linear-gradient(180deg,#f8f9fd,#eef0f8);border:1px solid #e6e8f5;border-radius:14px;overflow:hidden;box-shadow:inset 0 1px 0 #fff}
+  .nf-scr{position:absolute;inset:11px}
+  .nf-fade{position:absolute}
+  .nf-cursor{position:absolute;left:0;top:0;width:16px;height:16px;z-index:20;margin:-1px 0 0 -1px;pointer-events:none;filter:drop-shadow(0 2px 2px rgba(15,23,42,0.35))}
+  .nf-rip{position:absolute;width:30px;height:30px;border-radius:50%;background:radial-gradient(circle,rgba(99,102,241,0.5),rgba(99,102,241,0) 70%);transform:translate(-50%,-50%) scale(.4);opacity:0;z-index:19;pointer-events:none}
+  /* demo A: 締切の手動設定 */
+  @keyframes nfaCur{0%,6%{left:88%;top:92%}17%,33%{left:26%;top:52%}46%,56%{left:88%;top:84%}68%,100%{left:88%;top:92%}}
+  @keyframes nfaRip1{0%,15%{opacity:0;transform:translate(-50%,-50%) scale(.4)}20%{opacity:.55;transform:translate(-50%,-50%) scale(.75)}30%{opacity:0;transform:translate(-50%,-50%) scale(1.9)}100%{opacity:0}}
+  @keyframes nfaRip2{0%,48%{opacity:0;transform:translate(-50%,-50%) scale(.4)}53%{opacity:.55;transform:translate(-50%,-50%) scale(.75)}62%{opacity:0;transform:translate(-50%,-50%) scale(1.9)}100%{opacity:0}}
+  @keyframes nfaBefore{0%,54%{opacity:1}60%,90%{opacity:0}100%{opacity:1}}
+  @keyframes nfaAfter{0%,54%{opacity:0}61%,92%{opacity:1}98%,100%{opacity:0}}
+  @keyframes nfaPill{0%,59%{opacity:0;transform:translateY(3px)}67%,90%{opacity:1;transform:translateY(0)}96%,100%{opacity:0}}
+  @keyframes nfaPop{0%,24%{opacity:0;transform:translateY(-6px) scale(.95)}31%,52%{opacity:1;transform:translateY(0) scale(1)}59%,100%{opacity:0;transform:translateY(-4px) scale(.97)}}
+  .nf-a-cur{animation:nfaCur 9s cubic-bezier(.5,.05,.3,1) infinite}
+  .nf-a-rip1{animation:nfaRip1 9s linear infinite}.nf-a-rip2{animation:nfaRip2 9s linear infinite}
+  .nf-a-before{animation:nfaBefore 9s linear infinite}.nf-a-after{animation:nfaAfter 9s linear infinite}
+  .nf-a-pill{animation:nfaPill 9s linear infinite}.nf-a-pop{animation:nfaPop 9s linear infinite}
+  /* demo B: 手動課題の編集 */
+  @keyframes nfbCur{0%,7%{left:88%;top:16%}18%,30%{left:88%;top:55%}44%,54%{left:88%;top:83%}66%,100%{left:88%;top:16%}}
+  @keyframes nfbRip1{0%,16%{opacity:0;transform:translate(-50%,-50%) scale(.4)}21%{opacity:.55;transform:translate(-50%,-50%) scale(.75)}31%{opacity:0;transform:translate(-50%,-50%) scale(1.9)}100%{opacity:0}}
+  @keyframes nfbRip2{0%,49%{opacity:0;transform:translate(-50%,-50%) scale(.4)}54%{opacity:.55;transform:translate(-50%,-50%) scale(.75)}63%{opacity:0;transform:translate(-50%,-50%) scale(1.9)}100%{opacity:0}}
+  @keyframes nfbView{0%,26%{opacity:1}33%,58%{opacity:0}65%,100%{opacity:1}}
+  @keyframes nfbEdit{0%,27%{opacity:0}34%,57%{opacity:1}64%,100%{opacity:0}}
+  @keyframes nfbDlBefore{0%,48%{opacity:1}55%,100%{opacity:0}}
+  @keyframes nfbDlAfter{0%,52%{opacity:0}60%,95%{opacity:1}100%{opacity:0}}
+  .nf-b-cur{animation:nfbCur 9s cubic-bezier(.5,.05,.3,1) infinite}
+  .nf-b-rip1{animation:nfbRip1 9s linear infinite}.nf-b-rip2{animation:nfbRip2 9s linear infinite}
+  .nf-b-view{animation:nfbView 9s linear infinite}.nf-b-edit{animation:nfbEdit 9s linear infinite}
+  .nf-b-dlbefore{animation:nfbDlBefore 9s linear infinite}.nf-b-dlafter{animation:nfbDlAfter 9s linear infinite}
+  @media (prefers-reduced-motion: reduce){
+    html{scroll-behavior:auto}
+    [data-rise],[data-wm-top],[data-wm-bot],[data-toast],[data-pulse]{animation:none!important;opacity:1!important;transform:none!important}
+    .nf-cursor,.nf-rip,.nf-a-pop,.nf-b-edit,.nf-a-before,.nf-b-dlbefore{display:none!important}
+    .nf-stage *{animation:none!important}
+    .nf-a-after,.nf-a-pill,.nf-b-view,.nf-b-dlafter{opacity:1!important}
+  }
+</style>
+</head>
+<body>
+<div style="width:100%;overflow-x:hidden;">
+
+  <!-- APP CROSS-PROMO BAR -->
+  <a href="https://litus.waiteu.dev/" style="display:block;background:linear-gradient(135deg,#0c8260,#0b7d63);color:#fff;text-align:center;padding:9px 16px;font-size:13.5px;font-weight:700;text-decoration:none;letter-spacing:0.01em;">スマホアプリ「リタス」近日公開 — LETUSの課題も時間割も、スマホひとつで。事前登録受付中 →</a>
+
+  <!-- HEADER -->
+  <header style="position:sticky;top:0;z-index:100;background:rgba(255,255,255,0.86);backdrop-filter:blur(16px);border-bottom:1px solid #ebeafd;">
+    <div style="max-width:960px;margin:0 auto;padding:12px 24px;display:flex;align-items:center;justify-content:space-between;">
+      <div style="display:flex;align-items:center;gap:10px;">
+        <img src="icon-128.png" alt="LETUS Task Watcher" style="width:30px;height:30px;border-radius:8px;">
+        <span style="font-size:15px;font-weight:900;color:#0f172a;letter-spacing:0.01em;">LETUS Task Watcher</span>
+      </div>
+      <a href="https://chromewebstore.google.com/detail/letus-task-watcher/eofgkmpiadoeckkliialkddacidcinml" target="_blank" rel="noopener" style="display:inline-flex;align-items:center;gap:6px;background:linear-gradient(135deg,#6366f1,#8b5cf6);color:#fff;font-size:13px;font-weight:900;padding:9px 18px;border-radius:999px;box-shadow:0 10px 22px rgba(99,102,241,0.28);">インストール（無料）</a>
+    </div>
+  </header>
+
+  <!-- HERO -->
+  <div style="position:relative;background:radial-gradient(circle at 84% 6%,rgba(99,102,241,0.14),transparent 46%),radial-gradient(circle at 2% 92%,rgba(139,92,246,0.10),transparent 42%),#ffffff;overflow:hidden;">
+    <div style="max-width:1040px;margin:0 auto;padding:60px 24px 74px;display:flex;gap:40px;align-items:center;flex-wrap:wrap;">
+      <div style="flex:1;min-width:320px;">
+        <div data-rise style="animation:rise .6s .06s cubic-bezier(.2,.7,.2,1) both;display:inline-block;background:#eef2ff;border:1px solid #e0e7ff;color:#4f46e5;font-size:12px;font-weight:800;padding:5px 14px;border-radius:999px;margin-bottom:22px;letter-spacing:0.04em;">東京理科大学 LETUS / CLASS 対応 ・ Chrome版 v1.3.0 公開中 ・ Edge版は順次対応</div>
+        <h1 data-rise style="animation:rise .6s .14s cubic-bezier(.2,.7,.2,1) both;font-size:clamp(34px,6vw,52px);font-weight:900;line-height:1.14;letter-spacing:-0.03em;color:#0f172a;margin-bottom:20px;">課題の締切、<br><span style="background:linear-gradient(135deg,#6366f1,#8b5cf6);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;">もう見逃さない。</span></h1>
+        <p data-rise style="animation:rise .6s .22s cubic-bezier(.2,.7,.2,1) both;font-size:16.5px;color:#475569;font-weight:600;line-height:1.8;max-width:440px;margin-bottom:30px;">LETUSに登録されている課題を自動で収集し、締切前にデスクトップ通知でお知らせするブラウザ拡張機能です。</p>
+        <div data-rise style="animation:rise .6s .3s cubic-bezier(.2,.7,.2,1) both;display:flex;gap:12px;flex-wrap:wrap;">
+          <a href="https://chromewebstore.google.com/detail/letus-task-watcher/eofgkmpiadoeckkliialkddacidcinml" target="_blank" rel="noopener" style="display:inline-flex;align-items:center;gap:9px;background:linear-gradient(135deg,#6366f1,#8b5cf6);color:#fff;padding:15px 26px;border-radius:999px;font-size:15.5px;font-weight:900;box-shadow:0 14px 30px rgba(99,102,241,0.30);">Chromeに追加（無料）</a>
+          <a href="https://microsoftedge.microsoft.com/addons/detail/femdjgdgelnbdpgnfehacobmpbfmbdoa" target="_blank" rel="noopener" style="display:inline-flex;align-items:center;gap:9px;background:#fff;color:#0f172a;padding:15px 26px;border-radius:999px;font-size:15.5px;font-weight:900;border:1.5px solid #e2e8f0;box-shadow:0 12px 26px rgba(15,23,42,0.06);">Edgeに追加（無料）</a>
+        </div>
+        <div data-rise style="animation:rise .6s .38s cubic-bezier(.2,.7,.2,1) both;margin-top:14px;font-size:12.5px;color:#64748b;font-weight:700;">Chrome Web Store / Microsoft Edge Add-ons より無料でインストール</div>
+      </div>
+
+      <!-- hero visual: browser dashboard + desktop notification -->
+      <div data-rise aria-hidden="true" style="animation:floatUp .9s .3s cubic-bezier(.2,.7,.2,1) both;flex:0 0 auto;position:relative;width:452px;max-width:100%;">
+        <div style="background:#fff;border:1px solid #e6e8f5;border-radius:16px;box-shadow:0 40px 80px rgba(49,46,129,0.16);overflow:hidden;">
+          <div style="display:flex;align-items:center;gap:8px;padding:11px 14px;background:#f6f7fb;border-bottom:1px solid #edeef7;">
+            <span style="width:11px;height:11px;border-radius:50%;background:#ff5f57;"></span>
+            <span style="width:11px;height:11px;border-radius:50%;background:#febc2e;"></span>
+            <span style="width:11px;height:11px;border-radius:50%;background:#28c840;"></span>
+            <span style="flex:1;margin-left:8px;background:#fff;border:1px solid #e6e8f5;border-radius:8px;padding:5px 12px;font-size:11.5px;color:#8a90a8;">letus.tus.ac.jp — LETUS Task Watcher</span>
+          </div>
+          <div style="padding:18px;">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;">
+              <div style="display:flex;align-items:center;gap:8px;"><img src="icon-128.png" alt="" style="width:22px;height:22px;border-radius:6px;"><span style="font-size:16px;font-weight:900;color:#0f172a;">課題ダッシュボード</span></div>
+              <span style="background:#eef2ff;color:#4f46e5;border:1px solid #e0e7ff;font-size:11px;font-weight:800;border-radius:999px;padding:4px 11px;">今すぐ更新</span>
+            </div>
+            <div style="font-size:11px;font-weight:800;color:#ef4444;letter-spacing:0.06em;margin:0 2px 7px;">24時間以内</div>
+            <div style="background:#fff;border:1px solid #e6e8f5;border-left:4px solid #ef4444;border-radius:12px;padding:12px 13px;margin-bottom:12px;box-shadow:0 6px 16px rgba(49,46,129,0.05);">
+              <div style="font-size:11px;color:#94a3b8;font-weight:700;">情報数学Ⅱ</div>
+              <div style="font-size:14px;font-weight:800;color:#0f172a;margin-top:2px;">レポート第3回</div>
+              <div style="display:flex;align-items:center;justify-content:space-between;margin-top:6px;"><span style="font-size:12px;color:#64748b;font-weight:600;">7/14 23:59 ・ あと2時間</span><span style="background:#ffe4e6;color:#be123c;font-size:11px;font-weight:800;border-radius:999px;padding:2px 9px;">未提出</span></div>
+            </div>
+            <div style="font-size:11px;font-weight:800;color:#94a3b8;letter-spacing:0.06em;margin:0 2px 7px;">今週</div>
+            <div style="background:#fff;border:1px solid #e6e8f5;border-radius:12px;padding:12px 13px;margin-bottom:9px;box-shadow:0 6px 16px rgba(49,46,129,0.05);">
+              <div style="font-size:11px;color:#94a3b8;font-weight:700;">英語コミュニケーション</div>
+              <div style="font-size:14px;font-weight:800;color:#0f172a;margin-top:2px;">Unit 5 語彙テスト</div>
+              <div style="display:flex;align-items:center;justify-content:space-between;margin-top:6px;"><span style="font-size:12px;color:#64748b;font-weight:600;">7/17 09:00 ・ あと3日</span><span style="background:#ffe4e6;color:#be123c;font-size:11px;font-weight:800;border-radius:999px;padding:2px 9px;">未提出</span></div>
+            </div>
+            <div style="background:#fff;border:1px solid #e6e8f5;border-radius:12px;padding:12px 13px;opacity:0.72;box-shadow:0 6px 16px rgba(49,46,129,0.05);">
+              <div style="font-size:11px;color:#94a3b8;font-weight:700;">プログラミング演習</div>
+              <div style="font-size:14px;font-weight:800;color:#0f172a;margin-top:2px;">課題2 提出</div>
+              <div style="display:flex;align-items:center;justify-content:space-between;margin-top:6px;"><span style="font-size:12px;color:#64748b;font-weight:600;">7/8 23:59 ・ 提出済み</span><span style="background:#eef2ff;color:#4338ca;font-size:11px;font-weight:800;border-radius:999px;padding:2px 9px;">提出済み</span></div>
+            </div>
+          </div>
+        </div>
+        <!-- desktop notification toast -->
+        <div data-toast style="animation:toastIn .6s 1s cubic-bezier(.2,.7,.2,1) both;position:absolute;top:-18px;right:-14px;width:264px;background:rgba(255,255,255,0.96);backdrop-filter:blur(10px);border:1px solid #e6e8f5;border-radius:14px;padding:12px 13px;box-shadow:0 22px 44px rgba(49,46,129,0.22);">
+          <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;"><img src="icon-128.png" alt="" style="width:18px;height:18px;border-radius:5px;"><span style="font-size:11.5px;color:#64748b;font-weight:700;">LETUS Task Watcher ・ 今</span></div>
+          <div style="font-size:13px;font-weight:900;color:#0f172a;">まもなく締切です</div>
+          <div style="font-size:12px;color:#475569;font-weight:600;line-height:1.5;margin-top:2px;">情報数学Ⅱ「レポート第3回」— 締切まで残り2時間</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- v1.2.2 で追加した機能（アニメデモ）: デモの中身は v1.2.2 の機能なので、版ラベルは v1.2.2 のまま維持する -->
+  <section style="background:#fff;border-top:1px solid #efeefb;">
+    <div style="max-width:960px;margin:0 auto;padding:60px 24px;">
+      <div style="text-align:center;margin-bottom:9px;">
+        <span style="display:inline-flex;align-items:center;gap:8px;vertical-align:middle;">
+          <span style="background:linear-gradient(135deg,#6366f1,#8b5cf6);color:#fff;font-size:11px;font-weight:900;letter-spacing:0.12em;padding:4px 13px;border-radius:999px;">FEATURE</span>
+          <span style="font-size:12px;font-weight:900;color:#4f46e5;font-family:ui-monospace,monospace;">v1.2.2で追加</span>
+        </span>
+      </div>
+      <h2 style="text-align:center;font-size:clamp(24px,3.6vw,32px);font-weight:900;color:#0f172a;letter-spacing:-0.02em;line-height:1.28;margin-bottom:10px;">締切も、手動の課題も、思いのまま。</h2>
+      <p style="text-align:center;font-size:14px;color:#64748b;font-weight:600;line-height:1.7;max-width:560px;margin:0 auto 40px;">自動で読み取れない締切は自分で設定。手動で足した課題も、あとから自由に編集。Chromeウェブストアで公開中の最新版（v1.3.0）に含まれ、すべて無料でご利用いただけます（Edge版は順次対応）。</p>
+
+      <div class="nf-grid">
+        <!-- feature A: 締切の手動設定 -->
+        <div style="background:#fff;border:1px solid #ecebf9;border-radius:22px;padding:22px;box-shadow:0 10px 24px rgba(49,46,129,0.05);">
+          <div class="nf-stage" role="img" aria-label="LETUSの課題バッジをクリックして締切日時を設定すると、締切が表示されて締切前通知の対象になる操作の画面例">
+            <div class="nf-scr">
+              <div style="display:flex;align-items:center;gap:6px;font-size:10px;font-weight:800;color:#0f172a;padding-bottom:7px;border-bottom:1px solid #e9ebf4;margin-bottom:10px;"><span style="width:7px;height:7px;border-radius:50%;background:#8b5cf6;flex:0 0 auto;"></span>情報数学Ⅱ<span style="color:#94a3b8;font-weight:700;">・ 課題</span></div>
+              <div style="display:flex;align-items:flex-start;gap:8px;background:#fff;border:1px solid #edeff7;border-radius:10px;padding:9px 10px;box-shadow:0 4px 12px rgba(49,46,129,0.05);">
+                <span style="width:22px;height:22px;flex:0 0 auto;border-radius:6px;background:#eef2ff;display:flex;align-items:center;justify-content:center;"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#6366f1" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/></svg></span>
+                <div style="flex:1;min-width:0;">
+                  <div style="font-size:11px;font-weight:800;color:#0f172a;line-height:1.3;">レポート課題（フォーラム提出）</div>
+                  <div style="font-size:9.5px;color:#64748b;font-weight:700;margin-top:1px;">締切を自動で読み取れない課題</div>
+                  <div style="position:relative;margin-top:8px;height:24px;">
+                    <span class="nf-a-before nf-fade" style="left:0;top:0;display:inline-flex;align-items:center;gap:3px;border:1px dashed #b9c0d6;color:#64748b;background:#f7f8fd;font-size:10px;font-weight:800;padding:3px 9px;border-radius:999px;"><span style="font-size:12px;line-height:1;">＋</span>締切を設定</span>
+                    <span class="nf-a-after nf-fade" style="left:0;top:0;display:inline-flex;align-items:center;gap:5px;"><span style="display:inline-flex;align-items:center;gap:4px;background:linear-gradient(135deg,#6366f1,#8b5cf6);color:#fff;font-size:10px;font-weight:800;padding:3px 9px;border-radius:999px;"><svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7.5V12l3 2"/></svg>7/20 23:59</span><span class="nf-a-pill" style="background:#fff7ed;color:#c2410c;border:1px solid #fed7aa;font-size:9px;font-weight:800;padding:2px 7px;border-radius:999px;">あと4日</span></span>
+                  </div>
+                </div>
+              </div>
+              <div class="nf-a-pop nf-fade" style="right:2px;top:78px;width:150px;background:#fff;border:1px solid #e6e8f5;border-radius:11px;box-shadow:0 16px 34px rgba(49,46,129,0.22);padding:10px;z-index:15;">
+                <div style="font-size:9.5px;font-weight:800;color:#4f46e5;margin-bottom:7px;">締切を設定</div>
+                <div style="display:flex;align-items:center;gap:5px;border:1px solid #e6e8f5;border-radius:7px;padding:5px 7px;font-size:10px;font-weight:700;color:#0f172a;margin-bottom:9px;"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#8b5cf6" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4.5" width="18" height="17" rx="2.5"/><path d="M3 9.5h18M8 2.5v4M16 2.5v4"/></svg>2026/07/20 23:59</div>
+                <div style="display:flex;justify-content:flex-end;align-items:center;gap:8px;"><span style="font-size:9.5px;font-weight:800;color:#94a3b8;">クリア</span><span style="font-size:9.5px;font-weight:900;color:#fff;background:linear-gradient(135deg,#6366f1,#8b5cf6);padding:4px 13px;border-radius:7px;">設定</span></div>
+              </div>
+              <span class="nf-a-rip1 nf-rip" style="left:26%;top:52%;"></span>
+              <span class="nf-a-rip2 nf-rip" style="left:88%;top:84%;"></span>
+              <svg class="nf-a-cur nf-cursor" viewBox="0 0 24 24" fill="#0f172a" stroke="#fff" stroke-width="1.4"><path d="M5 3l14 8-6 1.4L9.6 18z"/></svg>
+            </div>
+          </div>
+          <div style="margin-top:16px;">
+            <div style="display:inline-block;font-size:11px;font-weight:900;color:#4338ca;background:#eef2ff;border:1px solid #e0e7ff;padding:3px 10px;border-radius:999px;margin-bottom:9px;">締切の手動設定</div>
+            <h3 style="font-size:17px;font-weight:900;color:#0f172a;letter-spacing:-0.01em;margin-bottom:7px;">読み取れない締切は、自分で。</h3>
+            <p style="font-size:13.5px;color:#475569;font-weight:600;line-height:1.7;">フォーラム提出など締切を自動取得できない課題は、コースページや課題ページのバッジから締切を設定・変更・クリア。自分で設定した締切にも、締切前の通知が届きます。</p>
+          </div>
+        </div>
+        <!-- feature B: 手動課題の編集 -->
+        <div style="background:#fff;border:1px solid #ecebf9;border-radius:22px;padding:22px;box-shadow:0 10px 24px rgba(49,46,129,0.05);">
+          <div class="nf-stage" role="img" aria-label="ダッシュボードで手動追加した課題の編集ボタンを押し、締切を変更して保存すると一覧に反映される操作の画面例">
+            <div class="nf-scr">
+              <div style="display:flex;align-items:center;gap:6px;font-size:10px;font-weight:800;color:#0f172a;padding-bottom:7px;border-bottom:1px solid #e9ebf4;margin-bottom:10px;"><span style="width:7px;height:7px;border-radius:50%;background:#6366f1;flex:0 0 auto;"></span>課題ダッシュボード</div>
+              <div class="nf-b-view nf-fade" style="left:0;right:0;top:28px;">
+                <div style="background:#fff;border:1px solid #edeff7;border-left:3px solid #f59e0b;border-radius:10px;padding:10px 11px;box-shadow:0 4px 12px rgba(49,46,129,0.05);">
+                  <div style="display:flex;align-items:center;gap:6px;"><span style="font-size:9.5px;color:#94a3b8;font-weight:700;">自主ゼミ</span><span style="font-size:8.5px;font-weight:800;color:#7c3aed;background:#f3e8ff;border:1px solid #e9d5ff;border-radius:999px;padding:1px 7px;">手動追加</span></div>
+                  <div style="font-size:12px;font-weight:800;color:#0f172a;margin-top:4px;">中間発表の資料作成</div>
+                  <div style="display:flex;align-items:center;justify-content:space-between;margin-top:9px;">
+                    <span style="position:relative;display:inline-block;height:14px;flex:1;">
+                      <span class="nf-b-dlbefore nf-fade" style="left:0;top:0;font-size:10px;font-weight:700;color:#c2410c;white-space:nowrap;">7/18(金) 23:59 ・ あと2日</span>
+                      <span class="nf-b-dlafter nf-fade" style="left:0;top:0;font-size:10px;font-weight:700;color:#047857;white-space:nowrap;">7/22(火) 23:59 ・ あと6日</span>
+                    </span>
+                    <span style="display:inline-flex;align-items:center;gap:3px;background:#eef2ff;color:#4f46e5;border:1px solid #e0e7ff;font-size:9.5px;font-weight:800;padding:3px 9px;border-radius:999px;flex:0 0 auto;"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#4f46e5" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/></svg>編集</span>
+                  </div>
+                </div>
+              </div>
+              <div class="nf-b-edit nf-fade" style="left:0;right:0;top:28px;">
+                <div style="background:#fff;border:1px solid #ddd6fe;border-radius:10px;padding:10px 11px;box-shadow:0 12px 26px rgba(99,102,241,0.16);">
+                  <div style="font-size:8.5px;font-weight:800;color:#94a3b8;margin-bottom:2px;">タイトル</div>
+                  <div style="border:1px solid #e6e8f5;border-radius:6px;padding:4px 7px;font-size:10px;font-weight:700;color:#0f172a;margin-bottom:7px;">中間発表の資料作成</div>
+                  <div style="font-size:8.5px;font-weight:800;color:#94a3b8;margin-bottom:2px;">締切</div>
+                  <div style="border:1.5px solid #8b5cf6;border-radius:6px;padding:4px 7px;font-size:10px;font-weight:700;color:#4f46e5;margin-bottom:9px;box-shadow:0 0 0 3px rgba(139,92,246,0.12);">2026/07/22 23:59</div>
+                  <div style="display:flex;justify-content:flex-end;align-items:center;gap:8px;"><span style="font-size:9.5px;font-weight:800;color:#94a3b8;">キャンセル</span><span style="font-size:9.5px;font-weight:900;color:#fff;background:linear-gradient(135deg,#6366f1,#8b5cf6);padding:4px 15px;border-radius:7px;">保存</span></div>
+                </div>
+              </div>
+              <span class="nf-b-rip1 nf-rip" style="left:88%;top:55%;"></span>
+              <span class="nf-b-rip2 nf-rip" style="left:88%;top:83%;"></span>
+              <svg class="nf-b-cur nf-cursor" viewBox="0 0 24 24" fill="#0f172a" stroke="#fff" stroke-width="1.4"><path d="M5 3l14 8-6 1.4L9.6 18z"/></svg>
+            </div>
+          </div>
+          <div style="margin-top:16px;">
+            <div style="display:inline-block;font-size:11px;font-weight:900;color:#4338ca;background:#eef2ff;border:1px solid #e0e7ff;padding:3px 10px;border-radius:999px;margin-bottom:9px;">手動課題の編集</div>
+            <h3 style="font-size:17px;font-weight:900;color:#0f172a;letter-spacing:-0.01em;margin-bottom:7px;">足した課題も、あとから直せる。</h3>
+            <p style="font-size:13.5px;color:#475569;font-weight:600;line-height:1.7;">検知されず手動で追加した課題は、課題名・締切・コース・メモ・提出状況をあとから編集。ダッシュボードのカードやLETUSページのバッジから、いつでも直せます。</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 次アップデート予告 -->
+  <section style="background:#faf9ff;border-top:1px solid #efeefb;">
+    <div style="max-width:960px;margin:0 auto;padding:60px 24px;">
+      <div style="background:linear-gradient(135deg,#f5f3ff,#eef2ff);border:1px solid #ddd6fe;border-radius:26px;padding:32px;box-shadow:0 14px 34px rgba(99,102,241,0.10);display:grid;gap:28px;grid-template-columns:1fr;">
+        <div style="display:grid;gap:28px;grid-template-columns:1fr;" data-two>
+          <div>
+            <div style="display:inline-flex;align-items:center;gap:8px;margin-bottom:12px;"><span style="background:linear-gradient(135deg,#6366f1,#8b5cf6);color:#fff;font-size:11px;font-weight:900;padding:3px 12px;border-radius:999px;letter-spacing:0.06em;">目玉機能</span><span style="background:rgba(99,102,241,0.12);color:#4f46e5;border:1px solid rgba(99,102,241,0.2);font-size:12px;font-weight:900;padding:3px 10px;border-radius:999px;font-family:ui-monospace,monospace;">v1.2.0</span></div>
+            <div style="font-size:20px;font-weight:900;color:#3730a3;letter-spacing:-0.02em;line-height:1.3;margin-bottom:10px;">CLASSの時間割を、ダッシュボードに。</div>
+            <p style="font-size:14px;color:#4338ca;font-weight:700;line-height:1.7;margin-bottom:14px;">履修システムCLASSの時間割をダッシュボードに表示し、課題と科目コードを自動でひも付け。授業のコマから対応するLETUSコースへワンタップで移動できます。シラバス表示やコース内容の更新通知にも対応。これらの機能はすべて無料で、モバイルアプリ「リタス」に先立ち拡張機能で先行実装しました。今すぐお使いいただけます。</p>
+            <div style="display:flex;gap:6px;flex-wrap:wrap;"><span style="font-size:12px;font-weight:800;padding:3px 10px;border-radius:999px;background:rgba(99,102,241,0.1);color:#4338ca;border:1px solid rgba(99,102,241,0.2);">CLASS時間割</span><span style="font-size:12px;font-weight:800;padding:3px 10px;border-radius:999px;background:rgba(99,102,241,0.1);color:#4338ca;border:1px solid rgba(99,102,241,0.2);">科目連携</span><span style="font-size:12px;font-weight:800;padding:3px 10px;border-radius:999px;background:rgba(99,102,241,0.1);color:#4338ca;border:1px solid rgba(99,102,241,0.2);">更新通知</span></div>
+          </div>
+          <!-- inline preview: LETUS course page with status + ＋ -->
+          <div aria-hidden="true" style="background:#fff;border:1px solid #e6e8f5;border-radius:16px;padding:14px;box-shadow:0 16px 40px rgba(49,46,129,0.12);">
+            <div style="display:flex;align-items:center;justify-content:space-between;padding-bottom:10px;border-bottom:1px solid #eef0f8;margin-bottom:10px;"><div style="display:flex;align-items:center;gap:7px;"><span style="width:8px;height:8px;border-radius:50%;background:#8b5cf6;"></span><span style="font-size:12px;font-weight:800;color:#0f172a;">CLASS 時間割 × LETUS</span></div><span style="font-size:10.5px;color:#94a3b8;font-weight:700;">前期</span></div>
+            <div style="display:grid;grid-template-columns:16px repeat(5,1fr);gap:4px;">
+              <div></div>
+              <div style="text-align:center;font-size:9.5px;color:#94a3b8;">月</div><div style="text-align:center;font-size:9.5px;color:#94a3b8;">火</div><div style="text-align:center;font-size:9.5px;color:#94a3b8;">水</div><div style="text-align:center;font-size:9.5px;color:#4f46e5;font-weight:800;background:#eef2ff;border-radius:5px;">木</div><div style="text-align:center;font-size:9.5px;color:#94a3b8;">金</div>
+              <div style="display:flex;align-items:center;justify-content:center;font-size:10px;color:#94a3b8;">1</div>
+              <div style="min-height:34px;border-radius:7px;background:#eef2ff;padding:4px;font-size:8.5px;font-weight:700;color:#4338ca;line-height:1.15;">情報数学</div>
+              <div style="min-height:34px;border-radius:7px;background:#f4f5fb;"></div>
+              <div style="min-height:34px;border-radius:7px;background:#eef2ff;padding:4px;font-size:8.5px;font-weight:700;color:#4338ca;line-height:1.15;">英語</div>
+              <div style="min-height:34px;border-radius:7px;background:#ddd6fe;padding:4px;font-size:8.5px;font-weight:700;color:#3730a3;line-height:1.15;position:relative;">物理<span style="position:absolute;top:3px;right:3px;width:6px;height:6px;border-radius:50%;background:#f59e0b;"></span></div>
+              <div style="min-height:34px;border-radius:7px;background:#f4f5fb;"></div>
+              <div style="display:flex;align-items:center;justify-content:center;font-size:10px;color:#94a3b8;">2</div>
+              <div style="min-height:34px;border-radius:7px;background:#f4f5fb;"></div>
+              <div style="min-height:34px;border-radius:7px;background:#eef2ff;padding:4px;font-size:8.5px;font-weight:700;color:#4338ca;line-height:1.15;">実験</div>
+              <div style="min-height:34px;border-radius:7px;background:#f4f5fb;"></div>
+              <div style="min-height:34px;border-radius:7px;background:#ddd6fe;padding:4px;font-size:8.5px;font-weight:700;color:#3730a3;line-height:1.15;">線形代数</div>
+              <div style="min-height:34px;border-radius:7px;background:#f4f5fb;"></div>
+            </div>
+            <div style="margin-top:10px;background:#eef2ff;border-radius:9px;padding:8px 10px;font-size:11px;font-weight:800;color:#4338ca;display:flex;align-items:center;gap:6px;">情報数学Ⅱ<span style="color:#8b5cf6;">→</span>LETUS 課題2件<span style="margin-left:auto;width:6px;height:6px;border-radius:50%;background:#f59e0b;"></span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ROADMAP -->
+  <section style="background:#fff;">
+    <div style="max-width:960px;margin:0 auto;padding:64px 24px;">
+      <div style="text-align:center;margin-bottom:10px;"><span style="display:inline-block;background:linear-gradient(135deg,#6366f1,#8b5cf6);color:#fff;font-size:11px;font-weight:900;letter-spacing:0.12em;padding:4px 14px;border-radius:999px;">ROADMAP</span></div>
+      <h2 style="text-align:center;font-size:clamp(24px,3.6vw,32px);font-weight:900;color:#0f172a;letter-spacing:-0.02em;margin-bottom:8px;">まだまだ、進化します。</h2>
+      <p style="text-align:center;font-size:14px;color:#64748b;font-weight:600;margin-bottom:42px;">公開してからも、毎月のように新機能を追加中。CLASS連携も加わり、次はスマホアプリ「リタス」へ。</p>
+
+      <!-- journey rail -->
+      <div style="position:relative;display:flex;justify-content:space-between;gap:6px;max-width:720px;margin:0 auto 46px;">
+        <div style="position:absolute;top:15px;left:8%;right:8%;height:3px;background:linear-gradient(90deg,#8b5cf6 0%,#8b5cf6 88%,#e0e7ff 88%,#e0e7ff 100%);border-radius:2px;"></div>
+        <div style="position:relative;flex:1;text-align:center;">
+          <div style="width:32px;height:32px;border-radius:50%;background:linear-gradient(135deg,#6366f1,#8b5cf6);margin:0 auto 10px;display:flex;align-items:center;justify-content:center;box-shadow:0 6px 16px rgba(99,102,241,0.35);"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7"/></svg></div>
+          <div style="font-size:12px;font-weight:900;color:#4f46e5;font-family:ui-monospace,monospace;">v1.0.x</div>
+          <div style="font-size:11px;color:#64748b;font-weight:700;margin-top:2px;">基本機能</div>
+        </div>
+        <div style="position:relative;flex:1;text-align:center;">
+          <div style="width:32px;height:32px;border-radius:50%;background:linear-gradient(135deg,#6366f1,#8b5cf6);margin:0 auto 10px;display:flex;align-items:center;justify-content:center;box-shadow:0 6px 16px rgba(99,102,241,0.35);"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7"/></svg></div>
+          <div style="font-size:12px;font-weight:900;color:#4f46e5;font-family:ui-monospace,monospace;">v1.1.0</div>
+          <div style="font-size:11px;color:#64748b;font-weight:700;margin-top:2px;">手動追加・連携</div>
+        </div>
+        <div style="position:relative;flex:1;text-align:center;">
+          <div style="width:32px;height:32px;border-radius:50%;background:linear-gradient(135deg,#6366f1,#8b5cf6);margin:0 auto 10px;display:flex;align-items:center;justify-content:center;box-shadow:0 6px 16px rgba(99,102,241,0.35);"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7"/></svg></div>
+          <div style="font-size:12px;font-weight:900;color:#4f46e5;font-family:ui-monospace,monospace;">v1.2.0</div>
+          <div style="font-size:11px;color:#64748b;font-weight:700;margin-top:2px;">CLASS連携</div>
+        </div>
+        <div style="position:relative;flex:1;text-align:center;">
+          <div data-pulse style="animation:pulseRing 2s ease-out infinite;width:34px;height:34px;border-radius:50%;background:#fff;border:3px solid #8b5cf6;margin:0 auto 9px;display:flex;align-items:center;justify-content:center;"><span style="width:11px;height:11px;border-radius:50%;background:linear-gradient(135deg,#6366f1,#8b5cf6);"></span></div>
+          <div style="display:inline-block;background:#ede9fe;color:#6d28d9;font-size:9px;font-weight:900;letter-spacing:0.1em;padding:1px 7px;border-radius:999px;margin-bottom:3px;">NOW</div>
+          <div style="font-size:12px;font-weight:900;color:#4f46e5;font-family:ui-monospace,monospace;">v2.0.0</div>
+          <div style="font-size:11px;color:#64748b;font-weight:700;margin-top:2px;">リタス連携</div>
+        </div>
+      </div>
+
+      <!-- featured NEXT card -->
+      <div style="position:relative;border-radius:26px;padding:2px;background:linear-gradient(135deg,#6366f1,#8b5cf6);box-shadow:0 26px 60px rgba(99,102,241,0.22);margin-bottom:16px;">
+        <div style="background:#fff;border-radius:24px;padding:clamp(24px,4vw,34px);">
+          <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px;flex-wrap:wrap;">
+            <span style="background:linear-gradient(135deg,#6366f1,#8b5cf6);color:#fff;font-size:11px;font-weight:900;letter-spacing:0.1em;padding:4px 12px;border-radius:999px;">目玉 · CLASS連携</span>
+            <span style="font-size:12px;font-weight:900;color:#4f46e5;font-family:ui-monospace,monospace;">v1.2.0</span>
+            <span style="font-size:11px;font-weight:900;color:#047857;background:#ecfdf5;border:1px solid #a7f3d0;border-radius:999px;padding:3px 10px;">公開済み</span>
+          </div>
+          <div style="font-size:clamp(20px,3vw,27px);font-weight:900;color:#0f172a;letter-spacing:-0.02em;line-height:1.25;margin-bottom:12px;">CLASS連携で、大学生活まるごと。</div>
+          <p style="font-size:14.5px;color:#475569;font-weight:600;line-height:1.8;max-width:600px;margin-bottom:18px;">履修システムCLASSの時間割をダッシュボードに表示。科目コードで課題と時間割を自動ひも付け、授業のコマから対応LETUSコースへワンタップ。シラバス表示やコース更新通知にも対応します。すべて無料。スマホアプリ「リタス」に先立って拡張機能で先行実装しました。今すぐお使いいただけます。</p>
+          <div style="display:flex;gap:8px;flex-wrap:wrap;">
+            <span style="font-size:12px;font-weight:800;padding:5px 13px;border-radius:999px;background:#eef2ff;color:#4338ca;border:1px solid #e0e7ff;">CLASS時間割</span>
+            <span style="font-size:12px;font-weight:800;padding:5px 13px;border-radius:999px;background:#eef2ff;color:#4338ca;border:1px solid #e0e7ff;">科目連携</span>
+            <span style="font-size:12px;font-weight:800;padding:5px 13px;border-radius:999px;background:#eef2ff;color:#4338ca;border:1px solid #e0e7ff;">シラバス表示</span>
+            <span style="font-size:12px;font-weight:800;padding:5px 13px;border-radius:999px;background:#eef2ff;color:#4338ca;border:1px solid #e0e7ff;">更新通知</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- v2.0.0 teaser -->
+      <div style="border:1px dashed #c7c9ee;border-radius:22px;padding:22px 26px;display:flex;align-items:center;gap:18px;flex-wrap:wrap;background:#fff;">
+        <div style="flex:1;min-width:240px;">
+          <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;"><span style="font-size:12px;font-weight:900;color:#64748b;font-family:ui-monospace,monospace;">v2.0.0</span><span style="font-size:11px;font-weight:900;color:#64748b;background:#f8fafc;border:1px solid #e2e8f0;border-radius:999px;padding:2px 9px;">計画中</span></div>
+          <div style="font-size:17px;font-weight:900;color:#0f172a;margin-bottom:4px;">その先は、スマホと同期。</div>
+          <p style="font-size:13.5px;color:#475569;font-weight:600;line-height:1.65;">拡張機能で集めた課題・時間割をスマホアプリ「リタス」と同期。外出先でもプッシュ通知で締切をお知らせします。</p>
+        </div>
+        <a href="https://litus.waiteu.dev/" style="flex-shrink:0;display:inline-flex;align-items:center;gap:6px;background:linear-gradient(135deg,#0c8260,#0b7d63);color:#fff;font-size:13px;font-weight:900;padding:12px 22px;border-radius:999px;box-shadow:0 12px 26px rgba(15,158,117,0.24);">リタスを見る →</a>
+      </div>
+    </div>
+  </section>
+
+  <!-- LITUS PROMO -->
+  <section style="background:#faf9ff;">
+    <div style="max-width:960px;margin:0 auto;padding:44px 24px;">
+      <a href="https://litus.waiteu.dev/" style="display:flex;align-items:center;gap:18px;background:linear-gradient(135deg,#0c8260,#0b7d63);color:#fff;border-radius:22px;padding:26px 30px;text-decoration:none;box-shadow:0 16px 38px rgba(15,158,117,0.24);flex-wrap:wrap;">
+        <div style="flex:1;min-width:230px;">
+          <div style="font-size:11.5px;font-weight:900;letter-spacing:0.08em;opacity:0.85;margin-bottom:6px;">MOBILE APP</div>
+          <div style="font-size:19px;font-weight:900;margin-bottom:6px;">スマホアプリ「リタス」開発中</div>
+          <div style="font-size:14px;font-weight:600;line-height:1.65;opacity:0.95;">LETUSの課題も、CLASSの時間割・出席も、スマホひとつで。拡張機能とデータを同期し、外出先でもプッシュ通知で締切をお知らせします。2026年後期公開予定・事前登録受付中。</div>
+        </div>
+        <span style="flex-shrink:0;background:rgba(255,255,255,0.18);border:1px solid rgba(255,255,255,0.4);padding:12px 24px;border-radius:999px;font-size:14px;font-weight:900;">リタスを見る →</span>
+      </a>
+    </div>
+  </section>
+
+  <!-- FEATURES -->
+  <section style="background:#fff;">
+    <div style="max-width:960px;margin:0 auto;padding:64px 24px;">
+      <h2 style="text-align:center;font-size:clamp(22px,3.4vw,30px);font-weight:900;color:#0f172a;letter-spacing:-0.02em;margin-bottom:8px;">できること</h2>
+      <p style="text-align:center;font-size:14px;color:#64748b;font-weight:600;margin-bottom:34px;">LETUSにログインするだけで、あとは自動で動きます</p>
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:14px;">
+        <div style="background:#fff;border:1px solid #ecebf9;border-radius:20px;padding:22px;box-shadow:0 10px 24px rgba(49,46,129,0.05);">
+          <div style="width:42px;height:42px;background:#eef2ff;border-radius:12px;display:flex;align-items:center;justify-content:center;margin-bottom:12px;"><svg viewBox="0 0 24 24" width="21" height="21" fill="#4f46e5"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-7 3c1.93 0 3.5 1.57 3.5 3.5S13.93 13 12 13s-3.5-1.57-3.5-3.5S10.07 6 12 6zm7 13H5v-.23c0-.62.28-1.2.76-1.58C7.47 15.82 9.64 15 12 15s4.53.82 6.24 2.19c.48.38.76.97.76 1.58V19z"/></svg></div>
+          <h3 style="font-size:15px;font-weight:900;margin-bottom:7px;color:#0f172a;">課題を自動収集</h3>
+          <p style="font-size:13.5px;color:#475569;line-height:1.65;font-weight:600;">LETUSへのログインセッションを使い、登録済みコースの課題リンクと締切日を自動で取得します。手動コピーは不要です。</p>
+        </div>
+        <div style="background:#fff;border:1px solid #ecebf9;border-radius:20px;padding:22px;box-shadow:0 10px 24px rgba(49,46,129,0.05);">
+          <div style="width:42px;height:42px;background:#eef2ff;border-radius:12px;display:flex;align-items:center;justify-content:center;margin-bottom:12px;"><svg viewBox="0 0 24 24" width="21" height="21" fill="#4f46e5"><path d="M12 22c1.1 0 2-.9 2-2h-4c0 1.1.9 2 2 2zm6-6v-5c0-3.07-1.64-5.64-4.5-6.32V4c0-.83-.67-1.5-1.5-1.5s-1.5.67-1.5 1.5v.68C7.63 5.36 6 7.92 6 11v5l-2 2v1h16v-1l-2-2z"/></svg></div>
+          <h3 style="font-size:15px;font-weight:900;margin-bottom:7px;color:#0f172a;">締切前に通知</h3>
+          <p style="font-size:13.5px;color:#475569;line-height:1.65;font-weight:600;">締切の3時間前と1時間前にデスクトップ通知でお知らせ。各課題につき1回だけ通知するので重複しません。</p>
+        </div>
+        <div style="background:#fff;border:1px solid #ecebf9;border-radius:20px;padding:22px;box-shadow:0 10px 24px rgba(49,46,129,0.05);">
+          <div style="width:42px;height:42px;background:#eef2ff;border-radius:12px;display:flex;align-items:center;justify-content:center;margin-bottom:12px;"><svg viewBox="0 0 24 24" width="21" height="21" fill="#4f46e5"><path d="M3 13h2v-2H3v2zm0 4h2v-2H3v2zm0-8h2V7H3v2zm4 4h14v-2H7v2zm0 4h14v-2H7v2zM7 7v2h14V7H7z"/></svg></div>
+          <h3 style="font-size:15px;font-weight:900;margin-bottom:7px;color:#0f172a;">ダッシュボードで一覧管理</h3>
+          <p style="font-size:13.5px;color:#475569;line-height:1.65;font-weight:600;">課題を「24時間以内」「明日」「今週」「それ以降」のグループに分類して表示。提出状況も一目で確認できます。</p>
+        </div>
+        <div style="background:#fff;border:1px solid #ecebf9;border-radius:20px;padding:22px;box-shadow:0 10px 24px rgba(49,46,129,0.05);">
+          <div style="width:42px;height:42px;background:#eef2ff;border-radius:12px;display:flex;align-items:center;justify-content:center;margin-bottom:12px;"><svg viewBox="0 0 24 24" width="21" height="21" fill="#4f46e5"><path d="M12 4V1L8 5l4 4V6c3.31 0 6 2.69 6 6 0 1.01-.25 1.97-.7 2.8l1.46 1.46C19.54 15.03 20 13.57 20 12c0-4.42-3.58-8-8-8zm0 14c-3.31 0-6-2.69-6-6 0-1.01.25-1.97.7-2.8L5.24 7.74C4.46 8.97 4 10.43 4 12c0 4.42 3.58 8 8 8v3l4-4-4-4v3z"/></svg></div>
+          <h3 style="font-size:15px;font-weight:900;margin-bottom:7px;color:#0f172a;">バックグラウンド自動更新</h3>
+          <p style="font-size:13.5px;color:#475569;line-height:1.65;font-weight:600;">2時間以上データが古くなると自動で再スキャン。「今すぐ更新」での手動更新も可能。</p>
+        </div>
+        <div style="background:#fff;border:1px solid #ecebf9;border-radius:20px;padding:22px;box-shadow:0 10px 24px rgba(49,46,129,0.05);">
+          <div style="width:42px;height:42px;background:#eef2ff;border-radius:12px;display:flex;align-items:center;justify-content:center;margin-bottom:12px;"><svg viewBox="0 0 24 24" width="21" height="21" fill="#4f46e5"><path d="M18 8h-1V6c0-2.76-2.24-5-5-5S7 3.24 7 6v2H6c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V10c0-1.1-.9-2-2-2zm-6 9c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2zm3.1-9H8.9V6c0-1.71 1.39-3.1 3.1-3.1 1.71 0 3.1 1.39 3.1 3.1v2z"/></svg></div>
+          <h3 style="font-size:15px;font-weight:900;margin-bottom:7px;color:#0f172a;">データはすべてブラウザ内</h3>
+          <p style="font-size:13.5px;color:#475569;line-height:1.65;font-weight:600;">収集したデータはブラウザのローカルストレージにのみ保存。外部サーバーへの送信は一切行いません。</p>
+        </div>
+        <div style="background:#fff;border:1px solid #ecebf9;border-radius:20px;padding:22px;box-shadow:0 10px 24px rgba(49,46,129,0.05);">
+          <div style="width:42px;height:42px;background:#eef2ff;border-radius:12px;display:flex;align-items:center;justify-content:center;margin-bottom:12px;"><svg viewBox="0 0 24 24" width="21" height="21" fill="#4f46e5"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/></svg></div>
+          <h3 style="font-size:15px;font-weight:900;margin-bottom:7px;color:#0f172a;">かんたん導入</h3>
+          <p style="font-size:13.5px;color:#475569;line-height:1.65;font-weight:600;">インストール後、LETUSにログインして拡張機能アイコンをクリックするだけ。設定不要で即使えます。</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- HOW TO USE -->
+  <section style="background:#faf9ff;border-top:1px solid #efeefb;">
+    <div style="max-width:960px;margin:0 auto;padding:64px 24px;">
+      <h2 style="text-align:center;font-size:clamp(22px,3.4vw,30px);font-weight:900;color:#0f172a;letter-spacing:-0.02em;margin-bottom:8px;">使い方</h2>
+      <p style="text-align:center;font-size:14px;color:#64748b;font-weight:600;margin-bottom:34px;">4ステップで完了</p>
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:14px;">
+        <div style="background:#fff;border:1px solid #ecebf9;border-radius:20px;padding:22px;box-shadow:0 10px 24px rgba(49,46,129,0.05);"><div style="display:flex;align-items:center;justify-content:center;width:30px;height:30px;background:linear-gradient(135deg,#6366f1,#8b5cf6);color:#fff;border-radius:999px;font-size:14px;font-weight:900;margin-bottom:12px;box-shadow:0 6px 14px rgba(99,102,241,0.3);">1</div><h3 style="font-size:15px;font-weight:900;margin-bottom:6px;color:#0f172a;">インストール</h3><p style="font-size:13px;color:#475569;font-weight:600;line-height:1.6;">Chrome Web StoreからLETUS Task Watcherを追加します。</p></div>
+        <div style="background:#fff;border:1px solid #ecebf9;border-radius:20px;padding:22px;box-shadow:0 10px 24px rgba(49,46,129,0.05);"><div style="display:flex;align-items:center;justify-content:center;width:30px;height:30px;background:linear-gradient(135deg,#6366f1,#8b5cf6);color:#fff;border-radius:999px;font-size:14px;font-weight:900;margin-bottom:12px;box-shadow:0 6px 14px rgba(99,102,241,0.3);">2</div><h3 style="font-size:15px;font-weight:900;margin-bottom:6px;color:#0f172a;">LETUSにログイン</h3><p style="font-size:13px;color:#475569;font-weight:600;line-height:1.6;">普段通りLETUSにログインします。追加の操作は不要です。</p></div>
+        <div style="background:#fff;border:1px solid #ecebf9;border-radius:20px;padding:22px;box-shadow:0 10px 24px rgba(49,46,129,0.05);"><div style="display:flex;align-items:center;justify-content:center;width:30px;height:30px;background:linear-gradient(135deg,#6366f1,#8b5cf6);color:#fff;border-radius:999px;font-size:14px;font-weight:900;margin-bottom:12px;box-shadow:0 6px 14px rgba(99,102,241,0.3);">3</div><h3 style="font-size:15px;font-weight:900;margin-bottom:6px;color:#0f172a;">コースを選択</h3><p style="font-size:13px;color:#475569;font-weight:600;line-height:1.6;">ダッシュボードを開き、追跡したいコースにチェックを入れます。</p></div>
+        <div style="background:#fff;border:1px solid #ecebf9;border-radius:20px;padding:22px;box-shadow:0 10px 24px rgba(49,46,129,0.05);"><div style="display:flex;align-items:center;justify-content:center;width:30px;height:30px;background:linear-gradient(135deg,#6366f1,#8b5cf6);color:#fff;border-radius:999px;font-size:14px;font-weight:900;margin-bottom:12px;box-shadow:0 6px 14px rgba(99,102,241,0.3);">4</div><h3 style="font-size:15px;font-weight:900;margin-bottom:6px;color:#0f172a;">スキャン開始</h3><p style="font-size:13px;color:#475569;font-weight:600;line-height:1.6;">「今すぐ更新」をタップ。課題が締切順に一覧表示されます。</p></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- PRIVACY -->
+  <section style="background:#fff;">
+    <div style="max-width:960px;margin:0 auto;padding:64px 24px;">
+      <h2 style="text-align:center;font-size:clamp(22px,3.4vw,30px);font-weight:900;color:#0f172a;letter-spacing:-0.02em;margin-bottom:8px;">プライバシー</h2>
+      <p style="text-align:center;font-size:14px;color:#64748b;font-weight:600;margin-bottom:30px;">あなたのデータを大切に扱います</p>
+      <div style="background:#eef2ff;border:1px solid #e0e7ff;border-radius:22px;padding:28px 32px;max-width:680px;margin:0 auto;">
+        <h3 style="font-size:16px;font-weight:900;color:#0f172a;margin-bottom:14px;">収集・送信するデータについて</h3>
+        <ul style="list-style:none;display:flex;flex-direction:column;gap:2px;">
+          <li style="font-size:14px;color:#475569;padding:4px 0;display:flex;gap:10px;font-weight:700;"><span aria-hidden="true">🔒</span>ログインID・パスワードは一切読み取りません</li>
+          <li style="font-size:14px;color:#475569;padding:4px 0;display:flex;gap:10px;font-weight:700;"><span aria-hidden="true">🔒</span>収集データはブラウザのローカルストレージにのみ保存</li>
+          <li style="font-size:14px;color:#475569;padding:4px 0;display:flex;gap:10px;font-weight:700;"><span aria-hidden="true">🔒</span>外部サーバーへのデータ送信は行いません</li>
+          <li style="font-size:14px;color:#475569;padding:4px 0;display:flex;gap:10px;font-weight:700;"><span aria-hidden="true">🔒</span>ダッシュボードからいつでもデータを削除できます</li>
+          <li style="font-size:14px;color:#475569;padding:4px 0;display:flex;gap:10px;font-weight:700;"><span aria-hidden="true">🔒</span>アンインストールすると保存データもすべて削除されます</li>
+        </ul>
+        <div style="margin-top:16px;font-size:14px;font-weight:700;color:#475569;">詳細は<a href="/privacy">プライバシーポリシー</a>をご覧ください。</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- FAQ -->
+  <section style="background:#faf9ff;border-top:1px solid #efeefb;">
+    <div style="max-width:960px;margin:0 auto;padding:64px 24px;">
+      <h2 style="text-align:center;font-size:clamp(22px,3.4vw,30px);font-weight:900;color:#0f172a;letter-spacing:-0.02em;margin-bottom:8px;">よくある質問</h2>
+      <p style="text-align:center;font-size:14px;color:#64748b;font-weight:600;margin-bottom:30px;">導入前の疑問にお答えします</p>
+      <div style="display:flex;flex-direction:column;gap:10px;max-width:720px;margin:0 auto;">
+        <details style="background:#fff;border:1px solid #ecebf9;border-radius:14px;box-shadow:0 8px 20px rgba(49,46,129,0.05);overflow:hidden;"><summary style="cursor:pointer;padding:15px 18px;font-size:14.5px;font-weight:900;color:#0f172a;display:flex;gap:10px;align-items:baseline;"><span style="color:#4f46e5;font-weight:900;">Q.</span>無料で使えますか？</summary><p style="padding:0 18px 15px 40px;font-size:13.5px;color:#475569;font-weight:600;">はい。課題の自動収集・締切通知・ダッシュボードなどの基本機能はすべて無料で利用できます。Chrome Web Store / Microsoft Edge Add-onsからインストールするだけで、料金は一切かかりません。</p></details>
+        <details style="background:#fff;border:1px solid #ecebf9;border-radius:14px;box-shadow:0 8px 20px rgba(49,46,129,0.05);overflow:hidden;"><summary style="cursor:pointer;padding:15px 18px;font-size:14.5px;font-weight:900;color:#0f172a;display:flex;gap:10px;align-items:baseline;"><span style="color:#4f46e5;font-weight:900;">Q.</span>LETUSのパスワードやログイン情報は安全ですか？</summary><p style="padding:0 18px 15px 40px;font-size:13.5px;color:#475569;font-weight:600;">ログインID・パスワードは一切読み取りません。この拡張機能はブラウザ上ですでにログイン済みのセッションを利用して課題ページを読み取るだけで、収集したデータはブラウザ内のローカルストレージにのみ保存されます。外部サーバーへの送信は行いません。</p></details>
+        <details style="background:#fff;border:1px solid #ecebf9;border-radius:14px;box-shadow:0 8px 20px rgba(49,46,129,0.05);overflow:hidden;"><summary style="cursor:pointer;padding:15px 18px;font-size:14.5px;font-weight:900;color:#0f172a;display:flex;gap:10px;align-items:baseline;"><span style="color:#4f46e5;font-weight:900;">Q.</span>東京理科大学の公式ツールですか？</summary><p style="padding:0 18px 15px 40px;font-size:13.5px;color:#475569;font-weight:600;">いいえ。理科大生の有志による個人開発の非公式ツールです。大学およびLETUS（Moodle）の運営とは関係ありません。</p></details>
+        <details style="background:#fff;border:1px solid #ecebf9;border-radius:14px;box-shadow:0 8px 20px rgba(49,46,129,0.05);overflow:hidden;"><summary style="cursor:pointer;padding:15px 18px;font-size:14.5px;font-weight:900;color:#0f172a;display:flex;gap:10px;align-items:baseline;"><span style="color:#4f46e5;font-weight:900;">Q.</span>どのブラウザで使えますか？</summary><p style="padding:0 18px 15px 40px;font-size:13.5px;color:#475569;font-weight:600;">Google ChromeとMicrosoft Edgeに対応しています。それぞれChrome Web Store / Microsoft Edge Add-onsから無料でインストールできます。なお現在、最新版はChrome版のみで、Edge版は旧バージョンのままです（CLASS時間割連携などの新機能はまだ含まれていません）。Edge版の更新は順次進めています。</p></details>
+        <details style="background:#fff;border:1px solid #ecebf9;border-radius:14px;box-shadow:0 8px 20px rgba(49,46,129,0.05);overflow:hidden;"><summary style="cursor:pointer;padding:15px 18px;font-size:14.5px;font-weight:900;color:#0f172a;display:flex;gap:10px;align-items:baseline;"><span style="color:#4f46e5;font-weight:900;">Q.</span>スマートフォンでも使えますか？</summary><p style="padding:0 18px 15px 40px;font-size:13.5px;color:#475569;font-weight:600;">現在はPC版のChrome / Edgeのみ対応です。スマホ単体でLETUSの課題通知を受け取れるモバイルアプリ（iOS / Android）を開発中で、<a href="https://litus.waiteu.dev/">事前登録を受付中</a>です。詳しくは「今後の展望」をご覧ください。</p></details>
+      </div>
+    </div>
+  </section>
+
+  <!-- CHANGELOG -->
+  <section id="changelog" style="background:#fff;scroll-margin-top:16px;">
+    <div style="max-width:960px;margin:0 auto;padding:64px 24px;">
+      <h2 style="text-align:center;font-size:clamp(22px,3.4vw,30px);font-weight:900;color:#0f172a;letter-spacing:-0.02em;margin-bottom:8px;">アップデート履歴</h2>
+      <p style="text-align:center;font-size:14px;color:#64748b;font-weight:600;margin-bottom:34px;">継続的にバグ修正・機能改善を行っています</p>
+      <ul style="list-style:none;display:flex;flex-direction:column;gap:22px;max-width:680px;margin:0 auto;">
+        <li style="display:grid;gap:4px 20px;grid-template-columns:1fr;" data-cl>
+          <div><span style="font-size:13px;font-weight:900;color:#4f46e5;font-family:ui-monospace,monospace;">v1.3.0</span><span style="font-size:12px;color:#64748b;font-weight:700;margin-left:8px;">2026年7月</span><span style="font-size:11px;font-weight:800;color:#047857;background:#ecfdf5;border:1px solid #a7f3d0;border-radius:999px;padding:1px 8px;margin-left:8px;">Chrome公開中</span></div>
+          <div><div style="font-size:15px;font-weight:900;color:#0f172a;margin-bottom:6px;">クォーター科目対応・読み取れないときの正直なお知らせ</div><ul style="list-style:none;display:flex;flex-direction:column;gap:2px;"><li style="font-size:13.5px;color:#475569;font-weight:600;display:flex;gap:8px;line-height:1.55;"><span style="color:#94a3b8;flex-shrink:0;">—</span>学期の前半だけ／後半だけ開講されるクォーター科目が、時間割に正しく表示されるようになりました。同じ曜日・時限に2科目が重なっている場合も、両方とも表示します</li><li style="font-size:13.5px;color:#475569;font-weight:600;display:flex;gap:8px;line-height:1.55;"><span style="color:#94a3b8;flex-shrink:0;">—</span>時間割を前半・後半で切り替えて表示できます。期間外の科目は薄く表示され、どちらの期間の科目かは科目ごとに設定できます（CLASSには前半・後半の区別が載っていないため、手動での指定になります）</li><li style="font-size:13.5px;color:#475569;font-weight:600;display:flex;gap:8px;line-height:1.55;"><span style="color:#94a3b8;flex-shrink:0;">—</span>クォーター科目として積まれている2科目それぞれに、LETUSコースの自動ひも付けが効きます</li><li style="font-size:13.5px;color:#475569;font-weight:600;display:flex;gap:8px;line-height:1.55;"><span style="color:#94a3b8;flex-shrink:0;">—</span>LETUS側の画面構成の変更などで課題やコースを読み取れなくなった場合に、それを自動で検知して「読み取れませんでした」とお知らせするようになりました。表示中のデータは最後に取得できた時点のものを保つので、黙って空になることはありません</li><li style="font-size:13.5px;color:#475569;font-weight:600;display:flex;gap:8px;line-height:1.55;"><span style="color:#94a3b8;flex-shrink:0;">—</span>LETUSからログアウトされている状態をより確実に検知し、案内をひとつにまとめました。LETUSにログインし直すと自動的に再開します</li><li style="font-size:13.5px;color:#475569;font-weight:600;display:flex;gap:8px;line-height:1.55;"><span style="color:#94a3b8;flex-shrink:0;">—</span>将来のLETUS（Moodle）のバージョンアップで画面が変わっても壊れにくいよう、内部の読み取り処理を全体的に頑丈にしました</li><li style="font-size:13.5px;color:#475569;font-weight:600;display:flex;gap:8px;line-height:1.55;"><span style="color:#94a3b8;flex-shrink:0;">—</span>未提出の課題の提出状況が「不明」と表示されることがあった問題を修正しました。実際のLETUSの表示に合わせて、提出状況をより正確に判定します</li><li style="font-size:13.5px;color:#475569;font-weight:600;display:flex;gap:8px;line-height:1.55;"><span style="color:#94a3b8;flex-shrink:0;">—</span>「今日」「明日」「あと◯日」のような相対的な締切表記も読み取れるようになりました</li><li style="font-size:13.5px;color:#475569;font-weight:600;display:flex;gap:8px;line-height:1.55;"><span style="color:#94a3b8;flex-shrink:0;">—</span>ダッシュボードのコース一覧が読み込み直後に表示されない場合でも、少し待って自動で拾い直すようになりました</li><li style="font-size:13.5px;color:#475569;font-weight:600;display:flex;gap:8px;line-height:1.55;"><span style="color:#94a3b8;flex-shrink:0;">—</span>ダークテーマで利用規約の同意画面の本文が読みづらかった問題を修正しました</li></ul></div>
+        </li>
+        <li style="display:grid;gap:4px 20px;grid-template-columns:1fr;" data-cl>
+          <div><span style="font-size:13px;font-weight:900;color:#4f46e5;font-family:ui-monospace,monospace;">v1.2.2</span><span style="font-size:12px;color:#64748b;font-weight:700;margin-left:8px;">2026年7月</span></div>
+          <div><div style="font-size:15px;font-weight:900;color:#0f172a;margin-bottom:6px;">締切の手動設定・手動課題の編集ほか</div><ul style="list-style:none;display:flex;flex-direction:column;gap:2px;"><li style="font-size:13.5px;color:#475569;font-weight:600;display:flex;gap:8px;line-height:1.55;"><span style="color:#94a3b8;flex-shrink:0;">—</span>締切を自動で読み取れない課題（フォーラム提出など）に、コースページや課題ページのバッジから締切を設定・変更・クリアできるようにしました。自分で設定した締切にも締切前通知が届きます</li><li style="font-size:13.5px;color:#475569;font-weight:600;display:flex;gap:8px;line-height:1.55;"><span style="color:#94a3b8;flex-shrink:0;">—</span>手動で追加した課題を、あとから編集できるようにしました（課題名・締切・コース・メモ・提出状況）。ダッシュボードのカードやLETUSページのバッジから変更できます</li><li style="font-size:13.5px;color:#475569;font-weight:600;display:flex;gap:8px;line-height:1.55;"><span style="color:#94a3b8;flex-shrink:0;">—</span>時間割の取り込みをわかりやすく改善（取込時に年度・学期を表示、最終取込日時の表示、初回取込を通知でお知らせ）</li><li style="font-size:13.5px;color:#475569;font-weight:600;display:flex;gap:8px;line-height:1.55;"><span style="color:#94a3b8;flex-shrink:0;">—</span>通知のミュートを実効化。コースごとに締切・更新通知のミュートや、通知タイミング（しきい値）の変更ができます</li><li style="font-size:13.5px;color:#475569;font-weight:600;display:flex;gap:8px;line-height:1.55;"><span style="color:#94a3b8;flex-shrink:0;">—</span>テーマに「自動（端末のライト／ダーク設定に追従）」を追加し、初期設定にしました。ライト・ダークの固定も選べます</li><li style="font-size:13.5px;color:#475569;font-weight:600;display:flex;gap:8px;line-height:1.55;"><span style="color:#94a3b8;flex-shrink:0;">—</span>「今すぐ更新」がバックグラウンドで最後まで完了するようになりました。更新中にポップアップやダッシュボードを閉じても止まりません</li></ul></div>
+        </li>
+        <li style="display:grid;gap:4px 20px;grid-template-columns:1fr;" data-cl>
+          <div><span style="font-size:13px;font-weight:900;color:#4f46e5;font-family:ui-monospace,monospace;">v1.2.1</span><span style="font-size:12px;color:#64748b;font-weight:700;margin-left:8px;">2026年7月</span></div>
+          <div><div style="font-size:15px;font-weight:900;color:#0f172a;margin-bottom:6px;">利用規約の新設・提出状態まわりの修正</div><ul style="list-style:none;display:flex;flex-direction:column;gap:2px;"><li style="font-size:13.5px;color:#475569;font-weight:600;display:flex;gap:8px;line-height:1.55;"><span style="color:#94a3b8;flex-shrink:0;">—</span><span>利用規約を新設しました。ご同意いただくまで課題の収集と通知を行いません。取得するのはLETUSの課題情報とCLASSの時間割・シラバスのみで、データはすべて端末内に保存され外部へ送信されません（<a href="https://lms.waiteu.dev/terms" target="_blank" rel="noopener">全文はこちら</a>）</span></li><li style="font-size:13.5px;color:#475569;font-weight:600;display:flex;gap:8px;line-height:1.55;"><span style="color:#94a3b8;flex-shrink:0;">—</span>科目ID（コース番号）に英字が含まれる科目（例: 9975A06）が、時間割からのコース自動選択の対象にならない問題を修正しました</li><li style="font-size:13.5px;color:#475569;font-weight:600;display:flex;gap:8px;line-height:1.55;"><span style="color:#94a3b8;flex-shrink:0;">—</span>課題を提出したあと、LETUSのページ上のバッジが「未提出」のまま更新されなかった問題を修正しました</li><li style="font-size:13.5px;color:#475569;font-weight:600;display:flex;gap:8px;line-height:1.55;"><span style="color:#94a3b8;flex-shrink:0;">—</span>課題ページ右下の表示を、「登録済み」から実際の提出状態（提出済み／未提出）に変更しました</li></ul></div>
+        </li>
+        <li style="display:grid;gap:4px 20px;grid-template-columns:1fr;" data-cl>
+          <div><span style="font-size:13px;font-weight:900;color:#4f46e5;font-family:ui-monospace,monospace;">v1.2.0</span><span style="font-size:12px;color:#64748b;font-weight:700;margin-left:8px;">2026年7月</span></div>
+          <div><div style="font-size:15px;font-weight:900;color:#0f172a;margin-bottom:6px;">CLASS連携 — 時間割・科目連携・シラバス・更新通知</div><ul style="list-style:none;display:flex;flex-direction:column;gap:2px;"><li style="font-size:13.5px;color:#475569;font-weight:600;display:flex;gap:8px;line-height:1.55;"><span style="color:#94a3b8;flex-shrink:0;">—</span>履修システムCLASSの時間割をダッシュボードに表示。学期切替に対応し、授業のコマから対応するLETUSコースへワンタップで移動できます</li><li style="font-size:13.5px;color:#475569;font-weight:600;display:flex;gap:8px;line-height:1.55;"><span style="color:#94a3b8;flex-shrink:0;">—</span>科目コードで課題と時間割を自動ひも付け。履修状況に合わせてコースを自動選択します</li><li style="font-size:13.5px;color:#475569;font-weight:600;display:flex;gap:8px;line-height:1.55;"><span style="color:#94a3b8;flex-shrink:0;">—</span>LETUSコースのシラバスを拡張機能内に埋め込み表示</li><li style="font-size:13.5px;color:#475569;font-weight:600;display:flex;gap:8px;line-height:1.55;"><span style="color:#94a3b8;flex-shrink:0;">—</span>コース内容が更新されると時間割にバッジで通知。これらの新機能はすべて無料でご利用いただけます</li></ul><p style="font-size:13px;color:#475569;font-weight:600;line-height:1.65;margin-top:8px;">このCLASS連携は、開発中のスマホアプリ「リタス（Litus）」に先立って拡張機能で先行実装したものです。リタス（iOS / Android）は2026年後期の公開に向けて開発中で、<a href="https://litus.waiteu.dev/">事前登録を受付中</a>です。</p></div>
+        </li>
+        <li style="display:grid;gap:4px 20px;grid-template-columns:1fr;" data-cl>
+          <div><span style="font-size:13px;font-weight:900;color:#4f46e5;font-family:ui-monospace,monospace;">v1.1.0</span><span style="font-size:12px;color:#64748b;font-weight:700;margin-left:8px;">2026年7月</span></div>
+          <div><div style="font-size:15px;font-weight:900;color:#0f172a;margin-bottom:6px;">LETUSページ連携・手動課題追加</div><ul style="list-style:none;display:flex;flex-direction:column;gap:2px;"><li style="font-size:13.5px;color:#475569;font-weight:600;display:flex;gap:8px;line-height:1.55;"><span style="color:#94a3b8;flex-shrink:0;">—</span>LETUSのコースページを開くと、各項目に登録状況（「✓ 登録済み」）を直接表示。未登録の課題はワンクリックで追跡に追加できます</li><li style="font-size:13.5px;color:#475569;font-weight:600;display:flex;gap:8px;line-height:1.55;"><span style="color:#94a3b8;flex-shrink:0;">—</span>LETUSで管理されていない課題（フォーラム投稿型など）を手動で追加できるようになりました</li></ul></div>
+        </li>
+        <li style="display:grid;gap:4px 20px;grid-template-columns:1fr;" data-cl>
+          <div><span style="font-size:13px;font-weight:900;color:#4f46e5;font-family:ui-monospace,monospace;">v1.0.6</span><span style="font-size:12px;color:#64748b;font-weight:700;margin-left:8px;">2026年7月</span></div>
+          <div><div style="font-size:15px;font-weight:900;color:#0f172a;margin-bottom:6px;">締切表示・ログイン検知の修正</div><ul style="list-style:none;display:flex;flex-direction:column;gap:2px;"><li style="font-size:13.5px;color:#475569;font-weight:600;display:flex;gap:8px;line-height:1.55;"><span style="color:#94a3b8;flex-shrink:0;">—</span>受付が終了した小テストで、締切日が当日として誤って表示される問題を修正しました。正しい締切日が表示されます</li><li style="font-size:13.5px;color:#475569;font-weight:600;display:flex;gap:8px;line-height:1.55;"><span style="color:#94a3b8;flex-shrink:0;">—</span>LETUSに未ログインの状態で、環境によっては「通信エラー」と表示されることがあった問題を修正しました。正しくログインをご案内します</li></ul></div>
+        </li>
+        <li style="display:grid;gap:4px 20px;grid-template-columns:1fr;" data-cl>
+          <div><span style="font-size:13px;font-weight:900;color:#4f46e5;font-family:ui-monospace,monospace;">v1.0.5</span><span style="font-size:12px;color:#64748b;font-weight:700;margin-left:8px;">2026年7月</span></div>
+          <div><div style="font-size:15px;font-weight:900;color:#0f172a;margin-bottom:6px;">自動更新の信頼性向上・バグ修正</div><ul style="list-style:none;display:flex;flex-direction:column;gap:2px;"><li style="font-size:13.5px;color:#475569;font-weight:600;display:flex;gap:8px;line-height:1.55;"><span style="color:#94a3b8;flex-shrink:0;">—</span>自動更新の間隔を12時間ごとから1日1回に変更</li><li style="font-size:13.5px;color:#475569;font-weight:600;display:flex;gap:8px;line-height:1.55;"><span style="color:#94a3b8;flex-shrink:0;">—</span>更新中に課題リストが一瞬空になる問題を修正。更新が終わったコースから順次反映されるようになりました</li><li style="font-size:13.5px;color:#475569;font-weight:600;display:flex;gap:8px;line-height:1.55;"><span style="color:#94a3b8;flex-shrink:0;">—</span>未ログイン・通信エラー時に既存の課題データが失われなくなりました。エラー内容は画面上部に表示されます</li><li style="font-size:13.5px;color:#475569;font-weight:600;display:flex;gap:8px;line-height:1.55;"><span style="color:#94a3b8;flex-shrink:0;">—</span>一部のコース・課題だけ取得に失敗した場合、その項目のみ前回のデータを維持し、成功した項目のみ更新するよう改善</li><li style="font-size:13.5px;color:#475569;font-weight:600;display:flex;gap:8px;line-height:1.55;"><span style="color:#94a3b8;flex-shrink:0;">—</span>ゲスト閲覧が可能なコースで未ログイン状態を正しく検知できていなかった問題を修正</li></ul></div>
+        </li>
+        <li style="display:grid;gap:4px 20px;grid-template-columns:1fr;" data-cl>
+          <div><span style="font-size:13px;font-weight:900;color:#4f46e5;font-family:ui-monospace,monospace;">v1.0.4</span><span style="font-size:12px;color:#64748b;font-weight:700;margin-left:8px;">2026年6月</span></div>
+          <div><div style="font-size:15px;font-weight:900;color:#0f172a;margin-bottom:6px;">オンボーディングバナー・アップデート履歴ページ追加</div><ul style="list-style:none;display:flex;flex-direction:column;gap:2px;"><li style="font-size:13.5px;color:#475569;font-weight:600;display:flex;gap:8px;line-height:1.55;"><span style="color:#94a3b8;flex-shrink:0;">—</span>初回起動時にオンボーディングバナーを表示</li><li style="font-size:13.5px;color:#475569;font-weight:600;display:flex;gap:8px;line-height:1.55;"><span style="color:#94a3b8;flex-shrink:0;">—</span>拡張機能内にアップデート履歴ページを追加</li><li style="font-size:13.5px;color:#475569;font-weight:600;display:flex;gap:8px;line-height:1.55;"><span style="color:#94a3b8;flex-shrink:0;">—</span>LETUSへのログイン状態検知バグを修正</li></ul></div>
+        </li>
+        <li style="display:grid;gap:4px 20px;grid-template-columns:1fr;" data-cl>
+          <div><span style="font-size:13px;font-weight:900;color:#4f46e5;font-family:ui-monospace,monospace;">v1.0.3</span><span style="font-size:12px;color:#64748b;font-weight:700;margin-left:8px;">2026年6月</span></div>
+          <div><div style="font-size:15px;font-weight:900;color:#0f172a;margin-bottom:6px;">通知・スキャンの安定性向上</div><ul style="list-style:none;display:flex;flex-direction:column;gap:2px;"><li style="font-size:13.5px;color:#475569;font-weight:600;display:flex;gap:8px;line-height:1.55;"><span style="color:#94a3b8;flex-shrink:0;">—</span>バックグラウンドスキャンの安定性を向上</li><li style="font-size:13.5px;color:#475569;font-weight:600;display:flex;gap:8px;line-height:1.55;"><span style="color:#94a3b8;flex-shrink:0;">—</span>通知の重複送信バグを修正</li></ul></div>
+        </li>
+        <li style="display:grid;gap:4px 20px;grid-template-columns:1fr;" data-cl>
+          <div><span style="font-size:13px;font-weight:900;color:#4f46e5;font-family:ui-monospace,monospace;">v1.0.2</span><span style="font-size:12px;color:#64748b;font-weight:700;margin-left:8px;">2026年6月</span></div>
+          <div><div style="font-size:15px;font-weight:900;color:#0f172a;margin-bottom:6px;">ダッシュボード・課題管理機能の追加</div><ul style="list-style:none;display:flex;flex-direction:column;gap:2px;"><li style="font-size:13.5px;color:#475569;font-weight:600;display:flex;gap:8px;line-height:1.55;"><span style="color:#94a3b8;flex-shrink:0;">—</span>タブで開く専用ダッシュボード画面を追加。ポップアップとは別に全コースの課題を1画面にまとめて確認できます</li><li style="font-size:13.5px;color:#475569;font-weight:600;display:flex;gap:8px;line-height:1.55;"><span style="color:#94a3b8;flex-shrink:0;">—</span>課題を一時的に非表示にする機能を追加。非表示直後は「元に戻す」操作が可能です</li><li style="font-size:13.5px;color:#475569;font-weight:600;display:flex;gap:8px;line-height:1.55;"><span style="color:#94a3b8;flex-shrink:0;">—</span>締切日時で課題を自動グループ分け（24時間以内・明日まで・今週・それ以降）</li><li style="font-size:13.5px;color:#475569;font-weight:600;display:flex;gap:8px;line-height:1.55;"><span style="color:#94a3b8;flex-shrink:0;">—</span>コース選択に「すべてON / すべてOFF」ボタンを追加</li><li style="font-size:13.5px;color:#475569;font-weight:600;display:flex;gap:8px;line-height:1.55;"><span style="color:#94a3b8;flex-shrink:0;">—</span>不要なブラウザ権限（activeTab・scripting）を削除しセキュリティを改善</li></ul></div>
+        </li>
+        <li style="display:grid;gap:4px 20px;grid-template-columns:1fr;" data-cl>
+          <div><span style="font-size:13px;font-weight:900;color:#4f46e5;font-family:ui-monospace,monospace;">v1.0.0</span><span style="font-size:12px;color:#64748b;font-weight:700;margin-left:8px;">2026年5月</span></div>
+          <div><div style="font-size:15px;font-weight:900;color:#0f172a;margin-bottom:6px;">初回リリース</div><ul style="list-style:none;display:flex;flex-direction:column;gap:2px;"><li style="font-size:13.5px;color:#475569;font-weight:600;display:flex;gap:8px;line-height:1.55;"><span style="color:#94a3b8;flex-shrink:0;">—</span>LETUSの課題を自動収集・一覧表示</li><li style="font-size:13.5px;color:#475569;font-weight:600;display:flex;gap:8px;line-height:1.55;"><span style="color:#94a3b8;flex-shrink:0;">—</span>締切3時間前・1時間前のデスクトップ通知</li><li style="font-size:13.5px;color:#475569;font-weight:600;display:flex;gap:8px;line-height:1.55;"><span style="color:#94a3b8;flex-shrink:0;">—</span>バックグラウンド自動更新・ダッシュボード画面</li></ul></div>
+        </li>
+      </ul>
+    </div>
+  </section>
+
+  <!-- SUPPORT -->
+  <section style="background:#faf9ff;border-top:1px solid #efeefb;">
+    <div style="max-width:960px;margin:0 auto;padding:60px 24px;text-align:center;">
+      <h2 style="font-size:clamp(22px,3.4vw,28px);font-weight:900;color:#0f172a;letter-spacing:-0.02em;margin-bottom:12px;">サポート</h2>
+      <p style="color:#475569;font-size:14.5px;font-weight:700;margin-bottom:24px;">バグ報告・機能要望・ご質問はお気軽にどうぞ。</p>
+      <a href="https://docs.google.com/forms/d/e/1FAIpQLSf4ldGRNtITrcDSL1LIfQiSbYiu7-ud2qagGChttU-yCIQVkA/viewform?usp=dialog" target="_blank" rel="noopener" style="display:inline-flex;align-items:center;gap:10px;background:#fff;color:#4f46e5;padding:13px 26px;border-radius:999px;font-size:14.5px;font-weight:900;border:1.5px solid #e0e7ff;box-shadow:0 12px 26px rgba(99,102,241,0.10);"><svg viewBox="0 0 24 24" width="18" height="18" fill="#4f46e5"><path d="M20 4H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 4-8 5-8-5V6l8 5 8-5v2z"/></svg>お問い合わせフォームを開く</a>
+    </div>
+  </section>
+
+  <!-- FOOTER -->
+  <footer style="background:#0f172a;color:rgba(255,255,255,0.55);padding:32px 24px;text-align:center;">
+    <nav aria-label="フッター" style="display:flex;justify-content:center;gap:22px;margin-bottom:14px;flex-wrap:wrap;">
+      <a href="/" style="color:rgba(255,255,255,0.75);font-size:13.5px;font-weight:700;text-decoration:none;">トップページ</a>
+      <a href="/terms" style="color:rgba(255,255,255,0.75);font-size:13.5px;font-weight:700;text-decoration:none;">利用規約</a>
+      <a href="/privacy" style="color:rgba(255,255,255,0.75);font-size:13.5px;font-weight:700;text-decoration:none;">プライバシーポリシー</a>
+      <a href="/transparency" style="color:rgba(255,255,255,0.75);font-size:13.5px;font-weight:700;text-decoration:none;">透明性レポート</a>
+      <a href="https://chromewebstore.google.com/detail/letus-task-watcher/eofgkmpiadoeckkliialkddacidcinml" target="_blank" rel="noopener" style="color:rgba(255,255,255,0.75);font-size:13.5px;font-weight:700;text-decoration:none;">Chrome Web Store</a>
+      <a href="https://microsoftedge.microsoft.com/addons/detail/femdjgdgelnbdpgnfehacobmpbfmbdoa" target="_blank" rel="noopener" style="color:rgba(255,255,255,0.75);font-size:13.5px;font-weight:700;text-decoration:none;">Edge Add-ons</a>
+      <a href="https://litus.waiteu.dev/" target="_blank" rel="noopener" style="color:rgba(255,255,255,0.75);font-size:13.5px;font-weight:700;text-decoration:none;">リタス（スマホアプリ）</a>
+      <a href="https://waiteu.dev/" target="_blank" rel="noopener" style="color:rgba(255,255,255,0.75);font-size:13.5px;font-weight:700;text-decoration:none;">開発者サイト</a>
+    </nav>
+    <p style="font-size:12.5px;font-weight:600;">© 2026 waiteu. 東京理科大学非公式の学生個人プロジェクトです。</p>
+  </footer>
+
+</div>
+<script>
+  document.addEventListener('DOMContentLoaded', function () {
+    // レスポンシブ2カラム（予告・更新履歴）: 幅に余裕があれば2カラムに切替（インラインstyleのみ制約への対応）
+    var apply = function () {
+      var wide = window.innerWidth >= 720;
+      document.querySelectorAll('[data-two]').forEach(function (el) {
+        el.style.gridTemplateColumns = wide ? '1fr 1fr' : '1fr';
+        if (wide) el.style.alignItems = 'center';
+      });
+      document.querySelectorAll('[data-cl]').forEach(function (el) {
+        el.style.gridTemplateColumns = (window.innerWidth >= 560) ? '120px 1fr' : '1fr';
+      });
+      // v1.2.2 デモステージ: 340px設計を親幅に合わせて等倍縮小し、カーソル位置を全幅で一致させる
+      document.querySelectorAll('.nf-stage').forEach(function (st) {
+        var w = st.parentNode;
+        if (!w.classList.contains('nf-scale')) {
+          var nw = document.createElement('div'); nw.className = 'nf-scale';
+          st.parentNode.insertBefore(nw, st); nw.appendChild(st); w = nw;
+        }
+        var cw = w.clientWidth || 340; // レイアウト前で0が返る場合は原寸(scale=1)に退避
+        var scale = Math.min(1, cw / 340);
+        st.style.transform = 'scale(' + scale + ')';
+        w.style.height = (210 * scale) + 'px';
+      });
+    };
+    apply();
+    window.addEventListener('resize', apply);
+  });
+</script>
+</body>
+</html>

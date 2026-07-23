@@ -1,23 +1,34 @@
 node_modules
 dist
+dist-dev
+dist-beta
 *.zip
+*.bak
 .env
+*.env.development
+*.env.local
+*.env.production
 .DS_Store
 .vscode/*
 !.vscode/extensions.json
 .mcp.json
 .superpowers/
 data/
+.claude/
+devlms-task-watcher-v104/
+ops/litus-devlog/.delta.json
+ops/litus-devlog/.draft.txt
+ops/litus-devlog/.pending-entry.html
+ops/litus-devlog/.pending-sha
 
-# 内部の設計・計画・提出メモは非公開（ローカル保持・develop と同方針）
-# ※ docs/ ではなく docs/* にすること。末尾スラッシュだと配下を ! で再includeできない。
+# 内部の設計・計画・提出メモは非公開（ローカル保持・waiteu-dev と同方針）
+# ※ docs/ ではなく docs/* にすること。末尾スラッシュだと配下を !  で再includeできない。
 docs/*
 
-# ただし規約の正典は公開物（develop で scripts/gen-terms.mjs が単一正典として使う）。
+# ただし規約の正典は公開物。scripts/gen-terms.mjs が docs/legal/terms-ja.md を
+# 単一正典として TERMS_BODY と landing/terms.html を生成するため、
+# これを除外するとクリーンクローンで規約を再生成できなくなる。
 !docs/legal/
 
-# バックエンド（letus-api）の正典は非公開リポ waiteu-git/letus-api。
-# ここに残っていた api/ は 2026-07-16 の分離前の複製で、本番稼働中APIの
-# 認証・課金・webhook の実装が公開されていた（実際の秘密は含まれていない）。
-# develop では既に除去済み。main も追跡から外す。
-/api/
+# 開発ログ（内部の作業記録・経緯メモ）はローカル保持。docs/ と同方針で公開リポには入れない。
+WORKLOG.md

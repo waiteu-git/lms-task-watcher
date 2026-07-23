@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>透明性レポート — LETUS Task Watcher</title>
+<link rel="icon" type="image/svg+xml" href="favicon.svg">
+<link rel="icon" type="image/png" sizes="48x48" href="favicon-48.png">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<meta name="description" content="LETUS Task Watcherの通信先・データの扱い・自分で検証する方法を技術的に説明します。">
+<link rel="canonical" href="https://lms.waiteu.dev/transparency">
+<style>
+  *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color:#0f172a;background:#fff;line-height:1.85;font-size:16px;-webkit-font-smoothing:antialiased}
+  #doc a{color:#4f46e5;font-weight:600}
+  #doc h2{font-size:17px;font-weight:900;color:#0f172a;margin:34px 0 12px;display:flex;align-items:center;gap:10px}
+  #doc h2::before{content:"";width:4px;height:18px;border-radius:2px;background:linear-gradient(180deg,#6366f1,#8b5cf6);flex:0 0 auto}
+  #doc h3{font-size:14.5px;font-weight:800;margin:22px 0 8px;color:#0f172a}
+  #doc p{margin-bottom:12px;font-size:14.5px;color:#334155}
+  #doc ul,#doc ol{padding-left:1.4em;margin-bottom:12px}
+  #doc li{font-size:14.5px;margin-bottom:5px;color:#334155}
+  #doc table{width:100%;border-collapse:separate;border-spacing:0;margin:16px 0;font-size:13.5px;border:1px solid #e6e8f5;border-radius:14px;overflow:hidden}
+  #doc th,#doc td{border-bottom:1px solid #eef0f8;border-right:1px solid #eef0f8;padding:11px 15px;text-align:left;vertical-align:top}
+  #doc th{background:#f4f5fe;font-weight:800;color:#3730a3}
+  #doc tr:last-child th,#doc tr:last-child td{border-bottom:none}
+  #doc th:last-child,#doc td:last-child{border-right:none}
+  #doc code{background:#eef2ff;border:1px solid #e0e7ff;border-radius:6px;padding:1px 6px;font-size:0.85em;font-family:ui-monospace,monospace}
+</style>
+</head>
+<body>
+<div>
+  <header style="position:sticky;top:0;z-index:50;background:rgba(255,255,255,0.86);backdrop-filter:blur(16px);border-bottom:1px solid #ebeafd;">
+    <div style="max-width:820px;margin:0 auto;padding:13px 24px;display:flex;align-items:center;justify-content:space-between;">
+      <a href="/" style="display:flex;align-items:center;gap:9px;text-decoration:none;"><img src="icon-128.png" alt="" style="width:26px;height:26px;border-radius:7px;"><span style="font-size:14.5px;font-weight:900;color:#0f172a;">LETUS Task Watcher</span></a>
+      <a href="/" style="font-size:13px;color:#4f46e5;font-weight:700;text-decoration:none;">← トップページへ</a>
+    </div>
+  </header>
+
+  <div style="background:radial-gradient(circle at 92% 0%,rgba(99,102,241,0.10),transparent 44%),#fff;border-bottom:1px solid #f0f0fb;">
+    <main style="max-width:820px;margin:0 auto;padding:44px 24px 20px;">
+      <span style="display:inline-block;background:#eef2ff;color:#4f46e5;border:1px solid #e0e7ff;font-size:11px;font-weight:800;letter-spacing:0.08em;padding:4px 12px;border-radius:999px;margin-bottom:14px;">TRANSPARENCY</span>
+      <h1 style="font-size:clamp(26px,4vw,34px);font-weight:900;letter-spacing:-0.02em;margin-bottom:8px;color:#0f172a;">透明性レポート</h1>
+      <p style="font-size:13px;color:#64748b;font-weight:600;">最終更新日: 2026年7月24日 ／ 対象: v1.3.0</p>
+    </main>
+  </div>
+
+  <main id="doc" style="max-width:820px;margin:0 auto;padding:20px 24px 72px;">
+    <h2>このページについて</h2>
+    <p>「拡張機能が裏で何をしているのか、自分の目で確かめたい」という方向けの技術文書です。LETUS Task Watcherの通信先とデータの扱いを説明し、<strong>本文の記載を信用せずに自分で検証する方法</strong>を案内します。一般的な説明は<a href="/privacy">プライバシーポリシー</a>をご覧ください。</p>
+
+    <h2>通信先</h2>
+    <p>拡張機能が通信するのは <code>https://letus.ed.tus.ac.jp</code>（LETUS）と <code>https://class.admin.tus.ac.jp</code>（CLASS）の2つのみです。CLASSへのアクセスは v1.2.0 で追加され、取得するのは履修科目・時間割（曜日時限・科目コード）だけで、成績・出欠記録などにはアクセスしません。<strong>いずれも自前サーバーを経由せず、お使いのブラウザの中で完結します。外部サーバーへのデータ送信は一切ありません。</strong>取得したデータはすべて <code>chrome.storage.local</code>（端末内）に保存されます。</p>
+    <p>これは設定や実装ではなく<strong>マニフェストの権限レベルで保証</strong>されています。<code>manifest.json</code> の <code>host_permissions</code> が上記2ドメインに限定されているため、拡張機能は技術的にそれ以外のドメインへリクエストを送れません。</p>
+    <table>
+      <tr><th>項目</th><th>内容</th></tr>
+      <tr><td>権限（permissions）</td><td><code>storage</code> / <code>notifications</code> / <code>alarms</code></td></tr>
+      <tr><td>ホスト権限（host_permissions）</td><td><code>https://letus.ed.tus.ac.jp/*</code> と <code>https://class.admin.tus.ac.jp/*</code> のみ</td></tr>
+      <tr><td>認証情報の扱い</td><td>ID・パスワードには一切アクセスしない。既にブラウザにあるログインセッションをそのまま利用</td></tr>
+      <tr><td>データの保存先</td><td><code>chrome.storage.local</code>（端末内のみ）</td></tr>
+    </table>
+    <p>今後のバージョンで通信先が増える場合（例: アカウント同期機能）は、リリース時に本ページと<a href="/privacy">プライバシーポリシー</a>を更新し、送信するデータの内容を明記します。</p>
+
+    <h2>大学サーバーへの負荷について</h2>
+    <p>この拡張機能は、大学のサーバーに過剰な負荷をかけないよう設計されています。通信はすべてお使いのブラウザから、あなた自身のログインセッションで行われるため、<strong>1つのサーバーが全ユーザー分のアクセスをまとめて送るような仕組みは存在しません</strong>。アクセス元はあなたの端末だけです。</p>
+    <ul>
+      <li><strong>自動更新は1日1回だけ</strong>です（<code>alarms</code> 権限で1日1回のスキャンを予約しています）。あとは、あなたが「今すぐ更新」を押したときにのみ動きます。</li>
+      <li><strong>1回の更新でも、リクエストは間隔を空けて順番に送ります。</strong>登録コースと課題の数だけページを読みますが、一度に集中して送らず、少しずつ時間をかけて取得することで、人が手でページを開いて回るのと同じくらいのペースに抑えています。</li>
+      <li>同じ内容を何度も取りに行かないよう、更新のタイミングには間隔（クールダウン）を設けています。</li>
+    </ul>
+    <p>実際の通信ペースは、次節「自分で検証する方法」の <strong>DevTools のネットワークタブ</strong>で、リクエストが一度に殺到せず順番に並ぶこととして確認できます。</p>
+
+    <h2>自分で検証する方法</h2>
+    <p>以下はすべて、開発者を信用せずに第三者が確認できる手順です。</p>
+
+    <h3>1. マニフェスト（権限）を確認する</h3>
+    <ol>
+      <li><code>chrome://extensions</code> を開き、右上の「デベロッパーモード」をON</li>
+      <li>LETUS Task Watcher の「詳細」からID（英字32文字）を確認</li>
+      <li>以下のフォルダにインストール済みの全ソースコードがあります（難読化していません）
+        <ul>
+          <li>Windows: <code>%LOCALAPPDATA%\Google\Chrome\User Data\Default\Extensions\（ID）</code></li>
+          <li>macOS: <code>~/Library/Application Support/Google/Chrome/Default/Extensions/（ID）</code></li>
+        </ul>
+      </li>
+      <li><code>manifest.json</code> を開き、<code>permissions</code> と <code>host_permissions</code> が上記の表と一致することを確認</li>
+    </ol>
+
+    <h3>2. 実際の通信をすべて監視する</h3>
+    <ol>
+      <li><code>chrome://extensions</code> でLETUS Task Watcherの「ビューを検証: Service Worker」をクリック</li>
+      <li>開いたDevToolsの <strong>Network</strong> タブを表示したまま、拡張機能のスキャンを実行</li>
+      <li>リクエスト先がすべて <code>letus.ed.tus.ac.jp</code> または <code>class.admin.tus.ac.jp</code> であることを確認（これが拡張機能の全通信です）</li>
+    </ol>
+
+    <h3>3. 保存されているデータを確認する</h3>
+    <p>同じDevToolsの <strong>Console</strong> で次を実行すると、拡張機能が保存している全データを見られます。</p>
+    <p><code>chrome.storage.local.get(null).then(console.log)</code></p>
+
+    <h2>ソースコードの公開</h2>
+    <p>本拡張機能のソースコードは <a href="https://github.com/waiteu-git/lms-task-watcher" target="_blank" rel="noopener">GitHub（waiteu-git/lms-task-watcher）</a> で全文公開しています（難読化していません）。誰でも閲覧・監査でき、上記「自分で検証する方法」と合わせて、開発者を信用せずに動作を確認できます。</p>
+    <p>ただし本ソフトウェアはオープンソースではありません。複製・転用・再配布・商用利用を禁止する source-available ライセンス（<a href="https://github.com/waiteu-git/lms-task-watcher/blob/develop/LICENSE" target="_blank" rel="noopener">LICENSE</a>、2026-07-04適用）の下にあります。許可しているのは、閲覧・監査・自分の環境での動作検証と、下記の貢献を目的とした利用です。</p>
+    <p><strong>外部からの貢献</strong>：2026年7月23日から、不具合報告・改善提案・Pull Request を受け付けています。貢献の準備・提出に必要な範囲に限り、本リポジトリの fork・ソースコードの改変・その改変を fork リポジトリおよび Pull Request として GitHub 上で公開することを許可しています。ただし fork を配布の手段として使うこと（ビルド済み成果物の配布を含む）はできません。手順と権利の取り扱いは <a href="https://github.com/waiteu-git/lms-task-watcher/blob/develop/CONTRIBUTING.md" target="_blank" rel="noopener">CONTRIBUTING.md</a> に定めています。</p>
+
+    <h2>脆弱性の報告</h2>
+    <p>セキュリティ上の問題を発見された場合は、公開の場に書く前に <a href="https://github.com/waiteu-git/lms-task-watcher/security/advisories/new" target="_blank" rel="noopener">GitHub のプライベート脆弱性報告</a>（推奨）または<a href="https://docs.google.com/forms/d/e/1FAIpQLSf4ldGRNtITrcDSL1LIfQiSbYiu7-ud2qagGChttU-yCIQVkA/viewform?usp=dialog" target="_blank" rel="noopener">お問い合わせフォーム</a>で、非公開にご連絡ください。確認のうえ迅速に対応します。善意で報告してくださった方に法的措置を取ることはありません。</p>
+    <p>検証はご自身のローカル環境と、ご自身のアカウントのデータの範囲で行ってください。大学の本番システム（LETUS・CLASS・*.tus.ac.jp）に対する負荷試験・脆弱性スキャン等の検証行為は行わないでください。詳細は <a href="https://github.com/waiteu-git/lms-task-watcher/blob/develop/SECURITY.md" target="_blank" rel="noopener">SECURITY.md</a> に記載しています。</p>
+  </main>
+
+  <footer style="background:#0f172a;color:rgba(255,255,255,0.55);padding:32px 24px;text-align:center;">
+    <nav aria-label="フッター" style="display:flex;justify-content:center;gap:22px;margin-bottom:14px;flex-wrap:wrap;">
+      <a href="/" style="color:rgba(255,255,255,0.75);font-size:13.5px;font-weight:700;text-decoration:none;">トップページ</a>
+      <a href="/terms" style="color:rgba(255,255,255,0.75);font-size:13.5px;font-weight:700;text-decoration:none;">利用規約</a>
+      <a href="/privacy" style="color:rgba(255,255,255,0.75);font-size:13.5px;font-weight:700;text-decoration:none;">プライバシーポリシー</a>
+      <a href="/transparency" style="color:rgba(255,255,255,0.75);font-size:13.5px;font-weight:700;text-decoration:none;">透明性レポート</a>
+      <a href="https://chromewebstore.google.com/detail/letus-task-watcher/eofgkmpiadoeckkliialkddacidcinml" target="_blank" rel="noopener" style="color:rgba(255,255,255,0.75);font-size:13.5px;font-weight:700;text-decoration:none;">Chrome Web Store</a>
+      <a href="https://microsoftedge.microsoft.com/addons/detail/femdjgdgelnbdpgnfehacobmpbfmbdoa" target="_blank" rel="noopener" style="color:rgba(255,255,255,0.75);font-size:13.5px;font-weight:700;text-decoration:none;">Edge Add-ons</a>
+      <a href="https://litus.waiteu.dev/" target="_blank" rel="noopener" style="color:rgba(255,255,255,0.75);font-size:13.5px;font-weight:700;text-decoration:none;">リタス（スマホアプリ）</a>
+      <a href="https://waiteu.dev/" target="_blank" rel="noopener" style="color:rgba(255,255,255,0.75);font-size:13.5px;font-weight:700;text-decoration:none;">開発者サイト</a>
+    </nav>
+    <p style="font-size:12.5px;font-weight:600;">© 2026 waiteu. 東京理科大学非公式の学生個人プロジェクトです。</p>
+  </footer>
+</div>
+</body>
+</html>

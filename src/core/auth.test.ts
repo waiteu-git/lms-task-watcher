@@ -5,9 +5,9 @@ const store: Record<string, unknown> = {}
 vi.stubGlobal('chrome', {
   storage: {
     local: {
-      get: vi.fn(async (keys: string[]) => {
+      get: vi.fn(async (keys: string | string[]) => {
         const result: Record<string, unknown> = {}
-        for (const k of keys) result[k] = store[k]
+        for (const k of Array.isArray(keys) ? keys : [keys]) result[k] = store[k]
         return result
       }),
       set: vi.fn(async (obj: Record<string, unknown>) => {
@@ -72,5 +72,25 @@ describe('isSubscriptionActive', () => {
     store['subscriptionCheckedAt'] = new Date(Date.now() - 15 * 24 * 60 * 60 * 1000).toISOString()
     store['subscriptionGraceUntil'] = new Date(Date.now() - 1000).toISOString()
     expect(await isSubscriptionActive()).toBe(false)
+  })
+
+  it('status active でも current_period_end が過去なら false', async () => {
+    await chrome.storage.local.set({
+      subscriptionStatus: 'active',
+      subscriptionCheckedAt: new Date().toISOString(),
+      subscriptionGraceUntil: new Date(Date.now() + 1e10).toISOString(),
+      subscriptionCurrentPeriodEnd: new Date(Date.now() - 1000).toISOString(),
+    })
+    expect(await isSubscriptionActive()).toBe(false)
+  })
+
+  it('current_period_end が未来なら active', async () => {
+    await chrome.storage.local.set({
+      subscriptionStatus: 'active',
+      subscriptionCheckedAt: new Date().toISOString(),
+      subscriptionGraceUntil: new Date(Date.now() + 1e10).toISOString(),
+      subscriptionCurrentPeriodEnd: new Date(Date.now() + 1e9).toISOString(),
+    })
+    expect(await isSubscriptionActive()).toBe(true)
   })
 })

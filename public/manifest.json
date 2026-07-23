@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "__MSG_appName__",
-  "version": "1.0.6",
+  "version": "1.4.0",
   "description": "__MSG_appDescription__",
   "default_locale": "ja",
   "permissions": [
@@ -10,7 +10,8 @@
     "alarms"
   ],
   "host_permissions": [
-    "https://letus.ed.tus.ac.jp/*"
+    "https://letus.ed.tus.ac.jp/*",
+    "https://class.admin.tus.ac.jp/*"
   ],
   "background": {
     "service_worker": "background.js",
@@ -20,6 +21,11 @@
     {
       "matches": ["https://letus.ed.tus.ac.jp/*"],
       "js": ["content.js"],
+      "run_at": "document_idle"
+    },
+    {
+      "matches": ["https://class.admin.tus.ac.jp/*"],
+      "js": ["classTimetable.js"],
       "run_at": "document_idle"
     }
   ],

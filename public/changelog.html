@@ -4,6 +4,9 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>LETUS Task Watcher — アップデート情報</title>
+  <link rel="icon" type="image/svg+xml" href="favicon.svg" />
+  <link rel="icon" type="image/png" sizes="32x32" href="icons/icon-32.png" />
+  <link rel="apple-touch-icon" href="icons/icon-128.png" />
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body {
@@ -47,27 +50,108 @@
       border-bottom: 1px solid #f3f4f6;
     }
     ul li::before { content: '•'; position: absolute; left: 0; color: #2563eb; }
-    .roadmap { margin-bottom: 32px; }
-    .phase {
-      display: flex;
-      align-items: flex-start;
-      gap: 12px;
-      padding: 12px 0;
-      border-bottom: 1px solid #f3f4f6;
+
+    /* ── ロードマップ ── */
+    .roadmap-hint {
+      font-size: 12px;
+      color: #9ca3af;
+      margin-bottom: 12px;
     }
+    .roadmap { margin-bottom: 32px; display: flex; flex-direction: column; gap: 8px; }
+
+    .phase-card {
+      border: 1px solid #e5e7eb;
+      border-radius: 10px;
+      overflow: hidden;
+      transition: box-shadow 0.15s;
+    }
+    .phase-card:hover { box-shadow: 0 2px 8px rgba(0,0,0,0.08); }
+    .phase-card.done   { border-color: #86efac; }
+    .phase-card.soon   { border-color: #93c5fd; }
+    .phase-card.future { border-color: #e5e7eb; }
+
+    .phase-header {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 13px 14px;
+      cursor: pointer;
+      user-select: none;
+      -webkit-user-select: none;
+    }
+    .done   .phase-header { background: #f0fdf4; }
+    .soon   .phase-header { background: #eff6ff; }
+    .future .phase-header { background: #fafafa; }
+
     .phase-badge {
       font-size: 11px;
       font-weight: 600;
-      padding: 2px 8px;
+      padding: 2px 9px;
       border-radius: 99px;
       white-space: nowrap;
-      margin-top: 2px;
+      flex-shrink: 0;
     }
-    .badge-done { background: #dcfce7; color: #166534; }
-    .badge-soon { background: #dbeafe; color: #1d4ed8; }
-    .badge-future { background: #f3f4f6; color: #6b7280; }
-    .phase-content h3 { font-size: 14px; font-weight: 600; margin-bottom: 2px; }
-    .phase-content p { font-size: 13px; color: #6b7280; }
+    .done   .phase-badge { background: #dcfce7; color: #166534; }
+    .soon   .phase-badge { background: #dbeafe; color: #1d4ed8; }
+    .future .phase-badge { background: #f3f4f6; color: #6b7280; }
+
+    .phase-title {
+      font-size: 14px;
+      font-weight: 600;
+      flex: 1;
+      color: #111827;
+    }
+    .phase-sub {
+      font-size: 11px;
+      font-weight: 400;
+      color: #6b7280;
+    }
+    .phase-arrow {
+      font-size: 11px;
+      color: #9ca3af;
+      transition: transform 0.2s;
+      flex-shrink: 0;
+    }
+    .phase-card.open .phase-arrow { transform: rotate(180deg); }
+
+    .phase-body {
+      display: none;
+      padding: 14px;
+      border-top: 1px solid #f3f4f6;
+    }
+    .phase-card.open .phase-body { display: block; }
+
+    .phase-desc {
+      font-size: 13px;
+      color: #6b7280;
+      margin-bottom: 12px;
+      line-height: 1.65;
+    }
+    .phase-features {
+      list-style: none;
+      margin: 0;
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+    .phase-features li {
+      font-size: 13px;
+      color: #374151;
+      padding: 5px 0 5px 20px;
+      position: relative;
+      border: none;
+      border-bottom: 1px solid #f9fafb;
+    }
+    .phase-features li:last-child { border-bottom: none; }
+    .phase-features li::before {
+      position: absolute;
+      left: 0;
+      font-size: 12px;
+    }
+    .done   .phase-features li::before { content: '✓'; color: #16a34a; }
+    .soon   .phase-features li::before { content: '○'; color: #3b82f6; }
+    .future .phase-features li::before { content: '○'; color: #d1d5db; }
+
     footer {
       font-size: 12px;
       color: #9ca3af;
@@ -81,43 +165,102 @@
 <body>
   <div class="container">
     <p class="eyebrow">LETUS Task Watcher</p>
-    <h1>v1.0.6 にアップデートしました</h1>
+    <h1>v1.4.0 にアップデートしました</h1>
     <p class="subtitle">ご利用ありがとうございます。今回のアップデート内容をお知らせします。</p>
 
-    <h2>✨ 今回の変更点</h2>
+    <h2>📅 週間カレンダーが使えるようになりました</h2>
     <ul>
-      <li>受付が終了した小テストで、締切日が当日として誤って表示される問題を修正しました。正しい締切日が表示されます。</li>
-      <li>LETUSに未ログインの状態で、環境によっては「通信エラー」と表示されることがあった問題を修正しました。正しくログインをご案内します。</li>
+      <li>ダッシュボードに<strong>週間カレンダー</strong>を追加しました。1週間の締切をカレンダー形式でまとめて確認でき、前後の週にも移動できます。手動で追加した課題も一緒に表示されます。</li>
+      <li>課題の締切を<strong>.icsファイルに書き出せる</strong>ようになりました。Googleカレンダーなどお使いのカレンダーアプリに取り込めます（書き出し時点のスナップショットで、自動では同期されません）。</li>
+      <li>ポップアップの「週間カレンダーで見る」からすぐに開けます。</li>
+    </ul>
+
+    <h2>➕ 課題は手動でも追加できます（おさらい）</h2>
+    <ul>
+      <li>動画の視聴やフォーラムへの投稿など、LETUSが課題として扱わないものも、<strong>コースページ右下の「課題を追加」ボタン</strong>から自由に登録できます。登録した課題にも締切前通知が届きます。</li>
+      <li>コースページの各項目の横に出る<strong>「+」バッジ</strong>を押すと、その項目をワンクリックで追跡に追加できます。今回のアップデートで、「+」が出る項目の種類を大幅に増やしました（外部ツールの動画教材・レッスンなど）。</li>
+      <li>締切を読み取れなかった課題には、バッジの「＋締切」から自分で締切を設定できます。</li>
+    </ul>
+
+    <h2>⚖ 利用規約について</h2>
+    <ul>
+      <li>本拡張は東京理科大学の公式拡張ではありません。取得するのはLETUSの課題情報とCLASSの時間割・シラバスのみで、成績等は取得せず、すべて端末内に保存され外部へ送信されません。</li>
+      <li>全文は<a href="https://lms.waiteu.dev/terms" target="_blank">こちら</a>でご覧いただけます。</li>
+    </ul>
+
+    <h2>📱 モバイルアプリ「リタス」開発中</h2>
+    <ul>
+      <li>LETUSの課題も、CLASSの時間割も出席も、スマホひとつに。理科大生向けアプリ「リタス（Litus）」を2026年後期の公開を目標に開発中です。<a href="https://litus.waiteu.dev/" target="_blank">事前登録はこちら</a>。</li>
     </ul>
 
     <h2>🗺 ロードマップ</h2>
+    <p class="roadmap-hint">各フェーズをタップして詳細を確認できます</p>
     <div class="roadmap">
-      <div class="phase">
-        <span class="phase-badge badge-done">完了</span>
-        <div class="phase-content">
-          <h3>フェーズ1 — 課題通知</h3>
-          <p>課題の自動スキャン・締切通知・ダッシュボード表示</p>
+
+      <div class="phase-card done" id="phase1">
+        <div class="phase-header">
+          <span class="phase-badge">✓ 完了</span>
+          <span class="phase-title">フェーズ1 — 課題通知・手動追加</span>
+          <span class="phase-arrow">▼</span>
+        </div>
+        <div class="phase-body">
+          <p class="phase-desc">LETUSの課題を自動で収集・通知する基本機能。手動追加や登録済みインジケーターにも対応しています。</p>
+          <ul class="phase-features">
+            <li>LETUSから課題を自動スキャン</li>
+            <li>締切 1時間前 / 3時間前 / 24時間前に通知</li>
+            <li>ダッシュボードで全課題を一覧表示</li>
+            <li>コース単位でスキャン対象を管理</li>
+            <li>手動での課題追加・編集（フォーラム投稿型など）</li>
+            <li>締切の手動設定・変更（読み取れない課題向け）</li>
+            <li>登録済みページの「✓ 登録済み」インジケーター</li>
+            <li>週間カレンダー表示・.ics書き出し（v1.4.0）</li>
+          </ul>
         </div>
       </div>
-      <div class="phase">
-        <span class="phase-badge badge-soon">近日公開</span>
-        <div class="phase-content">
-          <h3>フェーズ2 — サブスクライバー機能</h3>
-          <p>課題へのメモ・優先度付け、テーマ変更、サブスクライバーバッジ</p>
+      <div class="phase-card done open" id="phase2">
+        <div class="phase-header">
+          <span class="phase-badge">✓ 完了</span>
+          <span class="phase-title">フェーズ2 — CLASS連携（時間割） <span class="phase-sub">（v1.2.0）</span></span>
+          <span class="phase-arrow">▼</span>
+        </div>
+        <div class="phase-body">
+          <p class="phase-desc">履修システムCLASSの時間割を取り込み、課題と科目を自動でひも付けました。シラバスの表示やコース内容の更新通知にも対応。これらの機能はすべて無料で提供します。モバイルアプリ「リタス」（フェーズ3）に先立って拡張機能で実装しました。取得するのは履修科目・時間割のみで、成績などの情報には一切アクセスしません。</p>
+          <ul class="phase-features">
+            <li>CLASS時間割の自動取込・グリッド表示</li>
+            <li>課題と時間割の科目連携（自動ひも付け・自動追跡対象化）</li>
+            <li>クォーター科目（前半・後半）の表示対応（v1.3.0）</li>
+            <li>シラバスの埋め込み表示</li>
+            <li>コース内容の更新通知</li>
+            <li>ポップアップの今日の時間割・締切の緊急度カラー表示</li>
+          </ul>
         </div>
       </div>
-      <div class="phase">
-        <span class="phase-badge badge-future">将来</span>
-        <div class="phase-content">
-          <h3>フェーズ3 — モバイルアプリ</h3>
-          <p>iOS / Android アプリによるブラウザ外プッシュ通知</p>
+
+      <div class="phase-card future" id="phase3">
+        <div class="phase-header">
+          <span class="phase-badge">開発中</span>
+          <span class="phase-title">フェーズ3 — モバイルアプリ「リタス」</span>
+          <span class="phase-arrow">▼</span>
+        </div>
+        <div class="phase-body">
+          <p class="phase-desc">LETUSの課題も、CLASSの時間割も出席も、スマホひとつに。理科大生向けアプリ「リタス（Litus）」。ブラウザを開かなくてもプッシュ通知を受け取れます。2026年後期の公開を目標に開発中で、<a href="https://litus.waiteu.dev/" target="_blank">事前登録を受付中</a>です。</p>
+          <ul class="phase-features">
+            <li>iOSアプリ（App Store）</li>
+            <li>Androidアプリ（Google Play）</li>
+            <li>締切前のプッシュ通知・朝まとめ</li>
+            <li>CLASS時間割の表示・科目連携</li>
+            <li>出席リマインド</li>
+          </ul>
         </div>
       </div>
+
     </div>
 
     <footer>
       ご意見・バグ報告は <a href="https://forms.gle/Bso6MoFYhgRtkpsS9" target="_blank">フィードバックフォーム</a> からどうぞ。
     </footer>
   </div>
+
+  <script src="changelog.js"></script>
 </body>
 </html>

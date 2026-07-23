@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { width: 1200px; height: 630px; overflow: hidden; }
+    .og { width: 1200px; height: 630px; position: relative; overflow: hidden;
+          background: linear-gradient(135deg, #0f9e75 0%, #0b7d63 100%);
+          display: flex; align-items: center; gap: 56px; padding: 0 80px;
+          font-family: -apple-system, "Segoe UI", "Hiragino Sans", "Noto Sans JP", sans-serif; color: #fff; }
+    .og::before { content: ""; position: absolute; top: -160px; right: -140px; width: 560px; height: 560px;
+                  border-radius: 50%; background: radial-gradient(circle, rgba(255,255,255,0.16), transparent 70%); }
+    .copy { flex: 1; position: relative; z-index: 1; }
+    .brandrow { display: flex; align-items: center; gap: 16px; margin-bottom: 26px; }
+    .mark { width: 58px; height: 58px; display: flex; align-items: center; justify-content: center; }
+    .wordmark { font-size: 52px; font-weight: 900; letter-spacing: 3px; }
+    .badge { display: inline-block; background: rgba(255,255,255,0.2); border: 1px solid rgba(255,255,255,0.35);
+             border-radius: 999px; padding: 8px 20px; font-size: 20px; font-weight: 700; margin-bottom: 26px; }
+    .title { font-size: 55px; font-weight: 900; line-height: 1.24; letter-spacing: -1px; }
+    .title em { font-style: normal; color: #fde68a; }
+    .sub { margin-top: 26px; font-size: 24px; opacity: 0.95; line-height: 1.5; }
+    .foot { margin-top: 38px; font-size: 21px; font-weight: 700; opacity: 0.92; }
+    .phone { width: 296px; flex-shrink: 0; background: #0c1512; border-radius: 44px; padding: 11px;
+             position: relative; z-index: 1; box-shadow: 0 30px 60px rgba(6,40,30,0.45); }
+    /* 起動アニメーション（ブートロゴ）画面 */
+    .screen { background: #ffffff; border-radius: 34px; height: 556px; position: relative;
+              display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 40px; padding: 26px; }
+    .boot-mark { width: 88px; height: 84px; display: flex; align-items: center; justify-content: center; }
+    .boot-lockup { display: flex; flex-direction: column; align-items: center; gap: 22px; }
+    .boot-word { font-size: 54px; font-weight: 900; letter-spacing: -1px; line-height: 1; }
+    .boot-word .li { color: #12332a; }
+    .boot-word .tus { color: #0f9e75; }
+    .boot-tag { font-size: 15px; font-weight: 600; letter-spacing: 0.5em; padding-left: 0.5em; color: #8a968f; }
+    .boot-copy { position: absolute; bottom: 30px; left: 0; right: 0; text-align: center;
+                 font-size: 12px; color: #b4bfba; letter-spacing: 0.04em; }
+  </style>
+</head>
+<body>
+  <div class="og">
+    <div class="copy">
+      <div class="brandrow">
+        <span class="mark"><svg width="52" height="50" viewBox="0 0 48 46" fill="none"><path fill="#fff" d="M25.946 44.938c-.664.845-2.021.375-2.021-.698V33.937a2.26 2.26 0 0 0-2.262-2.262H10.287c-.92 0-1.456-1.04-.92-1.788l7.48-10.471c1.07-1.497 0-3.578-1.842-3.578H1.237c-.92 0-1.456-1.04-.92-1.788L10.013.474c.214-.297.556-.474.92-.474h28.894c.92 0 1.456 1.04.92 1.788l-7.48 10.471c-1.07 1.498 0 3.579 1.842 3.579h11.377c.943 0 1.473 1.088.89 1.83L25.947 44.94z"/></svg></span>
+        <span class="wordmark">LITUS</span>
+      </div>
+      <div class="badge">iOS / Android ・ 近日公開</div>
+      <div class="title">LETUSもCLASSも、<br><em>スマホひとつに。</em></div>
+      <div class="sub">課題の締切通知・CLASSの時間割・出席まで、これひとつで。</div>
+      <div class="foot">東京理科大 非公式 ・ 事前登録受付中</div>
+    </div>
+    <div class="phone">
+      <div class="screen">
+        <div class="boot-lockup">
+          <span class="boot-mark"><svg width="88" height="84" viewBox="0 0 48 46" fill="none"><path fill="#0f9e75" d="M25.946 44.938c-.664.845-2.021.375-2.021-.698V33.937a2.26 2.26 0 0 0-2.262-2.262H10.287c-.92 0-1.456-1.04-.92-1.788l7.48-10.471c1.07-1.497 0-3.578-1.842-3.578H1.237c-.92 0-1.456-1.04-.92-1.788L10.013.474c.214-.297.556-.474.92-.474h28.894c.92 0 1.456 1.04.92 1.788l-7.48 10.471c-1.07 1.498 0 3.579 1.842 3.579h11.377c.943 0 1.473 1.088.89 1.83L25.947 44.94z"/></svg></span>
+          <div class="boot-word"><span class="li">LI</span><span class="tus">TUS</span></div>
+          <div class="boot-tag">リタス</div>
+        </div>
+        <div class="boot-copy">© 2026 waiteu</div>
+      </div>
+    </div>
+  </div>
+</body>
+</html>

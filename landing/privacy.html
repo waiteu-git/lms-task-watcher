@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>プライバシーポリシー — LETUS Task Watcher</title>
+<link rel="icon" type="image/svg+xml" href="favicon.svg">
+<link rel="icon" type="image/png" sizes="48x48" href="favicon-48.png">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<meta name="description" content="Chrome / Edge 拡張機能「LETUS Task Watcher」のプライバシーポリシー。アクセスするデータ・保存場所・取り扱いについて。">
+<link rel="canonical" href="https://lms.waiteu.dev/privacy">
+<style>
+  *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color:#0f172a;background:#fff;line-height:1.85;font-size:16px;-webkit-font-smoothing:antialiased}
+  #doc a{color:#4f46e5;font-weight:600}
+  #doc h2{font-size:17px;font-weight:900;color:#0f172a;margin:34px 0 12px;display:flex;align-items:center;gap:10px}
+  #doc h2::before{content:"";width:4px;height:18px;border-radius:2px;background:linear-gradient(180deg,#6366f1,#8b5cf6);flex:0 0 auto}
+  #doc p{margin-bottom:12px;font-size:14.5px;color:#334155}
+  #doc ul,#doc ol{padding-left:1.4em;margin-bottom:12px}
+  #doc li{font-size:14.5px;margin-bottom:5px;color:#334155}
+  #doc table{width:100%;border-collapse:separate;border-spacing:0;margin:16px 0;font-size:13.5px;border:1px solid #e6e8f5;border-radius:14px;overflow:hidden}
+  #doc th,#doc td{border-bottom:1px solid #eef0f8;border-right:1px solid #eef0f8;padding:11px 15px;text-align:left;vertical-align:top}
+  #doc th{background:#f4f5fe;font-weight:800;color:#3730a3}
+  #doc tr:last-child th,#doc tr:last-child td{border-bottom:none}
+  #doc th:last-child,#doc td:last-child{border-right:none}
+  #doc code{background:#eef2ff;border:1px solid #e0e7ff;border-radius:6px;padding:1px 6px;font-size:0.85em;font-family:ui-monospace,monospace}
+</style>
+</head>
+<body>
+<div>
+  <header style="position:sticky;top:0;z-index:50;background:rgba(255,255,255,0.86);backdrop-filter:blur(16px);border-bottom:1px solid #ebeafd;">
+    <div style="max-width:820px;margin:0 auto;padding:13px 24px;display:flex;align-items:center;justify-content:space-between;">
+      <a href="/" style="display:flex;align-items:center;gap:9px;text-decoration:none;"><img src="icon-128.png" alt="" style="width:26px;height:26px;border-radius:7px;"><span style="font-size:14.5px;font-weight:900;color:#0f172a;">LETUS Task Watcher</span></a>
+      <a href="/" style="font-size:13px;color:#4f46e5;font-weight:700;text-decoration:none;">← トップページへ</a>
+    </div>
+  </header>
+
+  <div style="background:radial-gradient(circle at 92% 0%,rgba(99,102,241,0.10),transparent 44%),#fff;border-bottom:1px solid #f0f0fb;">
+    <main style="max-width:820px;margin:0 auto;padding:44px 24px 20px;">
+      <span style="display:inline-block;background:#eef2ff;color:#4f46e5;border:1px solid #e0e7ff;font-size:11px;font-weight:800;letter-spacing:0.08em;padding:4px 12px;border-radius:999px;margin-bottom:14px;">PRIVACY</span>
+      <h1 style="font-size:clamp(26px,4vw,34px);font-weight:900;letter-spacing:-0.02em;margin-bottom:8px;color:#0f172a;">プライバシーポリシー</h1>
+      <p style="font-size:13px;color:#64748b;font-weight:600;">最終更新日: 2026年7月9日 ／ 対象: v1.2.0（CLASS連携対応）</p>
+    </main>
+  </div>
+
+  <main id="doc" style="max-width:820px;margin:0 auto;padding:20px 24px 72px;">
+    <h2>概要</h2>
+    <p>LETUS Task Watcherは、東京理科大学のLMS「LETUS」の課題締切と、履修システム「CLASS」の時間割の管理を支援するChrome / Edge 拡張機能です。本ポリシーでは、拡張機能がアクセスするデータとその取り扱いについて説明します。CLASSの時間割連携（科目連携・コース更新の可視化を含む）は v1.2.0 で追加されました。</p>
+
+    <h2>アクセスするデータ</h2>
+    <p>スキャン実行時、拡張機能はブラウザの既存ログインセッション（Cookie）を使用して以下のページを取得します。</p>
+    <ul>
+      <li><code>https://letus.ed.tus.ac.jp</code> のコースページ（課題リンク・コース内容の収集）</li>
+      <li><code>https://letus.ed.tus.ac.jp</code> の課題ページ（締切日・提出状況の取得）</li>
+      <li><code>https://class.admin.tus.ac.jp</code> の学生時間割表（履修科目・曜日時限・科目コードの取得）※v1.2.0で追加</li>
+    </ul>
+    <table>
+      <tr><th>データ</th><th>用途</th></tr>
+      <tr><td>課題タイトル</td><td>ポップアップ・ダッシュボードへの表示</td></tr>
+      <tr><td>課題URL</td><td>課題ページへのリンク</td></tr>
+      <tr><td>締切日時</td><td>締切表示・通知</td></tr>
+      <tr><td>提出状況テキスト</td><td>提出済み・未提出の判定</td></tr>
+      <tr><td>コース名・コースURL・科目コード</td><td>コースごとの課題グループ化・コース更新の可視化</td></tr>
+      <tr><td>時間割（科目・曜日時限）</td><td>時間割表示・課題との科目連携（自動ひも付け）</td></tr>
+    </table>
+    <p>モバイルアプリの公開前事前登録では、入力いただいたメールアドレスのみを取得し、アプリ公開のお知らせを送る目的にのみ使用します。第三者への提供や、その他の宣伝目的での利用は行いません。</p>
+
+    <h2>データの保存</h2>
+    <p>抽出されたすべてのデータは <strong>chrome.storage.local</strong>（ブラウザのローカルストレージ）にのみ保存されます。データはデバイス外に送信されることはなく、外部サーバーへのアクセスは行いません。</p>
+
+    <h2>アクセスしないデータ</h2>
+    <ul>
+      <li>ログインID・パスワード等の認証情報</li>
+      <li>個人プロフィール情報</li>
+      <li>成績・評価に関するデータ</li>
+      <li>時間割・履修科目以外のCLASS情報（掲示・お知らせ・出欠記録など）</li>
+      <li>上記2ドメイン（<code>letus.ed.tus.ac.jp</code> / <code>class.admin.tus.ac.jp</code>）以外のページ</li>
+    </ul>
+
+    <h2>データの削除</h2>
+    <ol>
+      <li>拡張機能のダッシュボードを開く</li>
+      <li>「データ管理」セクションまでスクロール</li>
+      <li>「すべての保存データを初期化」をクリック</li>
+    </ol>
+    <p>拡張機能をアンインストールすると、保存されているすべてのデータも自動的に削除されます。</p>
+
+    <h2>パーミッション</h2>
+    <table>
+      <tr><th>パーミッション</th><th>必要な理由</th></tr>
+      <tr><td>storage</td><td>課題データと設定を chrome.storage.local に保存するため</td></tr>
+      <tr><td>notifications</td><td>締切リマインダーとスキャン完了の通知を表示するため</td></tr>
+      <tr><td>alarms</td><td>バックグラウンドで定期的に自動更新を実行するため</td></tr>
+      <tr><td>host_permissions: https://letus.ed.tus.ac.jp/*</td><td>ログインセッションを使ってコース・課題ページを取得するため</td></tr>
+      <tr><td>host_permissions: https://class.admin.tus.ac.jp/*</td><td>ログインセッションを使って学生時間割表を取得するため（v1.2.0で追加）</td></tr>
+    </table>
+
+    <h2>プライバシーポリシーの変更</h2>
+    <p>本ポリシーを変更する場合、このページの「最終更新日」を更新したうえで公開します。</p>
+
+    <h2>お問い合わせ</h2>
+    <p><a href="https://docs.google.com/forms/d/e/1FAIpQLSf4ldGRNtITrcDSL1LIfQiSbYiu7-ud2qagGChttU-yCIQVkA/viewform?usp=dialog" target="_blank" rel="noopener">お問い合わせフォーム</a>よりご連絡ください。</p>
+  </main>
+
+  <footer style="background:#0f172a;color:rgba(255,255,255,0.55);padding:32px 24px;text-align:center;">
+    <nav aria-label="フッター" style="display:flex;justify-content:center;gap:22px;margin-bottom:14px;flex-wrap:wrap;">
+      <a href="/" style="color:rgba(255,255,255,0.75);font-size:13.5px;font-weight:700;text-decoration:none;">トップページ</a>
+      <a href="/terms" style="color:rgba(255,255,255,0.75);font-size:13.5px;font-weight:700;text-decoration:none;">利用規約</a>
+      <a href="/privacy" style="color:rgba(255,255,255,0.75);font-size:13.5px;font-weight:700;text-decoration:none;">プライバシーポリシー</a>
+      <a href="/transparency" style="color:rgba(255,255,255,0.75);font-size:13.5px;font-weight:700;text-decoration:none;">透明性レポート</a>
+      <a href="https://chromewebstore.google.com/detail/letus-task-watcher/eofgkmpiadoeckkliialkddacidcinml" target="_blank" rel="noopener" style="color:rgba(255,255,255,0.75);font-size:13.5px;font-weight:700;text-decoration:none;">Chrome Web Store</a>
+      <a href="https://microsoftedge.microsoft.com/addons/detail/femdjgdgelnbdpgnfehacobmpbfmbdoa" target="_blank" rel="noopener" style="color:rgba(255,255,255,0.75);font-size:13.5px;font-weight:700;text-decoration:none;">Edge Add-ons</a>
+      <a href="https://litus.waiteu.dev/" target="_blank" rel="noopener" style="color:rgba(255,255,255,0.75);font-size:13.5px;font-weight:700;text-decoration:none;">リタス（スマホアプリ）</a>
+      <a href="https://waiteu.dev/" target="_blank" rel="noopener" style="color:rgba(255,255,255,0.75);font-size:13.5px;font-weight:700;text-decoration:none;">開発者サイト</a>
+    </nav>
+    <p style="font-size:12.5px;font-weight:600;">© 2026 waiteu. 東京理科大学非公式の学生個人プロジェクトです。</p>
+  </footer>
+</div>
+</body>
+</html>

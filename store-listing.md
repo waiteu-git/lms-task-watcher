@@ -3,44 +3,71 @@
 ## Short description（manifest.json / ストア概要欄 — 132文字以内）
 
 ```
-Never miss a LETUS assignment deadline. Automatically scans your courses and shows upcoming due dates with browser notifications.
+LETUSの課題締切を自動収集し、ブラウザ通知でお知らせ。ダッシュボードで全課題を一覧管理できます。
 ```
-128文字 ✓
+50文字 ✓
 
 ## Long description（ストア詳細説明 — 16,000文字以内）
 
 ```
-LETUS Task Watcher helps students at Tokyo University of Science stay on top of assignment deadlines on LETUS, the university's learning management system.
+LETUS Task Watcherは、東京理科大学のLMS「LETUS」で課題の締切を見逃さないためのChrome拡張機能です。
 
-— WHAT IT DOES —
+— できること —
 
-• Scans all your registered LETUS courses and collects assignment links automatically
-• Reads each assignment page to extract the deadline date and submission status
-• Displays upcoming deadlines grouped by urgency: within 24 hours, tomorrow, this week, and later
-• Sends browser notifications 3 hours and 1 hour before each deadline (once per assignment)
-• Automatically re-scans when data is more than 2 hours old
+・登録したコースの課題ページを自動で巡回し、締切日時を収集
+・締切の24時間前・3時間前・1時間前にブラウザ通知でお知らせ
+・1日1回、自動でデータを最新の状態に更新
+・ポップアップとダッシュボードで全課題の締切を一覧表示。締切の緊急度に応じた色（当日締切＝赤／今週中＝橙）で強調
+・履修システムCLASSの時間割を自動で取り込み、グリッド表示。時間割の科目とLETUSのコースを自動でひも付け
+・時間割にある科目は自動で追跡対象に追加（手動でのON/OFF設定は尊重）
+・シラバスを拡張機能内で表示し、授業内容や評価方法をすぐに確認
+・コース内容（お知らせ・資料など）の更新を通知でお知らせ
+・課題へのメモ・優先度設定、ダークテーマを無料で利用可能
+・監視対象にするコースを自由に選択・管理
 
-— HOW TO USE —
+— 使い方 —
 
-1. Log in to LETUS in your browser as usual
-2. Click the extension icon to open the popup
-3. Open the Dashboard and select the courses you want to track
-4. Click "今すぐ更新" (Update now) to start scanning
-5. Deadlines will appear sorted by urgency
+1. いつも通りLETUSにログイン
+2. 拡張機能アイコンをクリックしてポップアップを開く
+3. ダッシュボードで監視したいコースを選択
+4. 「今すぐ更新」で課題データを取得
+5. 締切が近い順に自動で並び替えて表示
 
-— PRIVACY —
+— このバージョンの新機能（v1.2.1）—
 
-• Your login credentials are never read or stored
-• All data stays in your browser (chrome.storage.local) and is never sent to any server
-• You can delete all stored data at any time from the Dashboard → Data Management
+・初回起動時に利用規約への同意を求めるようになりました。同意いただくまで、本拡張機能は一切の情報を取得しません
+・課金・ログイン機能を廃止しました。通信先はLETUSとCLASSのみになり、外部サーバーへの通信は一切ありません
+・初回セットアップの案内を改善。CLASSの「学生時間割表」の取り込みから、コース選択・更新までを順番にご案内します
+・不具合修正：英字を含む科目コード（例 9975A06）が時間割からのコース自動選択に載らない問題、および課題提出後にLETUSページ上の提出状況バッジが更新されない問題を修正しました
 
-— PERMISSIONS —
+— v1.2.0の新機能 —
 
-• storage: Save assignment data in your browser
-• notifications: Show deadline reminders
-• https://letus.ed.tus.ac.jp/*: Fetch your course and assignment pages using your existing login session
+・課題メモ・優先度設定・ダークテーマを含む全機能を無料で利用可能に
+・履修システムCLASSの時間割を自動で取り込み、グリッド表示。時間割の科目とLETUSのコースを自動でひも付け
+・シラバスを拡張機能内で表示。LETUSやCLASSを開かずに授業内容・評価方法を確認
+・コースの内容（お知らせ・資料など）が更新されると通知でお知らせ
+・ポップアップに「今日の時間割」を常設表示。課題の締切を緊急度に応じた色（当日締切＝赤／今週中＝橙）で強調し、更新されたコースには「NEW」バッジを表示
+・時間割にある科目を自動で追跡対象のコースに追加（手動でのON/OFF設定は尊重し上書きしない）
+・インストール時・アップデート時に主な機能を紹介するウェルカムガイドを表示
 
-This extension is an independent student project and is not affiliated with Tokyo University of Science or the LETUS platform.
+— プライバシー —
+
+・利用規約に同意いただくまで、一切の情報を取得しません
+・ログイン情報を読み取ったり保存したりすることは一切ありません
+・通信先はLETUSとCLASSのみです。独自のサーバーは持たず、いかなる情報も外部へ送信しません
+・すべてのデータはブラウザ内（chrome.storage.local）に保存されます
+・成績情報にはアクセスしません
+・保存したデータはいつでもダッシュボードから削除できます
+
+— 権限について —
+
+・storage：課題データや設定をブラウザ内に保存するため
+・notifications：締切やコース内容の更新を通知するため
+・alarms：定期的な自動更新を実行するため
+・https://letus.ed.tus.ac.jp/*：ログイン中のセッションを使って課題ページを取得するため
+・https://class.admin.tus.ac.jp/*：履修システムCLASSから時間割・シラバスを取得するため
+
+本拡張機能は学生による個人開発であり、東京理科大学・LETUS・CLASSのいずれとも関係ありません。
 ```
 
 ## スクリーンショット撮影ガイド
@@ -71,5 +98,82 @@ Chrome Web Storeの要件: 最低1枚、推奨サイズ 1280×800 または 640�
 | 拡張機能名 | LETUS Task Watcher |
 | カテゴリ | Productivity |
 | 言語 | Japanese（主）/ English（説明文） |
-| プライバシーポリシーURL | GitHubリポジトリの `privacy-policy.md` の raw URL または GitHub Pages URL |
-| host_permissions の理由 | LETUSのコースページと課題ページをユーザーのログインセッションを使ってfetchし、課題情報を抽出するため |
+| プライバシーポリシーURL | `https://lms.waiteu.dev/privacy`（公開済み・200確認済み 2026-07-13） |
+| host_permissions の理由 | LETUSのコース・課題ページ、およびCLASSの時間割・シラバスページを、ユーザーのログインセッションを使ってfetchし、締切・提出状況・時間割を抽出するため |
+
+---
+
+## English listing（英語圏向け／バイリンガル提出用）
+
+単一用途・権限の理由・審査ノートの英語版は `store-submission-v1.2.1.md` の §3〜§7 を参照（英語で記載済み）。
+
+### Summary (EN — 132 chars max)
+
+```
+Auto-collects LETUS assignment deadlines and reminds you with notifications. Manage all your assignments in one dashboard.
+```
+
+### Long description (EN)
+
+英語の詳細説明の正典は `store-assets/description-en.txt`（本ファイルと同一内容）。以下は貼り付け用の写し。
+
+```
+LETUS Task Watcher is a Chrome extension that helps you never miss an assignment deadline on LETUS, the LMS of Tokyo University of Science.
+
+— What it does —
+
+・Automatically visits the assignment pages of your registered courses and collects due dates
+・Reminds you with browser notifications 24 hours, 3 hours, and 1 hour before each deadline
+・Refreshes your data automatically once a day
+・Lists every deadline in the popup and dashboard, highlighting urgency by color (due today = red / due this week = orange)
+・Automatically imports your timetable from the CLASS course-registration system and shows it as a grid, linking timetable courses to LETUS courses
+・Automatically adds courses in your timetable to the tracked list (your manual ON/OFF choices are respected)
+・Shows syllabus content inside the extension so you can check class details and grading at a glance
+・Notifies you when course content (announcements, materials, etc.) is updated
+・Assignment memos, priority settings, and a dark theme — all free
+・Freely choose and manage which courses to track
+
+— How to use —
+
+1. Log in to LETUS as usual
+2. Click the extension icon to open the popup
+3. Select the courses you want to track in the dashboard
+4. Press "Update now" to fetch your assignments
+5. Assignments are sorted automatically by nearest deadline
+
+— New in this version (v1.2.1) —
+
+・On first launch you are asked to accept the Terms of Use. Until you accept, the extension collects no information whatsoever
+・Subscription and login features have been removed. The extension now communicates only with LETUS and CLASS, and never sends anything to any external server
+・The initial setup guide has been improved: it walks you through importing your CLASS "Student Timetable," then selecting courses and updating
+・Bug fixes: course codes containing letters (e.g. 9975A06) were not auto-selected from the timetable, and the submission-status badge on LETUS pages did not update after you submitted an assignment — both are now fixed
+
+— New in v1.2.0 —
+
+・All features — assignment memos, priority settings, and dark theme — are now free
+・Automatically imports your timetable from the CLASS system and shows it as a grid, linking timetable courses to LETUS courses
+・Displays syllabus content inside the extension, so you can check class details and grading without opening LETUS or CLASS
+・Notifies you when course content (announcements, materials, etc.) is updated
+・Adds a persistent "Today's timetable" to the popup, highlights deadlines by urgency color (due today = red / this week = orange), and marks updated courses with a "NEW" badge
+・Automatically adds courses in your timetable to the tracked courses (respecting, and never overwriting, your manual ON/OFF choices)
+・Shows a welcome guide introducing the main features on install and update
+
+— Privacy —
+
+・Collects no information until you accept the Terms of Use
+・Never reads or stores your login credentials
+・Communicates only with LETUS and CLASS. It has no server of its own and never sends any information externally
+・All data is stored inside your browser (chrome.storage.local)
+・Does not access your grades
+・You can delete stored data anytime from the dashboard
+
+— Permissions —
+
+・storage: to save assignment data and settings inside your browser
+・notifications: to notify you of deadlines and course-content updates
+・alarms: to run periodic automatic updates
+・https://letus.ed.tus.ac.jp/*: to fetch assignment pages using your logged-in session
+・https://class.admin.tus.ac.jp/*: to fetch the timetable and syllabus from the CLASS system
+
+This extension is independently developed by a student and is not affiliated with Tokyo University of Science, LETUS, or CLASS.
+```

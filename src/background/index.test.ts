@@ -2,10 +2,21 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 import type { Assignment, AssignmentCandidate, Course } from '../core/types'
 import {
   ASSIGNMENT_CANDIDATES_KEY,
+  ASSIGNMENT_SCAN_STATUS_KEY,
   ASSIGNMENTS_KEY,
   COURSES_KEY,
   DEADLINE_SCAN_STATUS_KEY,
+  TERMS_CONSENT_KEY,
+  WELCOME_GUIDE_SHOWN_KEY,
+  MOODLE_FINGERPRINT_KEY,
 } from './storageKeys'
+import type { StoredMoodleFingerprint } from '../core/moodleFingerprint'
+import { TABLE_MINIMAL } from '../core/timetable.fixtures'
+import { TERMS_VERSION } from '../legal/termsVersion'
+import { DIAGNOSTICS_STATE_KEY, type DiagnosticsState } from '../core/diagnosticsState'
+
+// 実時間の setTimeout を待たないよう、テストではペーシングを無効化する。
+const noopPacer = { acquire: async () => {} }
 
 const store: Record<string, unknown> = {}
 
@@ -27,7 +38,9 @@ vi.stubGlobal('chrome', {
       set: vi.fn(async (obj: Record<string, unknown>) => {
         Object.assign(store, obj)
       }),
+      onChanged: { addListener: vi.fn() },
     },
+    onChanged: { addListener: vi.fn() },
   },
   notifications: {
     create: notificationsCreate,
@@ -38,6 +51,10 @@ vi.stubGlobal('chrome', {
     create: vi.fn(),
     get: vi.fn(),
     onAlarm: { addListener: vi.fn() },
+  },
+  action: {
+    setBadgeText: vi.fn(),
+    setBadgeBackgroundColor: vi.fn(),
   },
   runtime: {
     onInstalled: { addListener: vi.fn() },
@@ -55,6 +72,10 @@ const {
   checkIsLoggedIn,
   scanAssignmentCandidatesInBackground,
   scanDeadlinesInBackground,
+  runAutoScan,
+  handleInstalled,
+  applyAutoSelect,
+  extractSubmissionStatus,
   ALARM_PERIOD_MINUTES,
 } = await import('./index')
 
@@ -93,6 +114,7 @@ function makeAssignment(overrides: Partial<Assignment> = {}): Assignment {
     url: 'https://letus.ed.tus.ac.jp/mod/assign/view.php?id=1',
     deadline: null,
     deadlineText: '',
+    deadlineSource: null,
     sourceText: '課題1',
     submissionStatus: 'unknown',
     lifecycleStatus: 'active',
@@ -120,7 +142,9 @@ beforeEach(() => {
         set: vi.fn(async (obj: Record<string, unknown>) => {
           Object.assign(store, obj)
         }),
+        onChanged: { addListener: vi.fn() },
       },
+      onChanged: { addListener: vi.fn() },
     },
     notifications: {
       create: notificationsCreate,
@@ -131,6 +155,10 @@ beforeEach(() => {
       create: vi.fn(),
       get: vi.fn(),
       onAlarm: { addListener: vi.fn() },
+    },
+    action: {
+      setBadgeText: vi.fn(),
+      setBadgeBackgroundColor: vi.fn(),
     },
     runtime: {
       onInstalled: { addListener: vi.fn() },
@@ -181,9 +209,14 @@ describe('upsertAssignments', () => {
 })
 
 describe('checkIsLoggedIn', () => {
-  it('有効なコースがない場合はokを返す', async () => {
-    const result = await checkIsLoggedIn([makeCourse({ enabled: false })])
-    expect(result).toBe('ok')
+  it('有効なコースがない場合はfetchせずunknownを返す（無条件okにしない）', async () => {
+    // 以前は無条件 'ok' で「ログイン済みだが0コース」を検出不能だった（spec§6）。
+    // unknown はスキャンを阻害しない明示値（ブロックは login_required/network_error のみ）。
+    const fetchSpy = vi.fn()
+    vi.stubGlobal('fetch', fetchSpy)
+    const result = await checkIsLoggedIn([makeCourse({ enabled: false })], noopPacer)
+    expect(result).toBe('unknown')
+    expect(fetchSpy).not.toHaveBeenCalled()
   })
 
   it('ログイン済みの場合はokを返す', async () => {
@@ -192,13 +225,13 @@ describe('checkIsLoggedIn', () => {
       url: 'https://letus.ed.tus.ac.jp/course/view.php?id=1',
       text: async () => '<html>コース内容...</html>',
     })))
-    const result = await checkIsLoggedIn([makeCourse()])
+    const result = await checkIsLoggedIn([makeCourse()], noopPacer)
     expect(result).toBe('ok')
   })
 
   it('レスポンスURLに/login/を含む場合はlogin_requiredを返す', async () => {
     vi.stubGlobal('fetch', vi.fn(async () => ({ ok: true, url: 'https://letus.ed.tus.ac.jp/login/index.php' })))
-    const result = await checkIsLoggedIn([makeCourse()])
+    const result = await checkIsLoggedIn([makeCourse()], noopPacer)
     expect(result).toBe('login_required')
   })
 
@@ -208,19 +241,19 @@ describe('checkIsLoggedIn', () => {
       url: 'https://letus.ed.tus.ac.jp/course/view.php?id=1',
       text: async () => '<span>あなたはログインしていません。(<a href="/login/index.php">ログイン</a>)</span>',
     })))
-    const result = await checkIsLoggedIn([makeCourse()])
+    const result = await checkIsLoggedIn([makeCourse()], noopPacer)
     expect(result).toBe('login_required')
   })
 
   it('fetchが例外を投げた場合はnetwork_errorを返す', async () => {
     vi.stubGlobal('fetch', vi.fn(async () => { throw new Error('Failed to fetch') }))
-    const result = await checkIsLoggedIn([makeCourse()])
+    const result = await checkIsLoggedIn([makeCourse()], noopPacer)
     expect(result).toBe('network_error')
   })
 
   it('response.okがfalseの場合はnetwork_errorを返す', async () => {
     vi.stubGlobal('fetch', vi.fn(async () => ({ ok: false, url: 'https://letus.ed.tus.ac.jp/course/view.php?id=1' })))
-    const result = await checkIsLoggedIn([makeCourse()])
+    const result = await checkIsLoggedIn([makeCourse()], noopPacer)
     expect(result).toBe('network_error')
   })
 })
@@ -240,7 +273,7 @@ describe('scanAssignmentCandidatesInBackground', () => {
       }
     }))
 
-    await scanAssignmentCandidatesInBackground('standard')
+    await scanAssignmentCandidatesInBackground('standard', noopPacer)
 
     expect(sawEmptyDuringScan).toBe(false)
   })
@@ -261,7 +294,7 @@ describe('scanAssignmentCandidatesInBackground', () => {
       return { ok: true, text: async () => '<a href="/mod/assign/view.php?id=99">新課題</a>' }
     }))
 
-    const result = await scanAssignmentCandidatesInBackground('standard')
+    const result = await scanAssignmentCandidatesInBackground('standard', noopPacer)
 
     expect(result.ok).toBe(true)
     const saved = store[ASSIGNMENT_CANDIDATES_KEY] as AssignmentCandidate[]
@@ -274,7 +307,7 @@ describe('scanAssignmentCandidatesInBackground', () => {
 
     vi.stubGlobal('fetch', vi.fn(async () => ({ ok: true, text: async () => '' })))
 
-    await scanAssignmentCandidatesInBackground('standard')
+    await scanAssignmentCandidatesInBackground('standard', noopPacer)
 
     const saved = store[ASSIGNMENT_CANDIDATES_KEY] as AssignmentCandidate[]
     expect(saved).toHaveLength(0)
@@ -296,12 +329,438 @@ describe('scanAssignmentCandidatesInBackground', () => {
       return { ok: true, text: async () => '<a href="/mod/assign/view.php?id=99">新課題</a>' }
     }))
 
-    const result = await scanAssignmentCandidatesInBackground('standard')
+    const result = await scanAssignmentCandidatesInBackground('standard', noopPacer)
 
     expect(result.ok).toBe(true)
     const saved = store[ASSIGNMENT_CANDIDATES_KEY] as AssignmentCandidate[]
     expect(saved.some((c) => c.id === 'cand-course-2')).toBe(true)
     expect(saved.some((c) => c.courseId === 'course-2' && c.title === '新課題')).toBe(true)
+  })
+
+  it('fetch成功したコースページを分類したauthProbe集計を返す（piggyback・追加リクエスト0）', async () => {
+    store[COURSES_KEY] = [
+      makeCourse({ id: 'course-1', url: 'https://letus.ed.tus.ac.jp/course/view.php?id=1' }),
+      makeCourse({ id: 'course-2', url: 'https://letus.ed.tus.ac.jp/course/view.php?id=2', name: '講義2' }),
+    ]
+
+    const fetchSpy = vi.fn(async (url: string) => {
+      if (url.includes('id=2')) {
+        // M.cfgも未ログインマーカーも無い応答（メンテページ等）
+        return { ok: true, url, text: async () => '<html><body>メンテナンス中</body></html>' }
+      }
+      return {
+        ok: true,
+        url,
+        text: async () =>
+          '<script>M.cfg = {"wwwroot":"https:\\/\\/letus.ed.tus.ac.jp","sesskey":"AbCd012345"};</script>' +
+          '<a href="/mod/assign/view.php?id=1">課題1</a>',
+      }
+    })
+    vi.stubGlobal('fetch', fetchSpy)
+
+    const result = await scanAssignmentCandidatesInBackground('standard', noopPacer)
+
+    expect(result.ok).toBe(true)
+    expect(result.authProbe).toEqual({
+      probedCount: 2,
+      loggedInCount: 1,
+      loggedOutCount: 0,
+      notMoodleCount: 1,
+    })
+    // piggyback制約: fetchはコースページ2件のみ（認証プローブ用の追加リクエスト無し）
+    expect(fetchSpy).toHaveBeenCalledTimes(2)
+  })
+
+  it('未ログイン応答のコースページはauthProbeでlogged_outに集計される', async () => {
+    store[COURSES_KEY] = [makeCourse()]
+
+    vi.stubGlobal('fetch', vi.fn(async (url: string) => ({
+      ok: true,
+      url,
+      text: async () => '<span>あなたはログインしていません。</span>',
+    })))
+
+    const result = await scanAssignmentCandidatesInBackground('standard', noopPacer)
+
+    expect(result.authProbe).toEqual({
+      probedCount: 1,
+      loggedInCount: 0,
+      loggedOutCount: 1,
+      notMoodleCount: 0,
+    })
+  })
+
+  it('スキャン途中でログアウトを検知したら以降のfetchを中止しlogin_requiredを返す（ログインガード）', async () => {
+    // deadlineスキャン側の checkIsLoggedIn ガードと整合: ログイン切れをエラーとして
+    // 正直に報告し、無駄な大学向けリクエストを増やさない。
+    store[COURSES_KEY] = [1, 2, 3, 4].map((i) =>
+      makeCourse({
+        id: `course-${i}`,
+        name: `講義${i}`,
+        url: `https://letus.ed.tus.ac.jp/course/view.php?id=${i}`,
+      }),
+    )
+
+    const fetchSpy = vi.fn(async (url: string) => ({
+      ok: true,
+      url,
+      text: async () => '<span>あなたはログインしていません。</span>',
+    }))
+    vi.stubGlobal('fetch', fetchSpy)
+
+    const result = await scanAssignmentCandidatesInBackground('standard', noopPacer)
+
+    expect(result.ok).toBe(false)
+    expect(result.reason).toBe('login_required')
+    expect(result.errorMessage).toBe('LETUSにログインしていないため更新できませんでした。')
+    expect(result.diagnostics).toContain('LOGGED_OUT')
+    // 同時実行3で走行を始めた3件はfetch済みだが、ログアウト検知後の4件目はfetchしない
+    expect(fetchSpy).toHaveBeenCalledTimes(3)
+    const status = store[ASSIGNMENT_SCAN_STATUS_KEY] as { state: string; errorMessage: string | null }
+    expect(status.state).toBe('error')
+    expect(status.errorMessage).toBe('LETUSにログインしていないため更新できませんでした。')
+  })
+
+  it('ログアウト検知時、既存の候補とコースシグネチャを一切破壊しない', async () => {
+    store[COURSES_KEY] = [makeCourse()]
+    store[ASSIGNMENT_CANDIDATES_KEY] = [makeCandidate()]
+    const prevSig = [{ title: '課題1', url: 'https://letus.ed.tus.ac.jp/mod/assign/view.php?id=1' }]
+    store['courseSignature:course-1'] = prevSig
+
+    vi.stubGlobal('fetch', vi.fn(async (url: string) => ({
+      ok: true,
+      url,
+      text: async () => '<span>あなたはログインしていません。</span>',
+    })))
+
+    const result = await scanAssignmentCandidatesInBackground('standard', noopPacer)
+
+    expect(result.ok).toBe(false)
+    expect(store[ASSIGNMENT_CANDIDATES_KEY]).toEqual([makeCandidate()])
+    expect(store['courseSignature:course-1']).toEqual(prevSig)
+  })
+
+  it('既知コースの全課題喪失はCOURSE_LOST_ALL_ASSIGNMENTSを診断しシグネチャはlast-goodを保持する', async () => {
+    // spec§4: courseUpdates の暗黙 skipSave を明示的な診断コードへ格上げ（skip自体は維持）。
+    store[COURSES_KEY] = [makeCourse()]
+    const prevSig = [
+      { title: '課題1', url: 'https://letus.ed.tus.ac.jp/mod/assign/view.php?id=1' },
+      { title: '課題2', url: 'https://letus.ed.tus.ac.jp/mod/assign/view.php?id=2' },
+    ]
+    store['courseSignature:course-1'] = prevSig
+
+    vi.stubGlobal('fetch', vi.fn(async (url: string) => ({
+      ok: true,
+      url,
+      text: async () =>
+        '<body class="format-topics path-course-view">' +
+        '<script>M.cfg = {"wwwroot":"https:\\/\\/letus.ed.tus.ac.jp","sesskey":"AbCd012345"};</script>' +
+        'コース本文（課題リンク無し）</body>',
+    })))
+
+    const result = await scanAssignmentCandidatesInBackground('standard', noopPacer)
+
+    expect(result.ok).toBe(true)
+    expect(result.diagnostics).toEqual(['COURSE_LOST_ALL_ASSIGNMENTS'])
+    expect(store['courseSignature:course-1']).toEqual(prevSig)
+  })
+
+  it('1コースだけの全課題喪失では過半集計（COURSES_MAJORITY_LOST）を発火しない（正当な非表示化の保護）', async () => {
+    // 既知3コース中1コースのみ喪失＝教員の全非表示という正当ケースの本命。
+    // per-course の info コードは出るが、hard の集計コードへは昇格しない。
+    store[COURSES_KEY] = [1, 2, 3].map((i) =>
+      makeCourse({
+        id: `course-${i}`,
+        name: `講義${i}`,
+        url: `https://letus.ed.tus.ac.jp/course/view.php?id=${i}`,
+      }),
+    )
+    for (const i of [1, 2, 3]) {
+      store[`courseSignature:course-${i}`] = [
+        { title: `課題${i}`, url: `https://letus.ed.tus.ac.jp/mod/assign/view.php?id=${i}0` },
+      ]
+    }
+
+    vi.stubGlobal('fetch', vi.fn(async (url: string) => ({
+      ok: true,
+      url,
+      text: async () => {
+        const id = new URL(url).searchParams.get('id')
+        const mcfg =
+          '<script>M.cfg = {"wwwroot":"https:\\/\\/letus.ed.tus.ac.jp","sesskey":"AbCd012345"};</script>'
+        if (id === '1') {
+          // course-1 だけ全課題喪失（マーカーは残存）
+          return `<body class="format-topics path-course-view">${mcfg}コース本文（課題リンク無し）</body>`
+        }
+        return (
+          `<body class="format-topics path-course-view">${mcfg}` +
+          `<a href="/mod/assign/view.php?id=${id}0">課題${id}</a></body>`
+        )
+      },
+    })))
+
+    const result = await scanAssignmentCandidatesInBackground('standard', noopPacer)
+
+    expect(result.ok).toBe(true)
+    expect(result.diagnostics).toContain('COURSE_LOST_ALL_ASSIGNMENTS')
+    expect(result.diagnostics).not.toContain('COURSES_MAJORITY_LOST')
+  })
+
+  it('既知コースの過半が同時に全課題喪失するとCOURSES_MAJORITY_LOSTを発火する（5.x移行でformat-*だけ残る破損モードの検知）', async () => {
+    // レビュー指摘対応: 全コースで mod-anchor が消えるが format-* body class は残る
+    // 破損モードでは per-course の COURSE_LOST_ALL_ASSIGNMENTS（info）しか出ず、
+    // 警告バナー経路（hard）に到達しなかった。過半の一斉喪失は集計で hard へ昇格する。
+    store[COURSES_KEY] = [1, 2, 3].map((i) =>
+      makeCourse({
+        id: `course-${i}`,
+        name: `講義${i}`,
+        url: `https://letus.ed.tus.ac.jp/course/view.php?id=${i}`,
+      }),
+    )
+    for (const i of [1, 2, 3]) {
+      store[`courseSignature:course-${i}`] = [
+        { title: `課題${i}`, url: `https://letus.ed.tus.ac.jp/mod/assign/view.php?id=${i}0` },
+      ]
+    }
+
+    vi.stubGlobal('fetch', vi.fn(async (url: string) => ({
+      ok: true,
+      url,
+      // 全コースが「マーカー残存・mod-anchor 0件」＝一様なレイアウト破損
+      text: async () =>
+        '<body class="format-topics path-course-view">' +
+        '<script>M.cfg = {"wwwroot":"https:\\/\\/letus.ed.tus.ac.jp","sesskey":"AbCd012345"};</script>' +
+        'コース本文（課題リンク無し）</body>',
+    })))
+
+    const result = await scanAssignmentCandidatesInBackground('standard', noopPacer)
+
+    expect(result.ok).toBe(true)
+    expect(result.diagnostics).toContain('COURSE_LOST_ALL_ASSIGNMENTS')
+    expect(result.diagnostics).toContain('COURSES_MAJORITY_LOST')
+    // 集計コードが出てもシグネチャの last-good 保持（skipSave）は変わらない
+    for (const i of [1, 2, 3]) {
+      expect(store[`courseSignature:course-${i}`]).toEqual([
+        { title: `課題${i}`, url: `https://letus.ed.tus.ac.jp/mod/assign/view.php?id=${i}0` },
+      ])
+    }
+  })
+
+  it('診断コード: 正常ページは空・Moodle以外の応答はNOT_A_MOODLE_PAGE（複数ページでも重複排除）', async () => {
+    store[COURSES_KEY] = [
+      makeCourse({ id: 'course-1', url: 'https://letus.ed.tus.ac.jp/course/view.php?id=1' }),
+      makeCourse({ id: 'course-2', url: 'https://letus.ed.tus.ac.jp/course/view.php?id=2', name: '講義2' }),
+      makeCourse({ id: 'course-3', url: 'https://letus.ed.tus.ac.jp/course/view.php?id=3', name: '講義3' }),
+    ]
+
+    vi.stubGlobal('fetch', vi.fn(async (url: string) => {
+      if (url.includes('id=1')) {
+        return {
+          ok: true,
+          url,
+          text: async () =>
+            '<script>M.cfg = {"wwwroot":"https:\\/\\/letus.ed.tus.ac.jp","sesskey":"AbCd012345"};</script>' +
+            '<a href="/mod/assign/view.php?id=1">課題1</a>',
+        }
+      }
+      return { ok: true, url, text: async () => '<html><body>メンテナンス中</body></html>' }
+    }))
+
+    const result = await scanAssignmentCandidatesInBackground('standard', noopPacer)
+
+    expect(result.ok).toBe(true)
+    expect(result.diagnostics).toEqual(['NOT_A_MOODLE_PAGE'])
+  })
+
+  it('全ページ正常なら診断コードは空配列を返す', async () => {
+    store[COURSES_KEY] = [makeCourse()]
+
+    vi.stubGlobal('fetch', vi.fn(async (url: string) => ({
+      ok: true,
+      url,
+      text: async () =>
+        '<script>M.cfg = {"wwwroot":"https:\\/\\/letus.ed.tus.ac.jp","sesskey":"AbCd012345"};</script>' +
+        '<a href="/mod/assign/view.php?id=1">課題1</a>',
+    })))
+
+    const result = await scanAssignmentCandidatesInBackground('standard', noopPacer)
+
+    expect(result.ok).toBe(true)
+    expect(result.diagnostics).toEqual([])
+  })
+
+  it('コースページに未知モジュール型のリンクがあればUNSUPPORTED_MODULEを診断し型リストを返す（追加fetch無し）', async () => {
+    // spec§3原則5: 未知の /mod/<type>/view.php を silent drop せず「未対応がある」事実を浮上させる。
+    // 未知型のページをスキャンしに行くことはしない（パース対象は広げない）。
+    store[COURSES_KEY] = [makeCourse()]
+
+    const fetchSpy = vi.fn(async (url: string) => ({
+      ok: true,
+      url,
+      text: async () =>
+        '<script>M.cfg = {"wwwroot":"https:\\/\\/letus.ed.tus.ac.jp","sesskey":"AbCd012345"};</script>' +
+        '<a href="/mod/assign/view.php?id=1">課題1</a>' +
+        '<a href="/mod/hvp/view.php?id=2">インタラクティブ教材</a>' +
+        '<a href="/mod/customcert/view.php?id=3">修了証</a>' +
+        '<a href="/mod/hvp/view.php?id=4">教材2</a>' +
+        '<a href="/mod/resource/view.php?id=5">資料</a>',
+    }))
+    vi.stubGlobal('fetch', fetchSpy)
+
+    const result = await scanAssignmentCandidatesInBackground('standard', noopPacer)
+
+    expect(result.ok).toBe(true)
+    expect(result.diagnostics).toEqual(['UNSUPPORTED_MODULE'])
+    expect(result.unsupportedModuleTypes).toEqual(['customcert', 'hvp'])
+    // コースページ1件のfetchのみ（未知型ページを追加でスキャンしない）
+    expect(fetchSpy).toHaveBeenCalledTimes(1)
+    // 未知型は候補にはならない（既知の assign のみ検出）
+    const candidates = store[ASSIGNMENT_CANDIDATES_KEY] as AssignmentCandidate[]
+    expect(candidates.map((c) => c.url)).toEqual([
+      'https://letus.ed.tus.ac.jp/mod/assign/view.php?id=1',
+    ])
+  })
+
+  it('broad許可リスト内の型(forum等)と除外型(resource等)だけならUNSUPPORTED_MODULEを発火しない', async () => {
+    // standard スキャンで対象外の forum も「既知型」なので未知扱いにしない。
+    store[COURSES_KEY] = [makeCourse()]
+
+    vi.stubGlobal('fetch', vi.fn(async (url: string) => ({
+      ok: true,
+      url,
+      text: async () =>
+        '<script>M.cfg = {"wwwroot":"https:\\/\\/letus.ed.tus.ac.jp","sesskey":"AbCd012345"};</script>' +
+        '<a href="/mod/forum/view.php?id=1">フォーラム</a>' +
+        '<a href="/mod/lesson/view.php?id=2">レッスン</a>' +
+        '<a href="/mod/resource/view.php?id=3">資料</a>',
+    })))
+
+    const result = await scanAssignmentCandidatesInBackground('standard', noopPacer)
+
+    expect(result.ok).toBe(true)
+    expect(result.diagnostics).toEqual([])
+    expect(result.unsupportedModuleTypes).toEqual([])
+  })
+
+  it('未知モジュール型があってもMoodleと認識できないページでは発火しない（誤検知抑制）', async () => {
+    store[COURSES_KEY] = [makeCourse()]
+
+    vi.stubGlobal('fetch', vi.fn(async (url: string) => ({
+      ok: true,
+      url,
+      // M.cfg 無し＝not_moodle_page 分類。リンクがあっても未知型診断はしない
+      text: async () => '<html><body><a href="/mod/hvp/view.php?id=1">教材</a></body></html>',
+    })))
+
+    const result = await scanAssignmentCandidatesInBackground('standard', noopPacer)
+
+    expect(result.ok).toBe(true)
+    expect(result.diagnostics).toEqual(['NOT_A_MOODLE_PAGE'])
+    expect(result.unsupportedModuleTypes).toEqual([])
+  })
+
+  it('コア標準の非スキャン型（scorm等）のリンクではUNSUPPORTED_MODULEを発火しない（最終レビュー指摘対応）', async () => {
+    // 健全な現行LETUS(4.5.8)に普通に存在し得る型で「未対応」infoノートが
+    // 恒久表示されるのを防ぐ（spec§8: 4.5.8では表示なし・診断はcount蓄積のみ）。
+    store[COURSES_KEY] = [makeCourse()]
+
+    vi.stubGlobal('fetch', vi.fn(async (url: string) => ({
+      ok: true,
+      url,
+      text: async () =>
+        '<script>M.cfg = {"wwwroot":"https:\\/\\/letus.ed.tus.ac.jp","sesskey":"AbCd012345"};</script>' +
+        '<a href="/mod/assign/view.php?id=1">課題1</a>' +
+        '<a href="/mod/scorm/view.php?id=2">教材パッケージ</a>' +
+        '<a href="/mod/h5pactivity/view.php?id=3">インタラクティブ動画</a>' +
+        '<a href="/mod/chat/view.php?id=4">チャット</a>',
+    })))
+
+    const result = await scanAssignmentCandidatesInBackground('standard', noopPacer)
+
+    expect(result.ok).toBe(true)
+    expect(result.diagnostics).toEqual([])
+    expect(result.unsupportedModuleTypes).toEqual([])
+  })
+
+  it('コースHTMLのdocs.moodle.orgリンクから版フィンガープリントを記録する（piggyback・追加リクエスト0）', async () => {
+    store[COURSES_KEY] = [makeCourse()]
+
+    const fetchSpy = vi.fn(async (url: string) => ({
+      ok: true,
+      url,
+      text: async () =>
+        '<script>M.cfg = {"wwwroot":"https:\\/\\/letus.ed.tus.ac.jp","sesskey":"AbCd012345"};</script>' +
+        '<a href="https://docs.moodle.org/405/ja/course/view">ヘルプ</a>' +
+        '<a href="/mod/assign/view.php?id=1">課題1</a>',
+    }))
+    vi.stubGlobal('fetch', fetchSpy)
+
+    const result = await scanAssignmentCandidatesInBackground('standard', noopPacer)
+
+    expect(result.ok).toBe(true)
+    const stored = store[MOODLE_FINGERPRINT_KEY] as StoredMoodleFingerprint
+    expect(stored).toMatchObject({ version: { major: 4, minor: 5 }, bs5: false })
+    expect(typeof stored.observedAt).toBe('string')
+    // piggyback制約: fetchはコースページ1件のみ（版判定用の追加リクエスト無し）
+    expect(fetchSpy).toHaveBeenCalledTimes(1)
+  })
+
+  it('BS5世代（5.x）のdocsリンクではbs5:trueで記録する', async () => {
+    store[COURSES_KEY] = [makeCourse()]
+
+    vi.stubGlobal('fetch', vi.fn(async (url: string) => ({
+      ok: true,
+      url,
+      text: async () =>
+        '<script>M.cfg = {"wwwroot":"https:\\/\\/letus.ed.tus.ac.jp","sesskey":"AbCd012345"};</script>' +
+        '<a href="https://docs.moodle.org/501/ja/course/view">ヘルプ</a>',
+    })))
+
+    await scanAssignmentCandidatesInBackground('standard', noopPacer)
+
+    expect(store[MOODLE_FINGERPRINT_KEY]).toMatchObject({
+      version: { major: 5, minor: 1 },
+      bs5: true,
+    })
+  })
+
+  it('版が読めないスキャンでは既存のフィンガープリント記録を上書きしない（last-good維持）', async () => {
+    store[COURSES_KEY] = [makeCourse()]
+    const prev: StoredMoodleFingerprint = {
+      version: { major: 4, minor: 5 },
+      bs5: false,
+      observedAt: '2026-07-01T00:00:00.000Z',
+    }
+    store[MOODLE_FINGERPRINT_KEY] = prev
+
+    vi.stubGlobal('fetch', vi.fn(async (url: string) => ({
+      ok: true,
+      url,
+      // docsリンク無し（版不明）のログイン済みコースページ
+      text: async () =>
+        '<script>M.cfg = {"wwwroot":"https:\\/\\/letus.ed.tus.ac.jp","sesskey":"AbCd012345"};</script>' +
+        '<a href="/mod/assign/view.php?id=1">課題1</a>',
+    })))
+
+    await scanAssignmentCandidatesInBackground('standard', noopPacer)
+
+    expect(store[MOODLE_FINGERPRINT_KEY]).toEqual(prev)
+  })
+
+  it('Moodleと認識できないページのdocsリンクは記録しない（誤記録抑制）', async () => {
+    store[COURSES_KEY] = [makeCourse()]
+
+    vi.stubGlobal('fetch', vi.fn(async (url: string) => ({
+      ok: true,
+      url,
+      // M.cfg 無し＝not_moodle_page 分類（ポータル/メンテ画面が docs へリンクする場合等）
+      text: async () =>
+        '<html><body><a href="https://docs.moodle.org/500/ja/">Moodleについて</a></body></html>',
+    })))
+
+    await scanAssignmentCandidatesInBackground('standard', noopPacer)
+
+    expect(store[MOODLE_FINGERPRINT_KEY]).toBeUndefined()
   })
 })
 
@@ -313,7 +772,7 @@ describe('scanDeadlinesInBackground', () => {
 
     vi.stubGlobal('fetch', vi.fn(async () => ({ ok: true, url: 'https://letus.ed.tus.ac.jp/login/index.php' })))
 
-    const result = await scanDeadlinesInBackground()
+    const result = await scanDeadlinesInBackground(noopPacer)
 
     expect(result.ok).toBe(false)
     expect(result.reason).toBe('login_required')
@@ -331,7 +790,7 @@ describe('scanDeadlinesInBackground', () => {
 
     vi.stubGlobal('fetch', vi.fn(async () => { throw new Error('Failed to fetch') }))
 
-    const result = await scanDeadlinesInBackground()
+    const result = await scanDeadlinesInBackground(noopPacer)
 
     expect(result.ok).toBe(false)
     expect(result.reason).toBe('network_error')
@@ -357,7 +816,7 @@ describe('scanDeadlinesInBackground', () => {
       return { ok: true, url, text: async () => '' }
     }))
 
-    await scanDeadlinesInBackground()
+    await scanDeadlinesInBackground(noopPacer)
 
     expect(sawEmptyDuringScan).toBe(false)
   })
@@ -372,7 +831,7 @@ describe('scanDeadlinesInBackground', () => {
 
     vi.stubGlobal('fetch', vi.fn(async (url: string) => ({ ok: true, url, text: async () => '' })))
 
-    await scanDeadlinesInBackground()
+    await scanDeadlinesInBackground(noopPacer)
 
     const saved = store[ASSIGNMENTS_KEY] as Assignment[]
     expect(saved.some((a) => a.id === 'removed-candidate')).toBe(false)
@@ -393,7 +852,7 @@ describe('scanDeadlinesInBackground', () => {
       return { ok: true, url, text: async () => '' }
     }))
 
-    await scanDeadlinesInBackground()
+    await scanDeadlinesInBackground(noopPacer)
 
     const saved = store[ASSIGNMENTS_KEY] as Assignment[]
     const kept = saved.find((a) => a.id === 'cand-2')
@@ -417,12 +876,564 @@ describe('scanDeadlinesInBackground', () => {
       return { ok: true, url, text: async () => '' }
     }))
 
-    const result = await scanDeadlinesInBackground()
+    const result = await scanDeadlinesInBackground(noopPacer)
 
     expect(result.ok).toBe(true)
     const saved = store[ASSIGNMENTS_KEY] as Assignment[]
     const kept = saved.find((a) => a.id === 'cand-2')
     expect(kept?.title).toBe('既存の課題2')
     expect(saved.some((a) => a.id === 'cand-1')).toBe(true)
+  })
+
+  it('enabledコース0件（ログイン判定unknown）でもスキャンを阻害せず候補を処理する', async () => {
+    // 以前の無条件 'ok' と同じく走行し続けることの後方互換確認。
+    // unknown を「!== ok」でエラー扱いすると偽のログインエラーがUIに出る。
+    store[COURSES_KEY] = [makeCourse({ enabled: false })]
+    store[ASSIGNMENT_CANDIDATES_KEY] = [makeCandidate()]
+
+    const fetchSpy = vi.fn(async (url: string) => ({
+      ok: true,
+      url,
+      text: async () => '提出期限 2026年12月1日 23時59分',
+    }))
+    vi.stubGlobal('fetch', fetchSpy)
+
+    const result = await scanDeadlinesInBackground(noopPacer)
+
+    expect(result.ok).toBe(true)
+    expect(result.detectedCount).toBe(1)
+    // checkIsLoggedIn はプローブ対象が無いので fetch しない＝候補1件分だけ
+    expect(fetchSpy).toHaveBeenCalledTimes(1)
+    const status = store[DEADLINE_SCAN_STATUS_KEY] as { state: string }
+    expect(status.state).toBe('completed')
+  })
+
+  it('fetch成功した活動ページを分類したauthProbe集計を返す（piggyback・追加リクエスト0）', async () => {
+    store[COURSES_KEY] = [makeCourse()]
+    store[ASSIGNMENT_CANDIDATES_KEY] = [
+      makeCandidate({ id: 'cand-1', url: 'https://letus.ed.tus.ac.jp/mod/assign/view.php?id=1' }),
+      makeCandidate({ id: 'cand-2', url: 'https://letus.ed.tus.ac.jp/mod/assign/view.php?id=2' }),
+    ]
+
+    vi.stubGlobal('fetch', vi.fn(async (url: string) => {
+      if (url.includes('mod/assign') && url.includes('id=2')) {
+        return { ok: true, url, text: async () => '<html><body>ポータルにリダイレクトされました</body></html>' }
+      }
+      return {
+        ok: true,
+        url,
+        text: async () =>
+          '<script>M.cfg = {"wwwroot":"https:\\/\\/letus.ed.tus.ac.jp","sesskey":"AbCd012345"};</script>提出期限 2026年12月1日 23時59分',
+      }
+    }))
+
+    const result = await scanDeadlinesInBackground(noopPacer)
+
+    expect(result.ok).toBe(true)
+    // checkIsLoggedIn の分は集計対象外（スキャン本体のfetchのみを分類する）
+    expect(result.authProbe).toEqual({
+      probedCount: 2,
+      loggedInCount: 1,
+      loggedOutCount: 0,
+      notMoodleCount: 1,
+    })
+    // 同じ分類から診断コードも導く（NOT_A_MOODLE_PAGE が浮上・追加fetch無し）
+    expect(result.diagnostics).toEqual(['NOT_A_MOODLE_PAGE'])
+  })
+
+  it('全活動ページ正常なら診断コードは空配列を返す', async () => {
+    store[COURSES_KEY] = [makeCourse()]
+    store[ASSIGNMENT_CANDIDATES_KEY] = [makeCandidate()]
+
+    vi.stubGlobal('fetch', vi.fn(async (url: string) => ({
+      ok: true,
+      url,
+      text: async () =>
+        '<script>M.cfg = {"wwwroot":"https:\\/\\/letus.ed.tus.ac.jp","sesskey":"AbCd012345"};</script>提出期限 2026年12月1日 23時59分',
+    })))
+
+    const result = await scanDeadlinesInBackground(noopPacer)
+
+    expect(result.ok).toBe(true)
+    expect(result.diagnostics).toEqual([])
+  })
+
+  it('未ログインでブロックされた場合はLOGGED_OUTを診断コードとして返す', async () => {
+    store[COURSES_KEY] = [makeCourse()]
+    store[ASSIGNMENT_CANDIDATES_KEY] = [makeCandidate()]
+
+    vi.stubGlobal('fetch', vi.fn(async () => ({ ok: true, url: 'https://letus.ed.tus.ac.jp/login/index.php' })))
+
+    const result = await scanDeadlinesInBackground(noopPacer)
+
+    expect(result.ok).toBe(false)
+    expect(result.reason).toBe('login_required')
+    expect(result.diagnostics).toEqual(['LOGGED_OUT'])
+  })
+
+  it('通信エラーでブロックされた場合は診断コードを出さない（ネットワークはレイアウト診断の対象外）', async () => {
+    store[COURSES_KEY] = [makeCourse()]
+    store[ASSIGNMENT_CANDIDATES_KEY] = [makeCandidate()]
+
+    vi.stubGlobal('fetch', vi.fn(async () => { throw new Error('Failed to fetch') }))
+
+    const result = await scanDeadlinesInBackground(noopPacer)
+
+    expect(result.ok).toBe(false)
+    expect(result.reason).toBe('network_error')
+    expect(result.diagnostics).toEqual([])
+  })
+
+  it('締切キーワードは在るのに日付が読めない活動ページはDEADLINE_KEYWORD_NO_DATEを診断する', async () => {
+    // spec§4の矛盾検知規則「キーワード有るが日付null」の本番生産経路（最終レビュー指摘対応）。
+    // 相対日付モード発動や書式変更で締切を取りこぼしている兆候を infoノートへ浮上させる。
+    store[COURSES_KEY] = [makeCourse()]
+    store[ASSIGNMENT_CANDIDATES_KEY] = [makeCandidate()]
+
+    vi.stubGlobal('fetch', vi.fn(async (url: string) => ({
+      ok: true,
+      url,
+      text: async () =>
+        '<script>M.cfg = {"wwwroot":"https:\\/\\/letus.ed.tus.ac.jp","sesskey":"AbCd012345"};</script>' +
+        '提出期限: 後日連絡します 未提出',
+    })))
+
+    const result = await scanDeadlinesInBackground(noopPacer)
+
+    expect(result.ok).toBe(true)
+    expect(result.diagnostics).toEqual(['DEADLINE_KEYWORD_NO_DATE'])
+  })
+
+  it('未対応型（feedback）で締切は取れたが状態不明ならUNSUPPORTED_MODULEを診断する', async () => {
+    store[COURSES_KEY] = [makeCourse()]
+    store[ASSIGNMENT_CANDIDATES_KEY] = [
+      makeCandidate({
+        id: 'cand-fb',
+        title: '授業アンケート',
+        url: 'https://letus.ed.tus.ac.jp/mod/feedback/view.php?id=7',
+      }),
+    ]
+
+    vi.stubGlobal('fetch', vi.fn(async (url: string) => ({
+      ok: true,
+      url,
+      text: async () =>
+        '<script>M.cfg = {"wwwroot":"https:\\/\\/letus.ed.tus.ac.jp","sesskey":"AbCd012345"};</script>' +
+        '回答終了: 2026年 12月 1日 23:59',
+    })))
+
+    const result = await scanDeadlinesInBackground(noopPacer)
+
+    expect(result.ok).toBe(true)
+    // 締切自体は取得できている（正直表示は「状態抽出が未対応」の注記のみ）
+    const saved = store[ASSIGNMENTS_KEY] as Assignment[]
+    expect(saved[0]?.deadline).not.toBeNull()
+    expect(result.diagnostics).toEqual(['UNSUPPORTED_MODULE'])
+  })
+
+  it('対応型（assign）は状態unknownでも日付が読めればUNSUPPORTED_MODULEを出さない', async () => {
+    // 対応型の状態unknownは正当なvariant（グループ課題等）があり得るため発火しない。
+    store[COURSES_KEY] = [makeCourse()]
+    store[ASSIGNMENT_CANDIDATES_KEY] = [makeCandidate()]
+
+    vi.stubGlobal('fetch', vi.fn(async (url: string) => ({
+      ok: true,
+      url,
+      text: async () =>
+        '<script>M.cfg = {"wwwroot":"https:\\/\\/letus.ed.tus.ac.jp","sesskey":"AbCd012345"};</script>' +
+        '終了日時: 2026年 12月 1日 23:59',
+    })))
+
+    const result = await scanDeadlinesInBackground(noopPacer)
+
+    expect(result.ok).toBe(true)
+    expect(result.diagnostics).toEqual([])
+  })
+
+  it('「無期限 今日から利用可能」の活動を本日締切に捏造せず、日付なしとして診断する', async () => {
+    // 最終レビュー指摘: 「無期限」内の部分文字列「期限」＋相対語で偽の本日締切を作らない
+    // （deadlineParser のコロン必須アンカーの本番経路ガード）。
+    store[COURSES_KEY] = [makeCourse()]
+    store[ASSIGNMENT_CANDIDATES_KEY] = [makeCandidate()]
+
+    vi.stubGlobal('fetch', vi.fn(async (url: string) => ({
+      ok: true,
+      url,
+      text: async () =>
+        '<script>M.cfg = {"wwwroot":"https:\\/\\/letus.ed.tus.ac.jp","sesskey":"AbCd012345"};</script>' +
+        '提出は無期限 今日から利用可能です 未提出',
+    })))
+
+    const result = await scanDeadlinesInBackground(noopPacer)
+
+    expect(result.ok).toBe(true)
+    const saved = store[ASSIGNMENTS_KEY] as Assignment[]
+    expect(saved[0]?.deadline).toBeNull()
+    expect(result.diagnostics).toEqual(['DEADLINE_KEYWORD_NO_DATE'])
+  })
+})
+
+describe('diagnosticsState 保存配線（runAutoScanのスキャン完了処理）', () => {
+  const consent = { version: TERMS_VERSION, acceptedAt: '2026-07-10T00:00:00.000Z' }
+
+  /** M.cfg入りのログイン済みコースページ（assignリンクあり＝健全） */
+  const healthyCoursePage =
+    '<script>M.cfg = {"wwwroot":"https:\\/\\/letus.ed.tus.ac.jp","sesskey":"AbCd012345"};</script>' +
+    '<a href="/mod/assign/view.php?id=1">課題1</a>'
+
+  /** コースマーカーは残っているのに mod リンクが全滅したページ（破損の兆候） */
+  const lostAllPage =
+    '<body class="format-topics path-course-view">' +
+    '<script>M.cfg = {"wwwroot":"https:\\/\\/letus.ed.tus.ac.jp","sesskey":"AbCd012345"};</script>' +
+    'コース本文（課題リンク無し）</body>'
+
+  function getLedger(): DiagnosticsState | undefined {
+    return store[DIAGNOSTICS_STATE_KEY] as DiagnosticsState | undefined
+  }
+
+  it('健全なサイクル完了で成功として記録する（lastGoodAt刻印・activeCodes空）', async () => {
+    store[TERMS_CONSENT_KEY] = consent
+    store[COURSES_KEY] = [makeCourse()]
+
+    vi.stubGlobal('fetch', vi.fn(async (url: string) => ({
+      ok: true,
+      url,
+      text: async () =>
+        url.includes('/mod/assign/')
+          ? '<script>M.cfg = {"wwwroot":"https:\\/\\/letus.ed.tus.ac.jp","sesskey":"AbCd012345"};</script>提出期限 2026年12月1日 23時59分'
+          : healthyCoursePage,
+    })))
+
+    await runAutoScan(noopPacer)
+
+    const ledger = getLedger()
+    expect(ledger).toBeDefined()
+    expect(ledger?.lastGoodAt).not.toBeNull()
+    expect(ledger?.consecutiveFailures).toBe(0)
+    expect(ledger?.activeCodes).toEqual([])
+    expect(ledger?.infoCodes).toEqual([])
+    expect(ledger?.lastCodes).toEqual([])
+  })
+
+  it('hardコード付きサイクルは1回目で昇格せず、2回連続で activeCodes に昇格する（debounce）', async () => {
+    store[TERMS_CONSENT_KEY] = consent
+    store[COURSES_KEY] = [makeCourse()]
+
+    // Moodleでないページ（メンテ画面等）が2サイクル続けて応答する状況
+    vi.stubGlobal('fetch', vi.fn(async (url: string) => ({
+      ok: true,
+      url,
+      text: async () => 'ただいまメンテナンス中です',
+    })))
+
+    await runAutoScan(noopPacer)
+    const after1 = getLedger()
+    expect(after1?.consecutiveFailures).toBe(1)
+    expect(after1?.activeCodes).toEqual([]) // 単発ではバナーを出さない
+    expect(after1?.lastCodes).toEqual(['NOT_A_MOODLE_PAGE'])
+
+    await runAutoScan(noopPacer)
+    const after2 = getLedger()
+    expect(after2?.consecutiveFailures).toBe(2)
+    expect(after2?.activeCodes).toEqual(['NOT_A_MOODLE_PAGE'])
+  })
+
+  it('既知コースの全課題喪失は info として記録され、サイクルを失敗に数えない', async () => {
+    store[TERMS_CONSENT_KEY] = consent
+    store[COURSES_KEY] = [makeCourse()]
+    // 既知コース（前回シグネチャあり）が全課題を喪失（教員の全非表示という正当ケースあり）
+    store['courseSignature:course-1'] = [
+      { title: '課題1', url: 'https://letus.ed.tus.ac.jp/mod/assign/view.php?id=1' },
+      { title: '課題2', url: 'https://letus.ed.tus.ac.jp/mod/assign/view.php?id=2' },
+    ]
+
+    vi.stubGlobal('fetch', vi.fn(async (url: string) => ({
+      ok: true,
+      url,
+      text: async () => lostAllPage,
+    })))
+
+    await runAutoScan(noopPacer)
+    await runAutoScan(noopPacer)
+
+    // skipSave で旧シグネチャが残り恒常発火しても、台帳は凍結しない（レビュー指摘対応）
+    const ledger = getLedger()
+    expect(ledger?.consecutiveFailures).toBe(0)
+    expect(ledger?.activeCodes).toEqual([])
+    expect(ledger?.infoCodes).toEqual(['COURSE_LOST_ALL_ASSIGNMENTS'])
+    expect(ledger?.lastGoodAt).not.toBeNull()
+  })
+
+  it('未知モジュール型を含むコースでも成功サイクルとして lastGoodAt が進む（恒久汚染の防止）', async () => {
+    store[TERMS_CONSENT_KEY] = consent
+    store[COURSES_KEY] = [makeCourse()]
+
+    vi.stubGlobal('fetch', vi.fn(async (url: string) => ({
+      ok: true,
+      url,
+      text: async () =>
+        url.includes('/mod/assign/')
+          ? '<script>M.cfg = {"wwwroot":"https:\\/\\/letus.ed.tus.ac.jp","sesskey":"AbCd012345"};</script>提出期限 2026年12月1日 23時59分'
+          : healthyCoursePage + '<a href="/mod/hvp/view.php?id=9">教材ビデオ</a>',
+    })))
+
+    await runAutoScan(noopPacer)
+    await runAutoScan(noopPacer)
+
+    // UNSUPPORTED_MODULE は毎サイクル出るが info であり、失敗カウンタを駆動しない
+    const ledger = getLedger()
+    expect(ledger?.consecutiveFailures).toBe(0)
+    expect(ledger?.activeCodes).toEqual([])
+    expect(ledger?.infoCodes).toEqual(['UNSUPPORTED_MODULE'])
+    expect(ledger?.lastCodes).toEqual(['UNSUPPORTED_MODULE'])
+    expect(ledger?.lastGoodAt).not.toBeNull()
+  })
+
+  it('破損が直った次のサイクルで全クリアされ lastGoodAt が更新される', async () => {
+    store[TERMS_CONSENT_KEY] = consent
+    store[COURSES_KEY] = [makeCourse()]
+    store[DIAGNOSTICS_STATE_KEY] = {
+      lastGoodAt: null,
+      consecutiveFailures: 2,
+      activeCodes: ['NOT_A_MOODLE_PAGE'],
+      infoCodes: [],
+      lastCodes: ['NOT_A_MOODLE_PAGE'],
+      updatedAt: '2026-07-17T00:00:00.000Z',
+    } satisfies DiagnosticsState
+
+    vi.stubGlobal('fetch', vi.fn(async (url: string) => ({
+      ok: true,
+      url,
+      text: async () =>
+        url.includes('/mod/assign/')
+          ? '<script>M.cfg = {"wwwroot":"https:\\/\\/letus.ed.tus.ac.jp","sesskey":"AbCd012345"};</script>提出期限 2026年12月1日 23時59分'
+          : healthyCoursePage,
+    })))
+
+    await runAutoScan(noopPacer)
+
+    const ledger = getLedger()
+    expect(ledger?.activeCodes).toEqual([])
+    expect(ledger?.consecutiveFailures).toBe(0)
+    expect(ledger?.lastGoodAt).not.toBeNull()
+  })
+
+  it('ログイン切れの自動スキャンは LOGGED_OUT を即 activeCodes に記録する（閾値の例外）', async () => {
+    store[TERMS_CONSENT_KEY] = consent
+    store[COURSES_KEY] = [makeCourse()]
+
+    vi.stubGlobal('fetch', vi.fn(async () => ({
+      ok: true,
+      url: 'https://letus.ed.tus.ac.jp/login/index.php',
+    })))
+
+    await runAutoScan(noopPacer)
+
+    const ledger = getLedger()
+    expect(ledger?.consecutiveFailures).toBe(1)
+    expect(ledger?.activeCodes).toEqual(['LOGGED_OUT'])
+    expect(ledger?.lastGoodAt).toBeNull()
+  })
+
+  it('ネットワークエラーは中立＝台帳を書き換えない（成功にも破損にも数えない）', async () => {
+    store[TERMS_CONSENT_KEY] = consent
+    store[COURSES_KEY] = [makeCourse()]
+    const before: DiagnosticsState = {
+      lastGoodAt: '2026-07-17T00:00:00.000Z',
+      consecutiveFailures: 1,
+      activeCodes: [],
+      infoCodes: [],
+      lastCodes: ['DASHBOARD_UNREADABLE'],
+      updatedAt: '2026-07-17T00:00:00.000Z',
+    }
+    store[DIAGNOSTICS_STATE_KEY] = before
+
+    vi.stubGlobal('fetch', vi.fn(async () => { throw new Error('Failed to fetch') }))
+
+    await runAutoScan(noopPacer)
+
+    expect(getLedger()).toEqual(before)
+  })
+})
+
+describe('handleInstalled', () => {
+  it('新規インストール時はwelcome.htmlを開きフラグを保存する', async () => {
+    await handleInstalled({ reason: 'install' } as chrome.runtime.InstalledDetails)
+
+    expect(chrome.tabs.create).toHaveBeenCalledWith({ url: 'welcome.html' })
+    expect(store[WELCOME_GUIDE_SHOWN_KEY]).toBe(true)
+  })
+
+  it('アップデート時にフラグ未保存ならwelcome.htmlを開きフラグを保存する', async () => {
+    await handleInstalled({ reason: 'update' } as chrome.runtime.InstalledDetails)
+
+    expect(chrome.tabs.create).toHaveBeenCalledWith({ url: 'welcome.html' })
+    expect(chrome.tabs.create).not.toHaveBeenCalledWith({ url: 'changelog.html' })
+    expect(store[WELCOME_GUIDE_SHOWN_KEY]).toBe(true)
+  })
+
+  it('アップデート時にフラグ保存済みならchangelog.htmlを開く', async () => {
+    store[WELCOME_GUIDE_SHOWN_KEY] = true
+
+    await handleInstalled({ reason: 'update' } as chrome.runtime.InstalledDetails)
+
+    expect(chrome.tabs.create).toHaveBeenCalledWith({ url: 'changelog.html' })
+    expect(chrome.tabs.create).not.toHaveBeenCalledWith({ url: 'welcome.html' })
+  })
+
+  it('理由によらず定期スキャンのアラームを作成する', async () => {
+    await handleInstalled({ reason: 'install' } as chrome.runtime.InstalledDetails)
+
+    expect(chrome.alarms.create).toHaveBeenCalledWith(
+      expect.any(String),
+      { delayInMinutes: ALARM_PERIOD_MINUTES, periodInMinutes: ALARM_PERIOD_MINUTES },
+    )
+  })
+})
+
+describe('applyAutoSelect', () => {
+  beforeEach(() => { for (const k of Object.keys(store)) delete store[k] })
+  it('時間割にあるコースを自動ONし保存する', async () => {
+    store[COURSES_KEY] = [makeCourse({ id: 'a', name: '9973337 電気数学', enabled: false })]
+    store['timetable:2026:zenki'] = { rawTableHtml: TABLE_MINIMAL, jigenText: '', capturedAt: '2026-07-08T00:00:00.000Z' }
+    await applyAutoSelect(new Date('2026-07-08T10:00:00+09:00'))
+    const saved = store[COURSES_KEY] as Course[]
+    expect(saved[0].enabled).toBe(true)
+  })
+  it('時間割未取得なら何もしない', async () => {
+    store[COURSES_KEY] = [makeCourse({ id: 'a', name: '9973337 電気数学', enabled: false })]
+    await applyAutoSelect(new Date('2026-07-08T10:00:00+09:00'))
+    const saved = store[COURSES_KEY] as Course[]
+    expect(saved[0].enabled).toBe(false)
+  })
+})
+
+describe('未同意時の収集ガード', () => {
+  beforeEach(() => {
+    vi.resetModules()
+  })
+
+  it('未同意なら runAutoScan は何も収集せずに return する', async () => {
+    // storage は termsConsent 未設定を返す
+    const getSpy = vi.fn().mockResolvedValue({})
+    vi.stubGlobal('chrome', {
+      ...globalThis.chrome,
+      storage: { ...globalThis.chrome.storage, local: { ...globalThis.chrome.storage.local, get: getSpy } },
+    })
+    const mod = await import('./index')
+    const fetchSpy = vi.spyOn(globalThis, 'fetch')
+
+    await mod.runAutoScan()
+
+    expect(fetchSpy).not.toHaveBeenCalled()
+    // 同意ガードで止まった証拠：COURSES_KEY では呼ばれない
+    // （TERMS_CONSENT_KEY での同意チェックだけで終わる）
+    expect(getSpy).not.toHaveBeenCalledWith(COURSES_KEY)
+  })
+
+  it('同意済みなら runAutoScan はコース取得まで進む', async () => {
+    const getSpy = vi.fn().mockResolvedValue({
+      [TERMS_CONSENT_KEY]: { version: TERMS_VERSION, acceptedAt: '2026-07-10T00:00:00.000Z' },
+      [COURSES_KEY]: [],
+    })
+    vi.stubGlobal('chrome', {
+      ...globalThis.chrome,
+      storage: { ...globalThis.chrome.storage, local: { ...globalThis.chrome.storage.local, get: getSpy } },
+    })
+    const mod = await import('./index')
+
+    await mod.runAutoScan()
+
+    // 同意ガードを通過して getCourses() まで到達したことを確認
+    // enabledCourses が空なので scan本体は実行されないが、COURSES_KEY で呼ばれたことが証拠
+    expect(getSpy).toHaveBeenCalledWith(COURSES_KEY)
+  })
+
+  it('updateConsentBadge は未同意なら "!" を、同意済みなら "" を設定する', async () => {
+    const setBadgeText = vi.fn().mockResolvedValue(undefined)
+    const setBadgeBackgroundColor = vi.fn().mockResolvedValue(undefined)
+    const getSpy = vi.fn().mockResolvedValue({})
+    vi.stubGlobal('chrome', {
+      ...globalThis.chrome,
+      action: { setBadgeText, setBadgeBackgroundColor },
+      storage: { ...globalThis.chrome.storage, local: { ...globalThis.chrome.storage.local, get: getSpy } },
+    })
+    const mod = await import('./index')
+
+    await mod.updateConsentBadge()
+    expect(setBadgeText).toHaveBeenCalledWith({ text: '!' })
+
+    getSpy.mockResolvedValue({
+      [TERMS_CONSENT_KEY]: { version: TERMS_VERSION, acceptedAt: '2026-07-10T00:00:00.000Z' },
+    })
+    await mod.updateConsentBadge()
+    expect(setBadgeText).toHaveBeenLastCalledWith({ text: '' })
+  })
+})
+
+describe('extractSubmissionStatus（P3: 未提出状態値の補完と優先順位）', () => {
+  // TUS実機4.5.8（2026-07-19採取）で実証: 未提出assignの状態値は「まだ提出されていません。」で、
+  // 従来の「未提出」includes に不一致＝現行本番でも unknown に落ちていた実バグ。
+  const ASSIGN_URL = 'https://letus.ed.tus.ac.jp/mod/assign/view.php?id=1'
+  const QUIZ_URL = 'https://letus.ed.tus.ac.jp/mod/quiz/view.php?id=2'
+
+  it('TUS実機の未提出値「まだ提出されていません。」を not_submitted と判定する（実バグ修正）', () => {
+    expect(
+      extractSubmissionStatus('提出ステータス まだ提出されていません。 評定 未評定', ASSIGN_URL),
+    ).toBe('not_submitted')
+  })
+
+  it('句点なし「まだ提出されていません」でも not_submitted（句点有無に頑健）', () => {
+    expect(extractSubmissionStatus('提出ステータス まだ提出されていません', ASSIGN_URL)).toBe(
+      'not_submitted',
+    )
+  })
+
+  it('EN「No submissions have been made yet」を大文字小文字によらず not_submitted と判定する', () => {
+    expect(
+      extractSubmissionStatus('Submission status No submissions have been made yet', ASSIGN_URL),
+    ).toBe('not_submitted')
+    expect(
+      extractSubmissionStatus('Submission status NO SUBMISSIONS HAVE BEEN MADE YET', ASSIGN_URL),
+    ).toBe('not_submitted')
+  })
+
+  it('EN「No submission」単体でも not_submitted', () => {
+    expect(extractSubmissionStatus('Submission status No submission', ASSIGN_URL)).toBe(
+      'not_submitted',
+    )
+  })
+
+  it('誤爆チェック: 課題説明に「まだ提出されていません」が在っても提出テーブルの「提出済み」が勝つ（優先順位不変）', () => {
+    expect(
+      extractSubmissionStatus(
+        '課題説明: まだ提出されていません、という表示が消えるまで再提出すること。 提出ステータス 評定のために提出済み',
+        ASSIGN_URL,
+      ),
+    ).toBe('submitted')
+  })
+
+  it('誤爆チェックEN: No submissions... と Submitted for grading が同居したら submitted が勝つ', () => {
+    expect(
+      extractSubmissionStatus(
+        'If you see No submissions have been made yet, try again. Submission status Submitted for grading',
+        ASSIGN_URL,
+      ),
+    ).toBe('submitted')
+  })
+
+  it('TUS実機の提出済み値「評定のために提出済み」は従来どおり submitted（既存判定不変）', () => {
+    expect(extractSubmissionStatus('提出ステータス 評定のために提出済み', ASSIGN_URL)).toBe(
+      'submitted',
+    )
+  })
+
+  it('既存の「未提出」判定は不変', () => {
+    expect(extractSubmissionStatus('提出ステータス 未提出', ASSIGN_URL)).toBe('not_submitted')
+  })
+
+  it('quiz経路は変更なし: 「ステータス 終了」は completed・quizページの「まだ提出されていません」は判定対象外', () => {
+    expect(extractSubmissionStatus('ステータス 終了', QUIZ_URL)).toBe('completed')
+    expect(extractSubmissionStatus('まだ提出されていません。', QUIZ_URL)).toBe('unknown')
   })
 })

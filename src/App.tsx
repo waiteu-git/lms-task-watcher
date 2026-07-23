@@ -19,10 +19,7 @@ import {
   LAST_STALE_NOTIFICATION_AT_KEY,
   NOTIFIED_DEADLINE_KEYS_KEY,
   OLD_PASSED_DAYS,
-  ONE_DAY_MS,
-  ONE_HOUR_MS,
   STALE_NOTIFICATION_INTERVAL_MS,
-  THREE_HOURS_MS,
 } from './constants'
 import {
   getAssignmentScanStatus,
@@ -33,8 +30,8 @@ import {
   getNotifiedDeadlineKeys,
   initialAssignmentScanStatus,
   initialDeadlineScanStatus,
+  rearmDeadlineNotificationsForId,
   saveIgnoredAssignmentIds,
-  saveLastRefreshAt,
   saveLastStaleNotificationAt,
   saveNotifiedDeadlineKeys,
   waitForAssignmentScanToFinish,
@@ -52,39 +49,143 @@ import {
   isWithinThisWeekAfterTomorrow,
 } from './utils/date'
 import {
-  getUrgentAssignments,
   isAssignmentVisibleByCourse,
   isOldPassedAssignment,
   isSubmittedAssignment,
   sortByDeadline,
 } from './utils/assignment'
 import { createNotification, normalizeUpdateError } from './utils/notification'
+import { classifyScanStartResponse, type ScanStartResponse } from './utils/scanResponse'
+import { computeDeadlineNotifications, type DeadlineTarget } from './core/deadlineNotify'
+import { applyDeadlineOverrides, clearDeadlineOverride, getDeadlineOverrides, setDeadlineOverride } from './core/deadlineOverride'
+import { resolveEffectiveTheme } from './core/theme'
 import { AssignmentCard } from './components/AssignmentCard'
 import { CollapsibleSection, Section } from './components/Section'
-import { getTheme } from './core/premium'
-import { saveSubscriptionCache } from './core/auth'
+import {
+  getTheme,
+  saveTheme,
+  getCourseUpdateNotifyEnabled,
+  saveCourseUpdateNotifyEnabled,
+  getNotificationRules,
+  saveNotificationRules,
+  syncToServer,
+} from './core/premium'
+import { DEFAULT_THRESHOLDS, type NotificationRules } from './background/notificationRules'
 import { getOnboardingCompleted, setOnboardingCompleted } from './core/onboarding'
 import { OnboardingBanner } from './components/OnboardingBanner'
+import {
+  getManualAssignments,
+  addManualAssignment,
+  deleteManualAssignment,
+  toggleManualAssignmentSubmitted,
+  updateManualAssignment,
+  type ManualAssignment,
+  type ManualAssignmentPatch,
+} from './core/manualAssignment'
+import { DEADLINE_OVERRIDES_KEY, MANUAL_ASSIGNMENTS_KEY, MOODLE_FINGERPRINT_KEY } from './background/storageKeys'
+import { AssignmentMemo } from './components/AssignmentMemo'
+import { ManualAssignmentCard } from './components/ManualAssignmentCard'
+import { TimetableSection } from './components/TimetableSection'
+import { TodayTimetable } from './components/TodayTimetable'
+import { CourseUpdatesSection } from './components/CourseUpdatesSection'
+import { AssignmentSlotContext } from './core/assignmentSlotContext'
+import { getTimetableCapture } from './core/timetableStore'
+import { getUnreadUpdates } from './background/courseUpdatesStore'
+import { linkAssignmentsToSlots, applyOverrides, extractCourseCodes, type AssignmentSlotInfo } from './core/timetableLink'
+import { parseTimetable } from './core/timetable'
+import { academicYear } from './core/syllabus'
+import { resolveViewSemester, loadCourseOverrides } from './core/timetableView'
+import { SyllabusContext, type OpenSyllabus } from './core/syllabusContext'
+import { SyllabusModal } from './components/SyllabusModal'
+import { mergeTimeline } from './utils/timeline'
+import { WeeklyCalendarSection } from './components/WeeklyCalendarSection'
+import {
+  getManualUrgent,
+  getManualTomorrow,
+  getManualThisWeek,
+  getManualLater,
+  getManualSubmitted,
+} from './utils/manualAssignment'
+import { isConsented, saveConsent } from './legal/termsConsent'
+import { TermsConsentScreen } from './components/TermsConsentScreen'
+import {
+  buildBannerContent,
+  buildInfoNotes,
+  shouldSuppressScanErrorBanner,
+} from './core/diagnosticsBanner'
+import { DIAGNOSTICS_STATE_KEY, type DiagnosticsState } from './core/diagnosticsState'
+import type { StoredMoodleFingerprint } from './core/moodleFingerprint'
+
+// 自前バックエンドは凍結中（VITE_API_BASE_URL 未設定=空）。空なら syncToServer 等は no-op。
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL as string ?? ''
 
 export default function App() {
   const isDashboard = window.location.hash === '#dashboard'
 
   const [assignments, setAssignments] = useState<Assignment[]>([])
   const [courses, setCourses] = useState<Course[]>([])
+  const [assignmentSlotMap, setAssignmentSlotMap] = useState<Record<string, AssignmentSlotInfo>>({})
+  const [hasTimetable, setHasTimetable] = useState(false)
+  const [newBadgeCodes, setNewBadgeCodes] = useState<string[]>([])
+  const [syllabusTarget, setSyllabusTarget] = useState<{ year: number; code: string; name: string } | null>(null)
+  const openSyllabus: OpenSyllabus = (year, code, name) => setSyllabusTarget({ year, code, name })
   const [ignoredAssignmentIds, setIgnoredAssignmentIds] = useState<string[]>([])
   const [lastHiddenAssignment, setLastHiddenAssignment] =
     useState<Assignment | null>(null)
+  const [lastDeletedManualAssignment, setLastDeletedManualAssignment] =
+    useState<ManualAssignment | null>(null)
   const [assignmentScanStatus, setAssignmentScanStatus] =
     useState<AssignmentScanStatus>(initialAssignmentScanStatus)
   const [deadlineScanStatus, setDeadlineScanStatus] =
     useState<DeadlineScanStatus>(initialDeadlineScanStatus)
   const [lastRefreshAt, setLastRefreshAt] = useState<string | null>(null)
+  const [manualAssignments, setManualAssignments] = useState<ManualAssignment[]>([])
   const [isUpdating, setIsUpdating] = useState(false)
-  const [isSubscriber, setIsSubscriber] = useState(false)
+  const [theme, setTheme] = useState('default')
+  const [courseUpdateNotifyEnabled, setCourseUpdateNotifyEnabled] = useState(true)
+  const [notificationRules, setNotificationRules] = useState<NotificationRules>({
+    version: 1,
+    defaultThresholds: DEFAULT_THRESHOLDS,
+    courseOverrides: {},
+  })
   const [message, setMessage] = useState('')
+  const [diagnosticsState, setDiagnosticsState] = useState<DiagnosticsState | null>(null)
+  const [moodleFingerprint, setMoodleFingerprint] = useState<StoredMoodleFingerprint | null>(null)
   const [showOnboarding, setShowOnboarding] = useState(false)
+  const [consentState, setConsentState] = useState<'loading' | 'needed' | 'ok'>('loading')
   const hasAutoRefreshCheckedRef = useRef(false)
   const hasCheckedDeadlineNotificationRef = useRef(false)
+
+  useEffect(() => {
+    void (async () => {
+      const now = new Date()
+      const year = academicYear(now)
+      const semester = await resolveViewSemester(year, now)
+      const cap = await getTimetableCapture(year, semester)
+      setHasTimetable(cap !== null)
+      if (!cap) {
+        setAssignmentSlotMap({})
+        return
+      }
+      const overrides = await loadCourseOverrides(year, semester, courses)
+      const slots = applyOverrides(parseTimetable(cap.rawTableHtml), overrides)
+      const { assignmentInfo } = linkAssignmentsToSlots(slots, courses, assignments)
+      setAssignmentSlotMap(assignmentInfo)
+    })()
+  }, [courses, assignments])
+
+  useEffect(() => {
+    let cancelled = false
+    void (async () => {
+      const codes = new Set<string>()
+      for (const course of courses) {
+        const unread = await getUnreadUpdates(course.id)
+        if (unread.length > 0) for (const code of extractCourseCodes(course.name)) codes.add(code)
+      }
+      if (!cancelled) setNewBadgeCodes(Array.from(codes))
+    })()
+    return () => { cancelled = true }
+  }, [courses])
 
   async function refreshAll() {
     const [
@@ -94,6 +195,8 @@ export default function App() {
       savedAssignmentScanStatus,
       savedDeadlineScanStatus,
       savedLastRefreshAt,
+      savedManualAssignments,
+      overrides,
     ] = await Promise.all([
       getAssignments(),
       getCourses(),
@@ -101,93 +204,81 @@ export default function App() {
       getAssignmentScanStatus(),
       getDeadlineScanStatus(),
       getLastRefreshAt(),
+      getManualAssignments(),
+      getDeadlineOverrides(),
     ])
 
-    setAssignments(savedAssignments)
+    setAssignments(applyDeadlineOverrides(savedAssignments, overrides))
     setCourses(savedCourses)
     setIgnoredAssignmentIds(savedIgnoredAssignmentIds)
     setAssignmentScanStatus(savedAssignmentScanStatus)
     setDeadlineScanStatus(savedDeadlineScanStatus)
     setLastRefreshAt(savedLastRefreshAt)
+    setManualAssignments(savedManualAssignments)
   }
 
   async function checkDeadlineWarningNotifications(
     sourceAssignments: Assignment[],
     sourceCourses: Course[],
     sourceIgnoredIds: string[],
+    sourceManualAssignments: ManualAssignment[],
   ) {
     const ignoredSet = new Set(sourceIgnoredIds)
-    const notifiedKeys = await getNotifiedDeadlineKeys()
-    const notifiedSet = new Set(notifiedKeys)
+    // ルールは state ではなく保存値から読む（クロージャで state に依存させず、常に最新を反映）。
+    const [notifiedKeys, rules] = await Promise.all([
+      getNotifiedDeadlineKeys(),
+      getNotificationRules(),
+    ])
+
+    const visibleTargets = sourceAssignments.filter(
+      (assignment) =>
+        !ignoredSet.has(assignment.id) &&
+        isAssignmentVisibleByCourse(assignment, sourceCourses) &&
+        assignment.deadline &&
+        !isSubmittedAssignment(assignment) &&
+        assignment.lifecycleStatus !== 'passed',
+    )
+
+    const manualTargets = sourceManualAssignments.filter(
+      (assignment) => !assignment.submitted && assignment.deadline,
+    )
+
+    const targets: DeadlineTarget[] = [
+      ...visibleTargets
+        .filter((a): a is Assignment & { deadline: string } => a.deadline !== null)
+        .map((a) => ({
+          id: a.id,
+          courseId: a.courseId,
+          title: a.title,
+          courseName: a.courseName,
+          deadline: a.deadline,
+          url: a.url,
+        })),
+      // 手動課題はユーザーが明示的に追加したリマインダー。コース側のミュート/しきい値の
+      // 影響を受けて通知が黙って消えることのないよう courseId は渡さない（＝常に既定しきい値）。
+      ...manualTargets.map((a) => ({
+        id: a.id,
+        title: a.title,
+        courseName: a.courseName,
+        deadline: a.deadline,
+        url: a.letusUrl ?? undefined,
+      })),
+    ]
+
+    const notifications = computeDeadlineNotifications(
+      targets,
+      rules,
+      new Set(notifiedKeys),
+      Date.now(),
+    )
+    if (notifications.length === 0) return
+
     const nextNotifiedKeys = new Set(notifiedKeys)
-    let changed = false
-
-    const visibleTargets = sourceAssignments
-      .filter((assignment) => {
-        return (
-          !ignoredSet.has(assignment.id) &&
-          isAssignmentVisibleByCourse(assignment, sourceCourses) &&
-          assignment.deadline &&
-          !isSubmittedAssignment(assignment) &&
-          assignment.lifecycleStatus !== 'passed'
-        )
-      })
-      .sort(sortByDeadline)
-
-    for (const assignment of visibleTargets) {
-      if (!assignment.deadline) {
-        continue
-      }
-
-      const diff = new Date(assignment.deadline).getTime() - Date.now()
-
-      if (diff <= 0) {
-        continue
-      }
-
-      const oneHourKey = `${assignment.id}:1h`
-      const threeHourKey = `${assignment.id}:3h`
-      const oneDayKey = `${assignment.id}:24h`
-
-      if (diff <= ONE_HOUR_MS && !notifiedSet.has(oneHourKey)) {
-        createNotification(
-          `letus-task-watcher-deadline-1h-${assignment.id}`,
-          '締切まで1時間以内',
-          `${assignment.title}\n${assignment.courseName}`,
-        )
-
-        nextNotifiedKeys.add(oneHourKey)
-        changed = true
-        continue
-      }
-
-      if (diff <= THREE_HOURS_MS && !notifiedSet.has(threeHourKey)) {
-        createNotification(
-          `letus-task-watcher-deadline-3h-${assignment.id}`,
-          '締切まで3時間以内',
-          `${assignment.title}\n${assignment.courseName}`,
-        )
-
-        nextNotifiedKeys.add(threeHourKey)
-        changed = true
-        continue
-      }
-
-      if (diff <= ONE_DAY_MS && !notifiedSet.has(oneDayKey)) {
-        createNotification(
-          `letus-task-watcher-deadline-24h-${assignment.id}`,
-          '締切まで24時間以内',
-          `${assignment.title}\n${assignment.courseName}`,
-        )
-
-        nextNotifiedKeys.add(oneDayKey)
-        changed = true
-      }
+    for (const n of notifications) {
+      createNotification(n.notificationId, n.title, n.message, n.url)
+      nextNotifiedKeys.add(n.notifyKey)
     }
-
-    if (changed) {
-      await saveNotifiedDeadlineKeys(Array.from(nextNotifiedKeys))
-    }
+    await saveNotifiedDeadlineKeys(Array.from(nextNotifiedKeys))
   }
 
   useEffect(() => {
@@ -196,8 +287,34 @@ export default function App() {
   }, [])
 
   useEffect(() => {
-    void getTheme().then((savedTheme) => {
-      document.documentElement.setAttribute('data-theme', savedTheme)
+    void (async () => {
+      const savedTheme = await getTheme()
+      setTheme(savedTheme) // data-theme の適用は theme を依存にした別 effect が担当
+
+      const savedRules = await getNotificationRules()
+      if (savedRules) setNotificationRules(savedRules)
+
+      setCourseUpdateNotifyEnabled(await getCourseUpdateNotifyEnabled())
+    })()
+  }, [])
+
+  // テーマの適用: theme が 'auto' の間は OS の prefers-color-scheme に追従し、
+  // 明示指定(light/dark)なら固定。theme が変わるたび実効テーマを data-theme に張る。
+  useEffect(() => {
+    const mql = window.matchMedia('(prefers-color-scheme: dark)')
+    const apply = () => {
+      document.documentElement.setAttribute('data-theme', resolveEffectiveTheme(theme, mql.matches))
+    }
+    apply()
+    if (theme === 'auto') {
+      mql.addEventListener('change', apply)
+      return () => mql.removeEventListener('change', apply)
+    }
+  }, [theme])
+
+  useEffect(() => {
+    void isConsented().then((consented) => {
+      setConsentState(consented ? 'ok' : 'needed')
     })
   }, [])
 
@@ -218,6 +335,45 @@ export default function App() {
   }, [])
 
   useEffect(() => {
+    function onStorageChanged(changes: Record<string, chrome.storage.StorageChange>) {
+      if (MANUAL_ASSIGNMENTS_KEY in changes) {
+        const newValue = changes[MANUAL_ASSIGNMENTS_KEY].newValue as ManualAssignment[] | undefined
+        setManualAssignments(newValue ?? [])
+      }
+      if (DIAGNOSTICS_STATE_KEY in changes) {
+        const newValue = changes[DIAGNOSTICS_STATE_KEY].newValue as DiagnosticsState | undefined
+        setDiagnosticsState(newValue ?? null)
+      }
+      if (MOODLE_FINGERPRINT_KEY in changes) {
+        const newValue = changes[MOODLE_FINGERPRINT_KEY].newValue as StoredMoodleFingerprint | undefined
+        setMoodleFingerprint(newValue ?? null)
+      }
+    }
+
+    chrome.storage.local.onChanged.addListener(onStorageChanged)
+    return () => chrome.storage.local.onChanged.removeListener(onStorageChanged)
+  }, [])
+
+  // 自己診断台帳（diagnosticsState）とpassive版フィンガープリントの初期読込。
+  // 以降の更新は上の onChanged が追従する。
+  useEffect(() => {
+    void chrome.storage.local
+      .get([DIAGNOSTICS_STATE_KEY, MOODLE_FINGERPRINT_KEY])
+      .then((stored) => {
+        setDiagnosticsState(
+          (stored[DIAGNOSTICS_STATE_KEY] as DiagnosticsState | undefined) ?? null,
+        )
+        setMoodleFingerprint(
+          (stored[MOODLE_FINGERPRINT_KEY] as StoredMoodleFingerprint | undefined) ?? null,
+        )
+      })
+  }, [])
+
+  useEffect(() => {
+    if (consentState !== 'ok') {
+      return
+    }
+
     if (hasCheckedDeadlineNotificationRef.current) {
       return
     }
@@ -228,14 +384,17 @@ export default function App() {
       const savedAssignments = await getAssignments()
       const savedCourses = await getCourses()
       const savedIgnoredIds = await getIgnoredAssignmentIds()
+      const savedManualAssignments = await getManualAssignments()
+      const overrides = await getDeadlineOverrides()
 
       await checkDeadlineWarningNotifications(
-        savedAssignments,
+        applyDeadlineOverrides(savedAssignments, overrides),
         savedCourses,
         savedIgnoredIds,
+        savedManualAssignments,
       )
     })()
-  }, [])
+  }, [consentState])
 
   const updateNow = useCallback(async () => {
     const currentCourses = await getCourses()
@@ -258,69 +417,23 @@ export default function App() {
       ])
 
       const scanResponse = await chrome.runtime.sendMessage({
-        type: 'START_ASSIGNMENT_SCAN',
-        scanLevel: 'standard',
-      }) as { ok: boolean; reason: string }
+        type: 'START_FULL_UPDATE',
+      }) as ScanStartResponse
 
-      if (!scanResponse.ok) {
-        if (scanResponse.reason === 'not_logged_in') {
-          setMessage('LETUSにログインしてからもう一度試してください。')
-          return
-        }
-        if (scanResponse.reason === 'network_error') {
-          setMessage('LETUSへの通信に失敗しました。ネットワーク接続を確認してください。')
-          return
-        }
-        throw new Error(scanResponse.reason)
+      const scanOutcome = classifyScanStartResponse(scanResponse)
+      if (scanOutcome.kind === 'abort') {
+        setMessage(scanOutcome.message)
+        return
+      }
+      if (scanOutcome.kind === 'error') {
+        throw new Error(scanOutcome.reason)
       }
 
+      // 実処理・最終更新時刻の保存・締切通知・完了通知は service worker 側で走る
+      // （ポップアップ/ダッシュボードを閉じても完走する）。ここでは進捗表示のため
+      // 両スキャンの状態をポーリングし、完了後に画面を最新化するだけ。
       await waitForAssignmentScanToFinish(refreshAll)
-
-      await chrome.runtime.sendMessage({
-        type: 'START_DEADLINE_SCAN',
-      })
-
       await waitForDeadlineScanToFinish(refreshAll)
-
-      const finishedAt = new Date().toISOString()
-      await saveLastRefreshAt(finishedAt)
-
-      const latestAssignments = await getAssignments()
-      const latestCourses = await getCourses()
-      const latestIgnoredIds = await getIgnoredAssignmentIds()
-
-      const visibleLatestAssignments = latestAssignments.filter(
-        (assignment) => !latestIgnoredIds.includes(assignment.id),
-      )
-
-      const urgent = getUrgentAssignments(visibleLatestAssignments, latestCourses)
-
-      setAssignments(latestAssignments)
-      setCourses(latestCourses)
-      setIgnoredAssignmentIds(latestIgnoredIds)
-      setLastRefreshAt(finishedAt)
-
-      await checkDeadlineWarningNotifications(
-        latestAssignments,
-        latestCourses,
-        latestIgnoredIds,
-      )
-
-      if (urgent.length > 0) {
-        const first = urgent[0]
-
-        createNotification(
-          `letus-task-watcher-update-urgent`,
-          `24時間以内の課題: ${urgent.length}件`,
-          `${first.title}\n${first.courseName}`,
-        )
-      } else {
-        createNotification(
-          `letus-task-watcher-update-completed`,
-          'LETUS Task Watcher',
-          '更新が完了しました。24時間以内の未提出課題はありません。',
-        )
-      }
 
       await refreshAll()
       if (showOnboarding) {
@@ -329,16 +442,10 @@ export default function App() {
       }
       setMessage('更新が完了しました。')
     } catch (error) {
+      // 実処理・最終化・完了/失敗通知は SW 側で継続・完了する（popup のタイムアウトで
+      // 誤ってエラー通知を出さない）。ここでは画面表示のみ。
       const normalizedMessage = normalizeUpdateError(error)
-
       console.error(error)
-
-      createNotification(
-        `letus-task-watcher-update-error`,
-        'LETUS Task Watcher',
-        '更新中にエラーが発生しました。拡張機能を開いて状態を確認してください。',
-      )
-
       setMessage(normalizedMessage)
     } finally {
       setIsUpdating(false)
@@ -346,6 +453,10 @@ export default function App() {
   }, [showOnboarding])
 
   useEffect(() => {
+    if (consentState !== 'ok') {
+      return
+    }
+
     if (hasAutoRefreshCheckedRef.current) {
       return
     }
@@ -389,7 +500,10 @@ export default function App() {
       setMessage('前回更新から2時間以上経過したため、自動更新します。')
       await updateNow()
     })()
-  }, [updateNow])
+    // updateNow を依存に含めると useCallback の再生成のたびに実行され得るが、
+    // hasAutoRefreshCheckedRef のガードにより本体は consentState==='ok' になった最初の1回しか走らないため意図的に外す
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [consentState])
 
   const selectedCourseCount = useMemo(() => {
     return courses.filter((course) => course.enabled).length
@@ -441,6 +555,24 @@ export default function App() {
     deadlineScanStatus,
   ])
 
+  // 正直な「読めませんでした」バナー（spec§7）。エスカレーション済みの activeCodes が
+  // 非空のときのみ表示される（判定は buildBannerContent 内・kind: 'none' なら非表示）。
+  // CLASS（時間割）はMoodle診断の対象外なので、このバナーはCLASS系セクションに置かない。
+  const diagnosticsBanner = useMemo(
+    () => buildBannerContent(diagnosticsState),
+    [diagnosticsState],
+  )
+
+  // カバレッジ情報ノート（spec§7 unsupported-module 表示・§0「未対応と正直に示す」）。
+  // hard/info 区分で activeCodes に載らない info コード（未対応モジュール等）の実配線。
+  // 警告バナー表示中は buildInfoNotes が空配列を返す（重複排除）。CLASS対象外は同上。
+  // passive版フィンガープリントが BS5世代（Moodle 5.x）を観測していれば、
+  // 「画面構成が新しくなった可能性」の情報ノート1行を追加する（spec§5/§7 の最小配線）。
+  const diagnosticsInfoNotes = useMemo(
+    () => buildInfoNotes(diagnosticsState, moodleFingerprint),
+    [diagnosticsState, moodleFingerprint],
+  )
+
   const scanErrorMessage = useMemo(() => {
     if (assignmentScanStatus.state === 'error') {
       return normalizeUpdateError(assignmentScanStatus.errorMessage ?? '')
@@ -450,6 +582,18 @@ export default function App() {
     }
     return null
   }, [assignmentScanStatus, deadlineScanStatus])
+
+  // 診断バナー（logged_out）表示中は、旧エラーバナーの同趣旨メッセージ
+  // 「LETUSにログインしていないため更新できませんでした」を抑制する（二重表示の解消）。
+  // 再ログイン案内・最終取得時刻・再試行導線は診断バナー側が持つため情報は失われない。
+  // 別趣旨（ネットワーク等）の失敗メッセージは抑制しない（判定は core の純関数）。
+  const visibleScanErrorMessage = useMemo(
+    () =>
+      shouldSuppressScanErrorBanner(diagnosticsBanner.kind, scanErrorMessage)
+        ? null
+        : scanErrorMessage,
+    [diagnosticsBanner.kind, scanErrorMessage],
+  )
 
   const workingLabel = useMemo(() => {
     if (assignmentScanStatus.state === 'running') {
@@ -578,6 +722,62 @@ export default function App() {
       .sort(sortByDeadline)
   }, [visibleAssignments])
 
+  const manualUrgent = useMemo(
+    () => getManualUrgent(manualAssignments),
+    [manualAssignments],
+  )
+
+  const manualTomorrow = useMemo(
+    () => getManualTomorrow(manualAssignments),
+    [manualAssignments],
+  )
+
+  const manualThisWeek = useMemo(
+    () => getManualThisWeek(manualAssignments),
+    [manualAssignments],
+  )
+
+  const manualLater = useMemo(
+    () => getManualLater(manualAssignments),
+    [manualAssignments],
+  )
+
+  const manualSubmitted = useMemo(
+    () => getManualSubmitted(manualAssignments),
+    [manualAssignments],
+  )
+
+  const urgentTimeline = useMemo(
+    () => mergeTimeline(urgentAssignments, manualUrgent),
+    [urgentAssignments, manualUrgent],
+  )
+
+  const tomorrowTimeline = useMemo(
+    () => mergeTimeline(tomorrowAssignments, manualTomorrow),
+    [tomorrowAssignments, manualTomorrow],
+  )
+
+  const thisWeekTimeline = useMemo(
+    () => mergeTimeline(thisWeekAssignments, manualThisWeek),
+    [thisWeekAssignments, manualThisWeek],
+  )
+
+  const laterTimeline = useMemo(
+    () => mergeTimeline(laterAssignments, manualLater),
+    [laterAssignments, manualLater],
+  )
+
+  const submittedTimeline = useMemo(
+    () => mergeTimeline(submittedAssignments, manualSubmitted),
+    [submittedAssignments, manualSubmitted],
+  )
+
+  // 週間カレンダー用の全件タイムライン（非表示課題は除外・提出済みは含める）
+  const calendarTimeline = useMemo(
+    () => mergeTimeline(visibleAssignments, manualAssignments),
+    [visibleAssignments, manualAssignments],
+  )
+
   const isBackgroundRunning =
     assignmentScanStatus.state === 'running' ||
     deadlineScanStatus.state === 'running'
@@ -595,6 +795,54 @@ export default function App() {
     setMessage('更新状態を停止しました。裏側の処理が残る場合は少し待ってから再実行してください。')
   }
 
+  const persistNotificationRules = async (next: NotificationRules) => {
+    setNotificationRules(next)
+    await saveNotificationRules(next)
+    if (API_BASE_URL) void syncToServer(API_BASE_URL)
+  }
+
+  const toggleDefaultThreshold = (hours: number) => {
+    const has = notificationRules.defaultThresholds.includes(hours)
+    const nextThresholds = has
+      ? notificationRules.defaultThresholds.filter((h) => h !== hours)
+      : [...notificationRules.defaultThresholds, hours].sort((a, b) => a - b)
+    void persistNotificationRules({ ...notificationRules, defaultThresholds: nextThresholds })
+  }
+
+  const toggleCourseOverride = (courseId: string) => {
+    const overrides = { ...notificationRules.courseOverrides }
+    if (overrides[courseId]) {
+      delete overrides[courseId]
+    } else {
+      overrides[courseId] = { muted: false, thresholds: [...notificationRules.defaultThresholds] }
+    }
+    void persistNotificationRules({ ...notificationRules, courseOverrides: overrides })
+  }
+
+  const toggleCourseMuted = (courseId: string) => {
+    const current = notificationRules.courseOverrides[courseId]
+    if (!current) return
+    const overrides = {
+      ...notificationRules.courseOverrides,
+      [courseId]: { ...current, muted: !current.muted },
+    }
+    void persistNotificationRules({ ...notificationRules, courseOverrides: overrides })
+  }
+
+  const toggleCourseThreshold = (courseId: string, hours: number) => {
+    const current = notificationRules.courseOverrides[courseId]
+    if (!current) return
+    const has = current.thresholds.includes(hours)
+    const nextThresholds = has
+      ? current.thresholds.filter((h) => h !== hours)
+      : [...current.thresholds, hours].sort((a, b) => a - b)
+    const overrides = {
+      ...notificationRules.courseOverrides,
+      [courseId]: { ...current, thresholds: nextThresholds },
+    }
+    void persistNotificationRules({ ...notificationRules, courseOverrides: overrides })
+  }
+
   async function toggleCourse(courseId: string) {
     const updatedCourses = courses.map((course) => {
       if (course.id !== courseId) {
@@ -604,6 +852,7 @@ export default function App() {
       return {
         ...course,
         enabled: !course.enabled,
+        userToggled: true,
         updatedAt: new Date().toISOString(),
       }
     })
@@ -617,6 +866,7 @@ export default function App() {
       return {
         ...course,
         enabled,
+        userToggled: true,
         updatedAt: new Date().toISOString(),
       }
     })
@@ -677,6 +927,81 @@ export default function App() {
     setMessage('非表示にした課題をすべて再表示しました。')
   }
 
+  // 週間カレンダーの「＋締切」/✎。スキャン課題にユーザー締切を設定・変更する。
+  async function setScanDeadlineFromCalendar(assignmentId: string, deadlineIso: string) {
+    const target = assignments.find((assignment) => assignment.id === assignmentId)
+    if (!target) return
+    const hadDeadline = target.deadline !== null
+    await setDeadlineOverride(target.url, deadlineIso)
+    setAssignments((prev) =>
+      prev.map((assignment) =>
+        assignment.id === assignmentId
+          ? { ...assignment, deadline: deadlineIso, deadlineSource: 'user' }
+          : assignment,
+      ),
+    )
+    // 締切の変更（延長）では既発火の通知キーを剥がして再通知を有効にする。
+    // 未設定→初設定は通知キーが存在しないため不要。
+    if (hadDeadline && target.deadline !== deadlineIso) {
+      await rearmDeadlineNotificationsForId(assignmentId)
+    }
+    setMessage('締切を設定しました。設定した締切にも通知が届きます。')
+  }
+
+  // 週間カレンダーの✎→クリア。ユーザー締切を外して自動検出値へ戻す。
+  // 元のパース済み締切はstate上で上書きされているため、storageから再構成する。
+  async function clearScanDeadlineFromCalendar(assignmentId: string) {
+    const target = assignments.find((assignment) => assignment.id === assignmentId)
+    if (!target) return
+    await clearDeadlineOverride(target.url)
+    const [savedAssignments, overrides] = await Promise.all([
+      getAssignments(),
+      getDeadlineOverrides(),
+    ])
+    setAssignments(applyDeadlineOverrides(savedAssignments, overrides))
+    await rearmDeadlineNotificationsForId(assignmentId)
+    setMessage('締切を自動検出に戻しました。')
+  }
+
+  async function handleDeleteManualAssignment(id: string) {
+    const target = manualAssignments.find((a) => a.id === id)
+    await deleteManualAssignment(id)
+    setManualAssignments((prev) => prev.filter((a) => a.id !== id))
+    setLastDeletedManualAssignment(target ?? null)
+    setMessage('手動課題を削除しました。')
+  }
+
+  async function handleToggleManualSubmitted(id: string) {
+    await toggleManualAssignmentSubmitted(id)
+    setManualAssignments((prev) =>
+      prev.map((a) => (a.id === id ? { ...a, submitted: !a.submitted } : a)),
+    )
+  }
+
+  async function handleUpdateManualAssignment(id: string, patch: ManualAssignmentPatch) {
+    const previous = manualAssignments.find((a) => a.id === id)
+    await updateManualAssignment(id, patch)
+    setManualAssignments((prev) =>
+      prev.map((a) => (a.id === id ? { ...a, ...patch } : a)),
+    )
+    // 締切が実際に変わった場合のみ通知済みキーを剥がす（タイトル/メモ/コース/提出状態
+    // だけの編集では、既に発火済みのしきい値通知を再度出す必要はないため触らない）。
+    if (patch.deadline !== undefined && previous && patch.deadline !== previous.deadline) {
+      await rearmDeadlineNotificationsForId(id)
+    }
+  }
+
+  async function undoLastDeletedManualAssignment() {
+    if (!lastDeletedManualAssignment) {
+      return
+    }
+
+    await addManualAssignment(lastDeletedManualAssignment)
+    setManualAssignments((prev) => [...prev, lastDeletedManualAssignment])
+    setLastDeletedManualAssignment(null)
+    setMessage('手動課題を元に戻しました。')
+  }
+
   async function clearTaskData() {
     await clearAssignments()
     await clearAssignmentCandidates()
@@ -685,6 +1010,7 @@ export default function App() {
       DEADLINE_SCAN_STATUS_KEY,
       LAST_REFRESH_AT_KEY,
       NOTIFIED_DEADLINE_KEYS_KEY,
+      DEADLINE_OVERRIDES_KEY,
     ])
 
     setAssignments([])
@@ -716,6 +1042,8 @@ export default function App() {
       LAST_STALE_NOTIFICATION_AT_KEY,
       IGNORED_ASSIGNMENT_IDS_KEY,
       NOTIFIED_DEADLINE_KEYS_KEY,
+      MANUAL_ASSIGNMENTS_KEY,
+      DEADLINE_OVERRIDES_KEY,
     ])
 
     setAssignments([])
@@ -725,6 +1053,7 @@ export default function App() {
     setAssignmentScanStatus(initialAssignmentScanStatus)
     setDeadlineScanStatus(initialDeadlineScanStatus)
     setLastRefreshAt(null)
+    setManualAssignments([])
     setMessage('保存データをすべて初期化しました。')
   }
 
@@ -734,11 +1063,141 @@ export default function App() {
     })
   }
 
+  // サマリータイル→該当セクションへスクロール（折りたたみ先は開いてから）
+  function jumpToSection(id: string) {
+    const el = document.getElementById(id)
+    if (!el) return
+    if (el instanceof HTMLDetailsElement) el.open = true
+    el.scrollIntoView({ behavior: 'smooth', block: 'start' })
+  }
+
+  function openCalendar() {
+    // hash は '#dashboard' 完全一致で判定しているため、クエリで導線を伝える
+    chrome.tabs.create({
+      url: chrome.runtime.getURL('index.html?focus=calendar#dashboard'),
+    })
+  }
+
   function openFeedbackForm() {
     void chrome.tabs.create({ url: FEEDBACK_FORM_URL })
   }
 
+  async function toggleCourseUpdateNotify() {
+    const next = !courseUpdateNotifyEnabled
+    setCourseUpdateNotifyEnabled(next)
+    await saveCourseUpdateNotifyEnabled(next)
+  }
+
+  // 通知タイミング設定（ローカル保存の実機能）。
+  const notificationRulesSettings = (
+    <>
+      <div className="notificationRulesSection">
+        <p className="premiumSectionLabel">コース内容の更新通知</p>
+        <p className="notificationHint">
+          登録コースに新しい教材・課題が増えたときに通知します。下の「コース別」でミュートしたコースは通知しません。
+        </p>
+        <label className="muteToggle">
+          <input
+            type="checkbox"
+            checked={courseUpdateNotifyEnabled}
+            onChange={() => void toggleCourseUpdateNotify()}
+          />
+          <span>コース更新を通知する</span>
+        </label>
+      </div>
+
+      <div className="notificationRulesSection">
+        <p className="premiumSectionLabel">通知タイミング（全体）</p>
+        <p className="notificationHint">
+          締切の何時間前に通知するかを選べます。科目ごとに個別のタイミングも設定できます。
+        </p>
+        <div className="thresholdChips">
+          {[1, 3, 6, 12, 24, 48, 72].map((hours) => (
+            <button
+              key={hours}
+              type="button"
+              className={`thresholdChip ${notificationRules.defaultThresholds.includes(hours) ? 'active' : ''}`}
+              onClick={() => toggleDefaultThreshold(hours)}
+            >
+              {hours}時間前
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <div className="notificationRulesSection">
+        <p className="premiumSectionLabel">通知タイミング（コース別）</p>
+        {courses.length === 0 ? (
+          <p className="notificationHint">
+            LETUSのコースを開くと、ここでコース別に設定できます。
+          </p>
+        ) : (
+          courses.map((course) => {
+            const override = notificationRules.courseOverrides[course.id]
+            return (
+              <div key={course.id} className="courseRuleRow">
+                <label className="courseRuleHead">
+                  <input
+                    type="checkbox"
+                    checked={Boolean(override)}
+                    onChange={() => toggleCourseOverride(course.id)}
+                  />
+                  <span>{course.name}</span>
+                </label>
+                {override && (
+                  <div className="courseRuleBody">
+                    <label className="muteToggle">
+                      <input
+                        type="checkbox"
+                        checked={override.muted}
+                        onChange={() => toggleCourseMuted(course.id)}
+                      />
+                      <span>このコースをミュート</span>
+                    </label>
+                    {!override.muted && (
+                      <div className="thresholdChips">
+                        {[1, 3, 6, 12, 24, 48, 72].map((hours) => (
+                          <button
+                            key={hours}
+                            type="button"
+                            className={`thresholdChip ${override.thresholds.includes(hours) ? 'active' : ''}`}
+                            onClick={() => toggleCourseThreshold(course.id, hours)}
+                          >
+                            {hours}時間前
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            )
+          })
+        )}
+      </div>
+    </>
+  )
+
+  if (consentState === 'loading') {
+    return <main className={`app ${isDashboard ? 'dashboard' : 'popup'}`} />
+  }
+
+  if (consentState === 'needed') {
+    return (
+      <main className={`app ${isDashboard ? 'dashboard' : 'popup'}`}>
+        <TermsConsentScreen
+          onAccept={async () => {
+            await saveConsent()
+            setConsentState('ok')
+          }}
+        />
+      </main>
+    )
+  }
+
   return (
+    <AssignmentSlotContext.Provider value={assignmentSlotMap}>
+    <SyllabusContext.Provider value={isDashboard ? openSyllabus : null}>
     <main className={`app ${isDashboard ? 'dashboard' : 'popup'}`}>
       <div className="top">
         <button
@@ -772,11 +1231,36 @@ export default function App() {
         )}
       </div>
 
-      {scanErrorMessage && (
+      {visibleScanErrorMessage && (
         <div className="errorBanner">
           <strong>更新に失敗しました。前回のデータを表示しています。</strong>
-          <span>{scanErrorMessage}</span>
+          <span>{visibleScanErrorMessage}</span>
         </div>
+      )}
+
+      {diagnosticsBanner.kind !== 'none' && (
+        <section className="diagnosticsBanner" role="status">
+          <strong>{diagnosticsBanner.title}</strong>
+          <span>{diagnosticsBanner.body}</span>
+          <div className="diagnosticsBannerFooter">
+            <span>最終取得: {formatDateTime(diagnosticsBanner.lastGoodAt)}</span>
+            <button
+              type="button"
+              onClick={updateNow}
+              disabled={isUpdating || isBackgroundRunning}
+            >
+              再試行
+            </button>
+          </div>
+        </section>
+      )}
+
+      {diagnosticsInfoNotes.length > 0 && (
+        <section className="diagnosticsInfoNotes" role="note">
+          {diagnosticsInfoNotes.map((note) => (
+            <span key={note.code}>{note.text}</span>
+          ))}
+        </section>
       )}
 
       {message && <p className="message">{message}</p>}
@@ -791,8 +1275,21 @@ export default function App() {
         </div>
       )}
 
+      {lastDeletedManualAssignment && (
+        <div className="undoToast">
+          <span>「{lastDeletedManualAssignment.title}」を削除しました。</span>
+
+          <button
+            type="button"
+            onClick={() => void undoLastDeletedManualAssignment()}
+          >
+            元に戻す
+          </button>
+        </div>
+      )}
+
       {!isDashboard && showOnboarding && (
-        <OnboardingBanner courses={courses} lastRefreshAt={lastRefreshAt} />
+        <OnboardingBanner courses={courses} lastRefreshAt={lastRefreshAt} hasTimetable={hasTimetable} />
       )}
 
       {!isDashboard && (
@@ -814,13 +1311,13 @@ export default function App() {
           <section className="miniSummary">
             <div>
               <span>24時間以内</span>
-              <strong>{urgentAssignments.length}</strong>
+              <strong>{urgentTimeline.length}</strong>
             </div>
 
             <div>
               <span>今週</span>
               <strong>
-                {tomorrowAssignments.length + thisWeekAssignments.length}
+                {tomorrowTimeline.length + thisWeekTimeline.length}
               </strong>
             </div>
 
@@ -830,40 +1327,65 @@ export default function App() {
             </div>
           </section>
 
+          <TodayTimetable
+            courses={courses}
+            assignments={assignments}
+            manualAssignments={manualAssignments}
+            newCodes={newBadgeCodes}
+          />
+
           <Section
             title="24時間以内"
-            count={urgentAssignments.length}
+            count={urgentTimeline.length}
             emptyText="24時間以内の提出物はありません。"
           >
-            {urgentAssignments.slice(0, 3).map((assignment) => (
-              <div key={assignment.id} className="popupCardWrap">
-                <AssignmentCard
-                  assignment={assignment}
-                  compact
-                />
-              </div>
-            ))}
+            {urgentTimeline.slice(0, 3).map((item) =>
+              item.kind === 'scan' ? (
+                <div key={item.assignment.id} className="popupCardWrap">
+                  <AssignmentCard assignment={item.assignment} compact />
+                </div>
+              ) : (
+                <div key={item.assignment.id} className="popupCardWrap">
+                  <ManualAssignmentCard
+                    assignment={item.assignment}
+                    onToggleSubmitted={(id) => void handleToggleManualSubmitted(id)}
+                    courses={courses}
+                    onUpdate={(id, patch) => void handleUpdateManualAssignment(id, patch)}
+                    onDelete={(id) => void handleDeleteManualAssignment(id)}
+                  />
+                </div>
+              ),
+            )}
           </Section>
 
-          {tomorrowAssignments.length + thisWeekAssignments.length > 0 && (
+          {tomorrowTimeline.length + thisWeekTimeline.length > 0 && (
             <Section
               title="次の課題"
               count={Math.min(
-                tomorrowAssignments.length + thisWeekAssignments.length,
+                tomorrowTimeline.length + thisWeekTimeline.length,
                 3,
               )}
               emptyText="今後の課題はありません。"
             >
-              {[...tomorrowAssignments, ...thisWeekAssignments]
+              {[...tomorrowTimeline, ...thisWeekTimeline]
                 .slice(0, 3)
-                .map((assignment) => (
-                  <div key={assignment.id} className="popupCardWrap">
-                    <AssignmentCard
-                      assignment={assignment}
-                      compact
-                    />
-                  </div>
-                ))}
+                .map((item) =>
+                  item.kind === 'scan' ? (
+                    <div key={item.assignment.id} className="popupCardWrap">
+                      <AssignmentCard assignment={item.assignment} compact />
+                    </div>
+                  ) : (
+                    <div key={item.assignment.id} className="popupCardWrap">
+                      <ManualAssignmentCard
+                        assignment={item.assignment}
+                        onToggleSubmitted={(id) => void handleToggleManualSubmitted(id)}
+                        courses={courses}
+                        onUpdate={(id, patch) => void handleUpdateManualAssignment(id, patch)}
+                        onDelete={(id) => void handleDeleteManualAssignment(id)}
+                      />
+                    </div>
+                  ),
+                )}
             </Section>
           )}
 
@@ -873,6 +1395,14 @@ export default function App() {
             onClick={openDashboard}
           >
             ダッシュボードを開く
+          </button>
+
+          <button
+            type="button"
+            className="dashboardBtn"
+            onClick={openCalendar}
+          >
+            週間カレンダーで見る
           </button>
 
           <footer className="feedbackFooter">
@@ -891,103 +1421,179 @@ export default function App() {
               <h1>課題ダッシュボード</h1>
             </div>
 
-            <p>
-              課題の詳細確認、対象コースの選択、開始前・提出済み・期限切れの確認はこちらで行います。
-              不要な課題はカード右下の「非表示」からリストから外せます。
-            </p>
+            {/* JSXの改行は半角スペースとして描画され行頭・行末に不自然な空きを作るため、1文字列で書く */}
+            <p>課題の詳細確認、対象コースの選択、開始前・提出済み・期限切れの確認はこちらで行います。不要な課題はカード右下の「非表示」からリストから外せます。自動で見つからない課題は、LETUSコースページ右下の「課題を追加」や項目横の「+」から手動で追加できます。</p>
           </section>
 
           <section className="miniSummary dashboardSummary">
-            <div>
+            <button type="button" onClick={() => jumpToSection('sec-urgent')}>
               <span>24時間以内</span>
               <strong>{urgentAssignments.length}</strong>
-            </div>
+            </button>
 
-            <div>
+            <button type="button" onClick={() => jumpToSection('sec-tomorrow')}>
               <span>明日まで</span>
               <strong>{tomorrowAssignments.length}</strong>
-            </div>
+            </button>
 
-            <div>
+            <button type="button" onClick={() => jumpToSection('sec-thisweek')}>
               <span>今週</span>
               <strong>{thisWeekAssignments.length}</strong>
-            </div>
+            </button>
 
-            <div>
+            <button type="button" onClick={() => jumpToSection('sec-submitted')}>
               <span>提出済み</span>
               <strong>{submittedAssignments.length}</strong>
-            </div>
+            </button>
 
-            <div>
+            <button type="button" onClick={() => jumpToSection('sec-passed')}>
               <span>期限切れ</span>
               <strong>
                 {activePassedAssignments.length + oldPassedAssignments.length}
               </strong>
-            </div>
+            </button>
           </section>
 
+          <WeeklyCalendarSection
+            items={calendarTimeline}
+            onSetScanDeadline={(id, iso) => void setScanDeadlineFromCalendar(id, iso)}
+            onClearScanDeadline={(id) => void clearScanDeadlineFromCalendar(id)}
+            onHideScanAssignment={(id) => void hideAssignment(id)}
+            onUpdateManualAssignment={(id, patch) =>
+              void handleUpdateManualAssignment(id, patch)
+            }
+          />
+
+          <TimetableSection
+            courses={courses}
+            assignments={assignments}
+            manualAssignments={manualAssignments}
+            newCodes={newBadgeCodes}
+          />
+
+          <CourseUpdatesSection courses={courses} />
+
           <Section
+            id="sec-urgent"
             title="24時間以内"
-            count={urgentAssignments.length}
+            count={urgentTimeline.length}
             emptyText="24時間以内の提出物はありません。"
           >
-            {urgentAssignments.map((assignment) => (
-              <div key={assignment.id}>
-                <AssignmentCard
-                  assignment={assignment}
-                  canHide
-                  onHide={hideAssignment}
-                />
-              </div>
-            ))}
+            {urgentTimeline.map((item) =>
+              item.kind === 'scan' ? (
+                <div key={item.assignment.id}>
+                  <AssignmentCard
+                    assignment={item.assignment}
+                    canHide
+                    onHide={hideAssignment}
+                  />
+                  <AssignmentMemo assignmentId={item.assignment.id} apiBaseUrl={API_BASE_URL} />
+                </div>
+              ) : (
+                <div key={item.assignment.id}>
+                  <ManualAssignmentCard
+                    assignment={item.assignment}
+                    onToggleSubmitted={(id) => void handleToggleManualSubmitted(id)}
+                    courses={courses}
+                    onUpdate={(id, patch) => void handleUpdateManualAssignment(id, patch)}
+                    onDelete={(id) => void handleDeleteManualAssignment(id)}
+                  />
+                  <AssignmentMemo assignmentId={item.assignment.id} apiBaseUrl={API_BASE_URL} />
+                </div>
+              ),
+            )}
           </Section>
 
           <Section
+            id="sec-tomorrow"
             title="明日まで"
-            count={tomorrowAssignments.length}
+            count={tomorrowTimeline.length}
             emptyText="明日までの課題はありません。"
           >
-            {tomorrowAssignments.map((assignment) => (
-              <div key={assignment.id}>
-                <AssignmentCard
-                  assignment={assignment}
-                  canHide
-                  onHide={hideAssignment}
-                />
-              </div>
-            ))}
+            {tomorrowTimeline.map((item) =>
+              item.kind === 'scan' ? (
+                <div key={item.assignment.id}>
+                  <AssignmentCard
+                    assignment={item.assignment}
+                    canHide
+                    onHide={hideAssignment}
+                  />
+                  <AssignmentMemo assignmentId={item.assignment.id} apiBaseUrl={API_BASE_URL} />
+                </div>
+              ) : (
+                <div key={item.assignment.id}>
+                  <ManualAssignmentCard
+                    assignment={item.assignment}
+                    onToggleSubmitted={(id) => void handleToggleManualSubmitted(id)}
+                    courses={courses}
+                    onUpdate={(id, patch) => void handleUpdateManualAssignment(id, patch)}
+                    onDelete={(id) => void handleDeleteManualAssignment(id)}
+                  />
+                  <AssignmentMemo assignmentId={item.assignment.id} apiBaseUrl={API_BASE_URL} />
+                </div>
+              ),
+            )}
           </Section>
 
           <Section
+            id="sec-thisweek"
             title="今週"
-            count={thisWeekAssignments.length}
+            count={thisWeekTimeline.length}
             emptyText="今週中の課題はありません。"
           >
-            {thisWeekAssignments.map((assignment) => (
-              <div key={assignment.id}>
-                <AssignmentCard
-                  assignment={assignment}
-                  canHide
-                  onHide={hideAssignment}
-                />
-              </div>
-            ))}
+            {thisWeekTimeline.map((item) =>
+              item.kind === 'scan' ? (
+                <div key={item.assignment.id}>
+                  <AssignmentCard
+                    assignment={item.assignment}
+                    canHide
+                    onHide={hideAssignment}
+                  />
+                  <AssignmentMemo assignmentId={item.assignment.id} apiBaseUrl={API_BASE_URL} />
+                </div>
+              ) : (
+                <div key={item.assignment.id}>
+                  <ManualAssignmentCard
+                    assignment={item.assignment}
+                    onToggleSubmitted={(id) => void handleToggleManualSubmitted(id)}
+                    courses={courses}
+                    onUpdate={(id, patch) => void handleUpdateManualAssignment(id, patch)}
+                    onDelete={(id) => void handleDeleteManualAssignment(id)}
+                  />
+                  <AssignmentMemo assignmentId={item.assignment.id} apiBaseUrl={API_BASE_URL} />
+                </div>
+              ),
+            )}
           </Section>
 
           <Section
             title="それ以降"
-            count={laterAssignments.length}
+            count={laterTimeline.length}
             emptyText="それ以降の課題はありません。"
           >
-            {laterAssignments.map((assignment) => (
-              <div key={assignment.id}>
-                <AssignmentCard
-                  assignment={assignment}
-                  canHide
-                  onHide={hideAssignment}
-                />
-              </div>
-            ))}
+            {laterTimeline.map((item) =>
+              item.kind === 'scan' ? (
+                <div key={item.assignment.id}>
+                  <AssignmentCard
+                    assignment={item.assignment}
+                    canHide
+                    onHide={hideAssignment}
+                  />
+                  <AssignmentMemo assignmentId={item.assignment.id} apiBaseUrl={API_BASE_URL} />
+                </div>
+              ) : (
+                <div key={item.assignment.id}>
+                  <ManualAssignmentCard
+                    assignment={item.assignment}
+                    onToggleSubmitted={(id) => void handleToggleManualSubmitted(id)}
+                    courses={courses}
+                    onUpdate={(id, patch) => void handleUpdateManualAssignment(id, patch)}
+                    onDelete={(id) => void handleDeleteManualAssignment(id)}
+                  />
+                  <AssignmentMemo assignmentId={item.assignment.id} apiBaseUrl={API_BASE_URL} />
+                </div>
+              ),
+            )}
           </Section>
 
           <CollapsibleSection
@@ -1006,21 +1612,34 @@ export default function App() {
           </CollapsibleSection>
 
           <CollapsibleSection
+            id="sec-submitted"
             title="提出済み・完了"
-            count={submittedAssignments.length}
+            count={submittedTimeline.length}
             emptyText="提出済みの課題はありません。"
           >
-            {submittedAssignments.map((assignment) => (
-              <AssignmentCard
-                key={assignment.id}
-                assignment={assignment}
-                canHide
-                onHide={hideAssignment}
-              />
-            ))}
+            {submittedTimeline.map((item) =>
+              item.kind === 'scan' ? (
+                <AssignmentCard
+                  key={item.assignment.id}
+                  assignment={item.assignment}
+                  canHide
+                  onHide={hideAssignment}
+                />
+              ) : (
+                <ManualAssignmentCard
+                  key={item.assignment.id}
+                  assignment={item.assignment}
+                  onToggleSubmitted={(id) => void handleToggleManualSubmitted(id)}
+                  courses={courses}
+                  onUpdate={(id, patch) => void handleUpdateManualAssignment(id, patch)}
+                  onDelete={(id) => void handleDeleteManualAssignment(id)}
+                />
+              ),
+            )}
           </CollapsibleSection>
 
           <CollapsibleSection
+            id="sec-passed"
             title="期限切れ"
             count={activePassedAssignments.length}
             emptyText="期限切れの課題はありません。"
@@ -1050,12 +1669,18 @@ export default function App() {
             ))}
           </CollapsibleSection>
 
-          <details className="settings" open>
+          <h2 className="settingsHeading">設定</h2>
+
+          <details className="settings">
             <summary>対象コースの選択</summary>
 
             <div className="settingsMeta">
               対象: {selectedCourseCount}/{courses.length} コース
             </div>
+
+            <p className="courseSelectNote">
+              自動選択は時間割の科目コードと一致したLETUSコースのみが対象です。common module など一部の科目は自動で選ばれないことがあります。追跡したい科目が下に無い・OFFのままの場合は手動でONにしてください。
+            </p>
 
             <div className="courseBulkActions">
               <button
@@ -1093,6 +1718,32 @@ export default function App() {
               )}
             </div>
           </details>
+
+          <details className="settings">
+            <summary>通知設定</summary>
+            <div className="premiumSettingsBody">
+              {notificationRulesSettings}
+            </div>
+          </details>
+
+          <div className="displaySettings">
+            <span className="displaySettingsLabel">テーマ</span>
+            <div className="themeSelector">
+              {(['auto', 'default', 'dark'] as const).map((t) => (
+                <button
+                  key={t}
+                  type="button"
+                  className={`themeBtn ${theme === t ? 'active' : ''}`}
+                  onClick={() => {
+                    setTheme(t)
+                    void saveTheme(t)
+                  }}
+                >
+                  {t === 'auto' ? '自動' : t === 'default' ? 'ライト' : 'ダーク'}
+                </button>
+              ))}
+            </div>
+          </div>
 
           <CollapsibleSection
             title="非表示にした課題"
@@ -1154,35 +1805,6 @@ export default function App() {
             </div>
           </CollapsibleSection>
 
-          {__DEV_TOOLS__ && (
-            <details className="settings devPanel">
-              <summary>🛠 開発用: サブスク状態</summary>
-              <div className="devPanelBody">
-                <span>現在: <strong>{isSubscriber ? '✅ サブスクライバー' : '❌ 非サブスクライバー'}</strong></span>
-                <div className="devPanelActions">
-                  <button
-                    type="button"
-                    onClick={async () => {
-                      await saveSubscriptionCache('active', null)
-                      setIsSubscriber(true)
-                    }}
-                  >
-                    サブスクON
-                  </button>
-                  <button
-                    type="button"
-                    onClick={async () => {
-                      await chrome.storage.local.remove(['subscriptionStatus', 'subscriptionCheckedAt', 'subscriptionGraceUntil'])
-                      setIsSubscriber(false)
-                    }}
-                  >
-                    サブスクOFF
-                  </button>
-                </div>
-              </div>
-            </details>
-          )}
-
           <details className="settings">
             <summary>データ管理</summary>
 
@@ -1221,5 +1843,16 @@ export default function App() {
         </>
       )}
     </main>
+    {syllabusTarget && (
+      <SyllabusModal
+        key={`${syllabusTarget.year}:${syllabusTarget.code}`}
+        year={syllabusTarget.year}
+        code={syllabusTarget.code}
+        courseName={syllabusTarget.name}
+        onClose={() => setSyllabusTarget(null)}
+      />
+    )}
+    </SyllabusContext.Provider>
+    </AssignmentSlotContext.Provider>
   )
 }

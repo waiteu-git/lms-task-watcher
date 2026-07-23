@@ -1,22 +1,26 @@
 import type { Course } from '../core/types'
+import {
+  resolveOnboardingStep,
+  ONBOARDING_STEP_ORDER,
+} from '../core/onboardingStep'
 
 type Props = {
   courses: Course[]
   lastRefreshAt: string | null
+  hasTimetable: boolean
 }
 
-type Step = 1 | 2 | 3
+const STEP_TOTAL = ONBOARDING_STEP_ORDER.length
 
-function resolveStep(courses: Course[]): Step {
-  if (courses.length === 0) return 1
-  if (courses.filter((c) => c.enabled).length === 0) return 2
-  return 3
-}
-
-export function OnboardingBanner({ courses, lastRefreshAt }: Props) {
+export function OnboardingBanner({ courses, lastRefreshAt, hasTimetable }: Props) {
   if (lastRefreshAt !== null) return null
 
-  const step = resolveStep(courses)
+  const step = resolveOnboardingStep(hasTimetable, courses)
+  const stepNumber = ONBOARDING_STEP_ORDER.indexOf(step) + 1
+
+  function openClass() {
+    void chrome.tabs.create({ url: 'https://class.admin.tus.ac.jp/' })
+  }
 
   function openLetus() {
     void chrome.tabs.create({ url: 'https://letus.ed.tus.ac.jp' })
@@ -29,20 +33,30 @@ export function OnboardingBanner({ courses, lastRefreshAt }: Props) {
   return (
     <div className="onboardingBanner">
       <div className="onboardingStep">
-        {step === 1 && (
+        <p className="onboardingStepLabel">ステップ {stepNumber} / {STEP_TOTAL}</p>
+        {step === 'timetable' && (
           <>
-            <p className="onboardingStepLabel">ステップ 1 / 3</p>
             <p className="onboardingText">
-              まず LETUS にアクセスしてください。コースページを開くと自動で登録されます。
+              まず CLASS を開き、上部メニューの「履修」→「学生時間割表」を表示してください。
+              画面に時間割が出ると自動で取り込みます。
+            </p>
+            <button type="button" className="onboardingBtn" onClick={openClass}>
+              CLASS を開く →
+            </button>
+          </>
+        )}
+        {step === 'letus' && (
+          <>
+            <p className="onboardingText">
+              次に LETUS にアクセスしてください。コースページを開くと自動で登録されます。
             </p>
             <button type="button" className="onboardingBtn" onClick={openLetus}>
               LETUS を開く →
             </button>
           </>
         )}
-        {step === 2 && (
+        {step === 'dashboard' && (
           <>
-            <p className="onboardingStepLabel">ステップ 2 / 3</p>
             <p className="onboardingText">
               ダッシュボードを開いて、追跡したいコースにチェックを入れてください。
             </p>
@@ -51,13 +65,10 @@ export function OnboardingBanner({ courses, lastRefreshAt }: Props) {
             </button>
           </>
         )}
-        {step === 3 && (
-          <>
-            <p className="onboardingStepLabel">ステップ 3 / 3</p>
-            <p className="onboardingText">
-              準備完了！「今すぐ更新」を押して課題を取得してください。
-            </p>
-          </>
+        {step === 'update' && (
+          <p className="onboardingText">
+            準備完了！「今すぐ更新」を押して課題を取得してください。
+          </p>
         )}
       </div>
     </div>

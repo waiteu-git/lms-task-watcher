@@ -1,5 +1,6 @@
 const AUTH_TOKEN_KEY = 'authToken'
 const AUTH_TOKEN_EXPIRES_AT_KEY = 'authTokenExpiresAt'
+const AUTH_EMAIL_KEY = 'authEmail'
 const SUBSCRIPTION_STATUS_KEY = 'subscriptionStatus'
 const SUBSCRIPTION_CHECKED_AT_KEY = 'subscriptionCheckedAt'
 const SUBSCRIPTION_GRACE_UNTIL_KEY = 'subscriptionGraceUntil'
@@ -24,10 +25,16 @@ export async function getAuthToken(): Promise<string | null> {
   return result.authToken
 }
 
-export async function saveAuthSession(token: string, expiresAt: string): Promise<void> {
+export async function getAuthEmail(): Promise<string | null> {
+  const result = await chrome.storage.local.get(AUTH_EMAIL_KEY) as { authEmail?: string }
+  return result.authEmail ?? null
+}
+
+export async function saveAuthSession(token: string, expiresAt: string, email?: string): Promise<void> {
   await chrome.storage.local.set({
     [AUTH_TOKEN_KEY]: token,
     [AUTH_TOKEN_EXPIRES_AT_KEY]: expiresAt,
+    ...(email ? { [AUTH_EMAIL_KEY]: email } : {}),
   })
 }
 
@@ -35,10 +42,16 @@ export async function clearAuthSession(): Promise<void> {
   await chrome.storage.local.remove([
     AUTH_TOKEN_KEY,
     AUTH_TOKEN_EXPIRES_AT_KEY,
+    AUTH_EMAIL_KEY,
     SUBSCRIPTION_STATUS_KEY,
     SUBSCRIPTION_CHECKED_AT_KEY,
     SUBSCRIPTION_GRACE_UNTIL_KEY,
   ])
+}
+
+export async function getSubscriptionCurrentPeriodEnd(): Promise<string | null> {
+  const result = await chrome.storage.local.get('subscriptionCurrentPeriodEnd') as { subscriptionCurrentPeriodEnd?: string }
+  return result.subscriptionCurrentPeriodEnd ?? null
 }
 
 export async function saveSubscriptionCache(
@@ -52,7 +65,7 @@ export async function saveSubscriptionCache(
     [SUBSCRIPTION_STATUS_KEY]: status,
     [SUBSCRIPTION_CHECKED_AT_KEY]: now.toISOString(),
     [SUBSCRIPTION_GRACE_UNTIL_KEY]: graceUntil.toISOString(),
-    ...(currentPeriodEnd ? { subscriptionCurrentPeriodEnd: currentPeriodEnd } : {}),
+    subscriptionCurrentPeriodEnd: currentPeriodEnd ?? null,
   })
 }
 
@@ -96,5 +109,11 @@ export async function getSubscriptionState(): Promise<SubscriptionState> {
 
 export async function isSubscriptionActive(): Promise<boolean> {
   const state = await getSubscriptionState()
-  return state === 'active' || state === 'grace'
+  if (state !== 'active' && state !== 'grace') return false
+
+  // パスの固定期限をクライアント側でも尊重する（期限切れは即時失効）
+  const periodEnd = await getSubscriptionCurrentPeriodEnd()
+  if (periodEnd && new Date(periodEnd).getTime() <= Date.now()) return false
+
+  return true
 }

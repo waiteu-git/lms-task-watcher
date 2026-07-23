@@ -17,15 +17,19 @@ LETUS（東京理科大学LMS、Moodle基盤）の課題期限を自動収集・
 ### 技術スタック
 
 - Popup/Dashboard: React 19 + TypeScript + Vite（`src/`以下）
-- Background Service Worker: `public/background.js`（バニラJS、Viteでバンドルされず`dist/`にコピーされる）
+- Background Service Worker: `src/background/index.ts`（TypeScript）。Viteのrollup入力としてバンドルされ `dist/background.js`（ESモジュール）として出力される。manifestは `"service_worker": "background.js", "type": "module"` で参照
+- Content script: `src/content/courseDetector.ts` → `content.js`（LETUS）、`src/content/classTimetable.ts` → `classTimetable.js`（CLASS）。いずれもViteでバンドルされmanifestの `content_scripts` に登録済み
 - ストレージ: `chrome.storage.local`
 - ビルド: `pnpm build` → `dist/` を拡張機能としてロード
 
 ### アーキテクチャ上の重要な制約
 
-- `background.js` はTypeScriptではなくバニラJSで書かれており、Viteでトランスパイルされない
-- Content scriptは現時点で存在しない（コース登録フローが未実装）
-- アイコンはSVGのみ存在し、manifest.jsonが参照するPNG（`icons/icon-*.png`）が欠落している
+- background・content・popup はすべてTypeScriptで、`pnpm build`（`tsc -b && vite build`）でバンドルされる。手書きの `dist/` ファイルを直接編集しない
+- アイコンPNG（`icons/icon-16/32/48/128.png`）は `public/icons/` に存在し、manifestから参照されている
+
+## changelogのルール
+
+- 以降のchangelog（`public/changelog.html`）には、モバイルアプリ「リタス（Litus）」関連の情報（開発状況・事前登録導線 https://lms.waiteu.dev/app ）を掲載する
 
 ## コード説明のルール
 
@@ -38,9 +42,8 @@ LETUS（東京理科大学LMS、Moodle基盤）の課題期限を自動収集・
 ### 新規コード作成時
 コードがない状態とある状態で何が変わるのか（何の問題を解決するか）、コードの意図と内容を説明する。
 
-## background.jsの修正ルール
+## background（Service Worker）の修正ルール
 
-`public/background.js` を変更する場合：
-- バニラJSのまま維持する（TypeScript化はTASKS.mdに別タスクとして記載済み）
-- 変更後は `dist/background.js` にも同じ内容をコピーする（ビルドせずに動作確認したい場合）
+Service Worker本体は `src/background/index.ts`（TypeScript）。純ロジックは `src/core/`・`src/background/` 配下のモジュールに切り出し、Vitestで単体テストする（`pnpm vitest run src`）。
+- `dist/background.js` は `pnpm build` の生成物。直接編集せず、必ずソースを変更してビルドし直す
 - 既知のバグを修正する際は TASKS.md の対応タスクを完了済みにマークする

@@ -1,0 +1,11 @@
+# リタスLPは litus.waiteu.dev へ移設。X等に既出の旧URLからの流入を維持する。
+# ※Cloudflare Pages は静的ファイルを優先するため、landing/app.html を残したままだと
+#   このリダイレクトは効かない（旧ファイル削除とセットで機能する）。
+/app                 https://litus.waiteu.dev/              301
+/app.html            https://litus.waiteu.dev/              301
+/app-privacy         https://litus.waiteu.dev/app-privacy   301
+/app-privacy.html    https://litus.waiteu.dev/app-privacy   301
+
+# 変更履歴の共有用URL。独立ページを持たないため、トップのアップデート履歴へ着地させる。
+/changelog           /#changelog                            301
+/changelog.html      /#changelog                            301
