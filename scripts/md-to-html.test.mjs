@@ -50,6 +50,14 @@ test('空行でブロックが分かれる', () => {
   assert.equal(mdToHtml('# 題\n\n本文。'), '<h1>題</h1>\n<p>本文。</p>')
 })
 
+test('見出し直下に空行なしで本文が続いても本文が失われない', () => {
+  assert.equal(mdToHtml('# 題\n本文。'), '<h1>題</h1>\n<p>本文。</p>')
+})
+
+test('見出し直下に空行なしのリストも失われない', () => {
+  assert.equal(mdToHtml('## 節\n- 一\n- 二'), '<h2>節</h2>\n<ul>\n<li>一</li>\n<li>二</li>\n</ul>')
+})
+
 test('統合スメル: 実正典 terms-ja.md を変換すると生記法が残らず整形される', () => {
   const root = join(dirname(fileURLToPath(import.meta.url)), '..')
   const md = readFileSync(join(root, 'docs/legal/terms-ja.md'), 'utf8')

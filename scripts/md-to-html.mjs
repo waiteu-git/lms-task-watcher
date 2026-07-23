@@ -42,24 +42,31 @@ export function mdToHtml(markdown) {
 
   const html = []
   for (const block of blocks) {
-    const first = block[0]
-    const h = /^(#{1,3}) (.*)$/.exec(first)
-    if (h) {
-      const level = h[1].length
-      html.push(`<h${level}>${inline(h[2])}</h${level}>`)
-      continue
-    }
-    if (block.every((l) => /^- /.test(l))) {
-      const items = block.map((l) => `<li>${inline(l.slice(2))}</li>`)
-      html.push(`<ul>\n${items.join('\n')}\n</ul>`)
-      continue
-    }
-    if (block.every((l) => /^\d+\. /.test(l))) {
-      const items = block.map((l) => `<li>${inline(l.replace(/^\d+\. /, ''))}</li>`)
-      html.push(`<ol>\n${items.join('\n')}\n</ol>`)
-      continue
-    }
-    html.push(`<p>${inline(block.join(' '))}</p>`)
+    html.push(...renderBlock(block))
   }
   return html.join('\n')
+}
+
+// 1ブロック（空行を挟まない行の連続）を分類して HTML 断片の配列を返す。
+// 先頭行が見出しの場合、見出し行だけを消費して残りの行を独立したブロックとして
+// 再分類する（再帰）。これにより「見出し直下に空行なしで本文/リストが続く」形でも
+// 後続の内容を取りこぼさない。
+function renderBlock(block) {
+  const first = block[0]
+  const h = /^(#{1,3}) (.*)$/.exec(first)
+  if (h) {
+    const level = h[1].length
+    const heading = `<h${level}>${inline(h[2])}</h${level}>`
+    const rest = block.slice(1)
+    return rest.length ? [heading, ...renderBlock(rest)] : [heading]
+  }
+  if (block.every((l) => /^- /.test(l))) {
+    const items = block.map((l) => `<li>${inline(l.slice(2))}</li>`)
+    return [`<ul>\n${items.join('\n')}\n</ul>`]
+  }
+  if (block.every((l) => /^\d+\. /.test(l))) {
+    const items = block.map((l) => `<li>${inline(l.replace(/^\d+\. /, ''))}</li>`)
+    return [`<ol>\n${items.join('\n')}\n</ol>`]
+  }
+  return [`<p>${inline(block.join(' '))}</p>`]
 }
