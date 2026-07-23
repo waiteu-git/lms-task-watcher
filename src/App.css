@@ -142,7 +142,7 @@ h2 {
   min-height: 520px;
 }
 .app.dashboard {
-  width: min(1040px, 100vw);
+  width: min(1400px, calc(100vw - 40px));
   margin: 0 auto;
 }
 
@@ -1495,14 +1495,6 @@ button.slotChip { font-family: inherit; cursor: pointer; line-height: 1.3; }
 /* ============================================================
    週間カレンダー（v1.4.0・dashboard専用）
    ============================================================ */
-/* 7列グリッドは1040pxの本文幅では手狭なので、カレンダーだけ本文からはみ出して広く取る
-   （100%=本文幅より広い自身の幅を負マージンで中央合わせする） */
-.app.dashboard .weeklyCalendar {
-  --calendar-w: min(1400px, calc(100vw - 40px));
-  width: var(--calendar-w);
-  margin-left: calc((100% - var(--calendar-w)) / 2);
-}
-
 .calendarControls {
   display: flex;
   align-items: center;
