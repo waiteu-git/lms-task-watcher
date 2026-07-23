@@ -3,20 +3,12 @@
 import { readFileSync, writeFileSync } from 'node:fs'
 import { fileURLToPath, pathToFileURL } from 'node:url'
 import { dirname, join } from 'node:path'
+import { mdToHtml } from './md-to-html.mjs'
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..')
 const SOURCE = join(root, 'docs/legal/terms-ja.md')
 
 const GENERATED_HEADER = '// 自動生成ファイル。編集しないこと。`pnpm gen:terms` で再生成する。\n'
-
-function escapeHtml(s) {
-  return s
-    .replaceAll('&', '&amp;')
-    .replaceAll('<', '&lt;')
-    .replaceAll('>', '&gt;')
-    .replaceAll('"', '&quot;')
-    .replaceAll("'", '&#39;')
-}
 
 export function renderTermsBodyTs(markdown) {
   return `${GENERATED_HEADER}\nexport const TERMS_BODY = ${JSON.stringify(markdown)}\n`
@@ -34,12 +26,20 @@ export function renderTermsHtml(markdown) {
 body { margin: 0; line-height: 1.8;
   font-family: system-ui, -apple-system, "Hiragino Sans", "Noto Sans JP", sans-serif; color: #1a1a1a; }
 main { max-width: 720px; margin: 0 auto; padding: 32px 20px 64px; }
-pre { white-space: pre-wrap; word-wrap: break-word; font-family: inherit; font-size: 15px; }
+h1 { font-size: 24px; margin: 0 0 24px; }
+h2 { font-size: 19px; margin: 32px 0 12px; }
+h3 { font-size: 16px; margin: 24px 0 8px; }
+p { font-size: 15px; margin: 12px 0; }
+ul, ol { font-size: 15px; margin: 12px 0; padding-left: 24px; }
+li { margin: 6px 0; }
+strong { font-weight: 700; }
+code { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 13.5px; background: #f2f2f4; padding: 1px 5px; border-radius: 4px; }
 </style>
 </head>
 <body>
 <!-- 自動生成ファイル。編集しないこと。pnpm gen:terms で再生成する。 -->
-<main><pre>${escapeHtml(markdown)}</pre></main>
+<main>${mdToHtml(markdown)}</main>
   <footer style="background:#0f172a;color:rgba(255,255,255,0.55);padding:32px 24px;text-align:center;">
     <nav aria-label="フッター" style="display:flex;justify-content:center;gap:22px;margin-bottom:14px;flex-wrap:wrap;">
       <a href="/" style="color:rgba(255,255,255,0.75);font-size:13.5px;font-weight:700;text-decoration:none;">トップページ</a>
