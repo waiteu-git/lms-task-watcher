@@ -403,14 +403,28 @@ h2 {
   gap: 10px;
   margin-bottom: 22px;
 }
-.miniSummary div {
+.miniSummary div,
+.miniSummary button {
   padding: 12px 12px 11px;
   border-radius: 12px;
   background: var(--card);
   border: 1px solid var(--border);
   box-shadow: var(--shadow);
 }
-.dashboardSummary div { border-radius: 14px; padding: 14px 14px 13px; }
+/* dashboardのサマリータイルは該当セクションへのジャンプボタン */
+.miniSummary button {
+  font: inherit;
+  text-align: left;
+  color: inherit;
+  cursor: pointer;
+  transition: transform 0.12s ease, border-color 0.12s ease;
+}
+.miniSummary button:hover {
+  transform: translateY(-1px);
+  border-color: var(--accent-soft-border);
+}
+.dashboardSummary div,
+.dashboardSummary button { border-radius: 14px; padding: 14px 14px 13px; }
 .miniSummary span {
   display: block;
   margin-bottom: 5px;
@@ -545,6 +559,19 @@ h2 {
    セクション見出し / 折りたたみパネル / 設定パネル
    ============================================================ */
 .section { margin-bottom: 20px; }
+
+/* dashboardでは課題カードをマルチカラムに並べ、1400px幅を使い切る。
+   popup側の .sectionBody は無指定＝従来通りの縦積み。 */
+.app.dashboard .sectionBody {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(400px, 1fr));
+  gap: 12px;
+  align-items: start;
+}
+.app.dashboard .sectionBody > * { min-width: 0; }
+/* グリッド項目末尾のカード余白はgapと二重になるので消す */
+.app.dashboard .sectionBody > * > :last-child { margin-bottom: 0; }
+.app.dashboard .sectionBody > .card { margin-bottom: 0; }
 .sectionHeader {
   display: flex;
   align-items: center;
@@ -1774,7 +1801,7 @@ a.calendarChipMain:hover { background: var(--accent-soft-bg); }
 }
 .calendarUndatedList {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
   gap: 6px;
 }
 

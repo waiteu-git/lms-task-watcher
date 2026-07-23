@@ -1063,6 +1063,14 @@ export default function App() {
     })
   }
 
+  // サマリータイル→該当セクションへスクロール（折りたたみ先は開いてから）
+  function jumpToSection(id: string) {
+    const el = document.getElementById(id)
+    if (!el) return
+    if (el instanceof HTMLDetailsElement) el.open = true
+    el.scrollIntoView({ behavior: 'smooth', block: 'start' })
+  }
+
   function openCalendar() {
     // hash は '#dashboard' 完全一致で判定しているため、クエリで導線を伝える
     chrome.tabs.create({
@@ -1421,32 +1429,32 @@ export default function App() {
           </section>
 
           <section className="miniSummary dashboardSummary">
-            <div>
+            <button type="button" onClick={() => jumpToSection('sec-urgent')}>
               <span>24時間以内</span>
               <strong>{urgentAssignments.length}</strong>
-            </div>
+            </button>
 
-            <div>
+            <button type="button" onClick={() => jumpToSection('sec-tomorrow')}>
               <span>明日まで</span>
               <strong>{tomorrowAssignments.length}</strong>
-            </div>
+            </button>
 
-            <div>
+            <button type="button" onClick={() => jumpToSection('sec-thisweek')}>
               <span>今週</span>
               <strong>{thisWeekAssignments.length}</strong>
-            </div>
+            </button>
 
-            <div>
+            <button type="button" onClick={() => jumpToSection('sec-submitted')}>
               <span>提出済み</span>
               <strong>{submittedAssignments.length}</strong>
-            </div>
+            </button>
 
-            <div>
+            <button type="button" onClick={() => jumpToSection('sec-passed')}>
               <span>期限切れ</span>
               <strong>
                 {activePassedAssignments.length + oldPassedAssignments.length}
               </strong>
-            </div>
+            </button>
           </section>
 
           <WeeklyCalendarSection
@@ -1469,6 +1477,7 @@ export default function App() {
           <CourseUpdatesSection courses={courses} />
 
           <Section
+            id="sec-urgent"
             title="24時間以内"
             count={urgentTimeline.length}
             emptyText="24時間以内の提出物はありません。"
@@ -1499,6 +1508,7 @@ export default function App() {
           </Section>
 
           <Section
+            id="sec-tomorrow"
             title="明日まで"
             count={tomorrowTimeline.length}
             emptyText="明日までの課題はありません。"
@@ -1529,6 +1539,7 @@ export default function App() {
           </Section>
 
           <Section
+            id="sec-thisweek"
             title="今週"
             count={thisWeekTimeline.length}
             emptyText="今週中の課題はありません。"
@@ -1604,6 +1615,7 @@ export default function App() {
           </CollapsibleSection>
 
           <CollapsibleSection
+            id="sec-submitted"
             title="提出済み・完了"
             count={submittedTimeline.length}
             emptyText="提出済みの課題はありません。"
@@ -1630,6 +1642,7 @@ export default function App() {
           </CollapsibleSection>
 
           <CollapsibleSection
+            id="sec-passed"
             title="期限切れ"
             count={activePassedAssignments.length}
             emptyText="期限切れの課題はありません。"
