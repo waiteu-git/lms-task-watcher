@@ -563,6 +563,14 @@ h2 {
    ============================================================ */
 .section { margin-bottom: 20px; }
 
+/* dashboardは1画面の情報量が多いので、ブロック（カレンダー/時間割/各セクション）間の
+   縦の間隔を popup より広めに取り、区切りを見やすくする */
+.app.dashboard .dashboardHeader { margin-bottom: 28px; }
+.app.dashboard .dashboardSummary { margin-bottom: 36px; }
+.app.dashboard .section { margin-bottom: 40px; }
+.app.dashboard .timetableSection { margin-bottom: 40px; }
+.app.dashboard .collapsibleSection { margin-top: 24px; }
+
 /* dashboardでは課題カードをマルチカラムに並べ、1400px幅を使い切る。
    popup側の .sectionBody は無指定＝従来通りの縦積み。 */
 .app.dashboard .sectionBody {
