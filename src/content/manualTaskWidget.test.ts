@@ -107,6 +107,28 @@ describe('LETUSページのバッジ', () => {
     expect(badgeText(roots)).toBe('+')
   })
 
+  it('v1.4.0で拡張した型（lti/lesson等）のリンクにも「+」バッジが付く', async () => {
+    const roots = captureShadowRoots()
+    document.body.innerHTML = `<ul>
+      <li><a href="https://letus.ed.tus.ac.jp/mod/lti/view.php?id=201">講義動画（第3回）</a></li>
+      <li><a href="https://letus.ed.tus.ac.jp/mod/lesson/view.php?id=202">レッスン3</a></li>
+      <li><a href="https://letus.ed.tus.ac.jp/mod/h5pactivity/view.php?id=203">小演習</a></li>
+      <li><a href="https://letus.ed.tus.ac.jp/mod/label/view.php?id=204">ラベルは対象外</a></li>
+    </ul>`
+    installChromeStub({
+      courses: [{ id: 'c1', name: '9973337 電気数学', url: 'https://letus.ed.tus.ac.jp/course/view.php?id=1', enabled: true, lmsType: 'letus', createdAt: '', updatedAt: '' }],
+      assignments: [],
+      manualAssignments: [],
+    })
+
+    const { initManualTaskWidget } = await import('./manualTaskWidget')
+    await initManualTaskWidget()
+
+    const badges = roots.flatMap((r) => Array.from(r.querySelectorAll('.badge')))
+    expect(badges).toHaveLength(3)
+    expect(badges.every((b) => b.textContent === '+')).toBe(true)
+  })
+
   it('手動課題バッジは ✎ を表示し、クリックで編集フォームが開いて更新できる', async () => {
     const roots = captureShadowRoots()
     installChromeStub({
