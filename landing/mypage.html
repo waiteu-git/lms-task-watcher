@@ -242,12 +242,19 @@
         return
       }
 
-      courseListEl.innerHTML = data.courses.map((course) => `
-        <label style="display:flex;align-items:center;gap:8px;margin-top:10px;font-size:0.85rem;">
-          <input type="checkbox" data-course-id="${course.courseId}" ${course.discordRoleWanted ? 'checked' : ''}>
-          ${course.courseName}
-        </label>
-      `).join('')
+      // コース名・コースIDはLETUSページのDOM由来で攻撃者が影響しうるため、
+      // innerHTML補間ではなくDOM APIで組み立てる（テキストノード化でXSSを構造的に排除）
+      courseListEl.replaceChildren()
+      for (const course of data.courses) {
+        const label = document.createElement('label')
+        label.style.cssText = 'display:flex;align-items:center;gap:8px;margin-top:10px;font-size:0.85rem;'
+        const checkbox = document.createElement('input')
+        checkbox.type = 'checkbox'
+        checkbox.dataset.courseId = course.courseId
+        checkbox.checked = !!course.discordRoleWanted
+        label.append(checkbox, ' ' + (course.courseName ?? ''))
+        courseListEl.appendChild(label)
+      }
 
       courseListEl.querySelectorAll('input[type="checkbox"]').forEach((checkbox) => {
         checkbox.addEventListener('change', async (e) => {

@@ -71,14 +71,22 @@ function reportEmptyCourseFace(): void {
 }
 
 function run(): void {
+  // コース検出はコース面（Dashboard/マイコース一覧）でのみ行う。
+  // セキュリティ: 任意ページの全アンカーを走査すると、フォーラム等のユーザー投稿に
+  // 埋め込まれた悪意あるコースリンク（表示名に <img onerror> 等）を拾い、サーバ経由で
+  // マイページ描画時に反射しうる（stored XSS 経路）。コース面は本人のダッシュボードのみで
+  // 他人が投稿を差し込めないため、検出面を限定することで注入源を断つ。
   // 初回スキャンで見つかれば従来どおり即送信（observer 不使用）。
   // 0件のときだけ有界 MutationObserver（debounce 300ms・総予算 3000ms）で
   // 遅延ハイドレーションされたコースカードを追跡する（BS5世代 Dashboard 対策）。
-  watchCoursesWithRetry(document, {
-    onCoursesFound: sendDetectedCourses,
-    onEmpty: reportEmptyCourseFace,
-  })
+  if (isDashboardPath(location.pathname)) {
+    watchCoursesWithRetry(document, {
+      onCoursesFound: sendDetectedCourses,
+      onEmpty: reportEmptyCourseFace,
+    })
+  }
 
+  // 手動タスクウィジェットはコース/課題ページでも動く必要があるため面を限定しない。
   void initManualTaskWidget()
 }
 
