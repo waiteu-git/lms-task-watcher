@@ -1491,3 +1491,167 @@ button.slotChip { font-family: inherit; cursor: pointer; line-height: 1.3; }
   font-size: 12px;
   cursor: pointer;
 }
+
+/* ============================================================
+   週間カレンダー（v1.4.0・dashboard専用）
+   ============================================================ */
+.calendarControls {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.calendarNavBtn {
+  min-height: 28px;
+  padding: 4px 10px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--card);
+  color: var(--text);
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+}
+.calendarNavBtn:hover:not(:disabled) {
+  background: var(--accent-soft-bg);
+  border-color: var(--accent-soft-border);
+  color: var(--accent-ink);
+}
+.calendarNavBtn:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+.calendarMeta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 2px;
+}
+.calendarRange {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  font-weight: 800;
+  color: var(--text);
+}
+.calendarWeekCount {
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: var(--accent-soft-bg);
+  color: var(--accent-ink);
+  font-size: 11px;
+  font-weight: 800;
+}
+.calendarExportBtn {
+  min-height: 28px;
+  padding: 4px 12px;
+  border-radius: 8px;
+  border: 1px solid var(--accent-soft-border);
+  background: transparent;
+  color: var(--accent);
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+}
+.calendarExportBtn:hover {
+  background: var(--accent-soft-bg);
+  color: var(--accent-ink);
+}
+.calendarExportNote {
+  margin: 0 0 10px;
+  font-size: 11px;
+  color: var(--muted);
+}
+
+.calendarGrid {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 6px;
+}
+.calendarDay {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-height: 96px;
+  padding: 6px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--note-bg);
+}
+.calendarDay.isToday {
+  border-color: var(--accent-soft-border);
+  background: var(--accent-soft-bg);
+}
+.calendarDayLabel {
+  font-size: 11px;
+  font-weight: 800;
+  color: var(--muted);
+}
+.calendarDay.isToday .calendarDayLabel { color: var(--accent-ink); }
+.calendarDayEmpty {
+  margin: 0;
+  font-size: 11px;
+  color: var(--muted);
+  opacity: 0.5;
+}
+
+.calendarChip {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  padding: 5px 6px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--card);
+  text-decoration: none;
+  color: var(--text);
+}
+a.calendarChip:hover {
+  border-color: var(--accent-soft-border);
+  background: var(--accent-soft-bg);
+}
+.calendarChip.submitted { opacity: 0.55; }
+.calendarChipTime {
+  font-size: 10px;
+  font-weight: 800;
+  color: var(--accent-ink);
+}
+.calendarChipTitle {
+  font-size: 11.5px;
+  font-weight: 700;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+}
+.calendarChipCheck { color: var(--accent-ink); }
+.calendarChipCourse {
+  font-size: 10px;
+  color: var(--muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.calendarUndated {
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px dashed var(--border);
+}
+.calendarUndatedLabel {
+  display: inline-block;
+  margin-bottom: 6px;
+  font-size: 11px;
+  font-weight: 800;
+  color: var(--muted);
+}
+.calendarUndatedList {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 6px;
+}
+
+@media (max-width: 720px) {
+  .calendarGrid { grid-template-columns: 1fr; }
+  .calendarDay { min-height: 0; }
+}

@@ -98,6 +98,7 @@ import { resolveViewSemester, loadCourseOverrides } from './core/timetableView'
 import { SyllabusContext, type OpenSyllabus } from './core/syllabusContext'
 import { SyllabusModal } from './components/SyllabusModal'
 import { mergeTimeline } from './utils/timeline'
+import { WeeklyCalendarSection } from './components/WeeklyCalendarSection'
 import {
   getManualUrgent,
   getManualTomorrow,
@@ -771,6 +772,12 @@ export default function App() {
     [submittedAssignments, manualSubmitted],
   )
 
+  // 週間カレンダー用の全件タイムライン（非表示課題は除外・提出済みは含める）
+  const calendarTimeline = useMemo(
+    () => mergeTimeline(visibleAssignments, manualAssignments),
+    [visibleAssignments, manualAssignments],
+  )
+
   const isBackgroundRunning =
     assignmentScanStatus.state === 'running' ||
     deadlineScanStatus.state === 'running'
@@ -1017,6 +1024,13 @@ export default function App() {
   function openDashboard() {
     chrome.tabs.create({
       url: chrome.runtime.getURL('index.html#dashboard'),
+    })
+  }
+
+  function openCalendar() {
+    // hash は '#dashboard' 完全一致で判定しているため、クエリで導線を伝える
+    chrome.tabs.create({
+      url: chrome.runtime.getURL('index.html?focus=calendar#dashboard'),
     })
   }
 
@@ -1339,6 +1353,14 @@ export default function App() {
             ダッシュボードを開く
           </button>
 
+          <button
+            type="button"
+            className="dashboardBtn"
+            onClick={openCalendar}
+          >
+            週間カレンダーで見る
+          </button>
+
           <footer className="feedbackFooter">
             <button type="button" onClick={openFeedbackForm}>
               バグ報告・ご意見
@@ -1389,6 +1411,8 @@ export default function App() {
               </strong>
             </div>
           </section>
+
+          <WeeklyCalendarSection items={calendarTimeline} />
 
           <TimetableSection
             courses={courses}
