@@ -460,7 +460,10 @@ h2 {
   font-size: 13.5px;
   font-weight: 500;
   line-height: 1.65;
-  max-width: 68ch;
+  /* 68ch(全角約34字)は1400px幅では狭すぎて文中折返しが多発する。全角60字程度まで許容し、
+     行分割は句読点寄りに整える（text-wrap:prettyはChrome117+・非対応でも無害） */
+  max-width: 120ch;
+  text-wrap: pretty;
 }
 .eyebrow {
   margin: 0;
