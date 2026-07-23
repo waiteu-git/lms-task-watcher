@@ -36,6 +36,10 @@ pnpm build:dev  # 開発ビルド（dist-dev/、拡張機能名に[開発版]付
 pnpm lint       # ESLintによるコード検査
 ```
 
+## 貢献
+
+バグ報告・改善提案・Pull Request を歓迎します。手順と取り決め（PR提出時の権利許諾を含む）は [CONTRIBUTING.md](CONTRIBUTING.md) を参照してください。脆弱性の報告は公開Issueではなく、GitHubのプライベート脆弱性報告（Securityタブ）からお願いします。
+
 ## ライセンス
 
 本リポジトリは、ユーザーが拡張機能の動作（収集するデータや送信先）を自ら確認できるようにするため、ソースコードを公開しています（source-available）。**オープンソースソフトウェアではありません。**

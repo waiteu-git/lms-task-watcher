@@ -52,6 +52,13 @@ haya9924 氏が開発するアプリ「cabetus」（github.com/haya9924/cabetus�
 個別の例外であり、本ライセンスの他の条項を変更するものではない。
 （許諾日: 2026-07-08）
 
+■ 貢献
+本プロジェクトへの貢献（バグ報告・改善提案・Pull Request 等）を歓迎する。
+貢献の提出をもって、貢献者は CONTRIBUTING.md に定める権利許諾条項
+（原著作性の保証、著作権者への利用・改変・頒布・再ライセンス等の許諾、
+著作者人格権の不行使を含む）に同意したものとみなす。受け入れられた貢献は
+本ライセンスの下で公開される。（貢献受け入れ開始日: 2026-07-23）
+
 【English】
 
 The source code of this software is made publicly viewable for transparency,
@@ -103,6 +110,16 @@ redistribution are permitted solely for the application "cabetus"
 This grant is an individual exception applying only to the person and
 application named above, and does not modify any other terms of this
 license. (Granted: 2026-07-08)
+
+CONTRIBUTIONS:
+Contributions to this project (bug reports, suggestions, pull requests,
+etc.) are welcome. By submitting a contribution, the contributor is deemed
+to have agreed to the contribution license terms set forth in
+CONTRIBUTING.md, including the certification of originality, the grant to
+the copyright holder of rights to use, modify, distribute, and relicense
+the contribution, and the waiver of assertion of moral rights. Accepted
+contributions are published under this license.
+(Contributions accepted from: 2026-07-23)
 
 In case of any discrepancy between the Japanese and English texts, the
 Japanese text shall prevail.
