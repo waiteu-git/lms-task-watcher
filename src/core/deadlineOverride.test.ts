@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect, vi } from 'vitest'
 import { applyDeadlineOverrides } from './deadlineOverride'
 import type { Assignment } from './types'
 
@@ -50,5 +50,36 @@ describe('applyDeadlineOverrides', () => {
   it('空マップは同一配列参照を返す（コスト回避）', () => {
     const src = [a()]
     expect(applyDeadlineOverrides(src, {})).toBe(src)
+  })
+})
+
+describe('setDeadlineOverride', () => {
+  it('URLを正規化したキーで既存のオーバーライドへ追記保存する', async () => {
+    const store: Record<string, unknown> = {
+      deadlineOverrides: { 'https://letus.ed.tus.ac.jp/mod/quiz/view.php?id=9': '2026-07-01T00:00:00.000Z' },
+    }
+    vi.stubGlobal('chrome', {
+      storage: {
+        local: {
+          get: vi.fn(async (key: string) => ({ [key]: store[key] })),
+          set: vi.fn(async (items: Record<string, unknown>) => {
+            Object.assign(store, items)
+          }),
+        },
+      },
+    })
+
+    const { setDeadlineOverride } = await import('./deadlineOverride')
+    await setDeadlineOverride(
+      'https://letus.ed.tus.ac.jp/mod/assign/view.php?id=1#section',
+      '2026-07-30T14:59:00.000Z',
+    )
+
+    expect(store.deadlineOverrides).toEqual({
+      'https://letus.ed.tus.ac.jp/mod/quiz/view.php?id=9': '2026-07-01T00:00:00.000Z',
+      'https://letus.ed.tus.ac.jp/mod/assign/view.php?id=1': '2026-07-30T14:59:00.000Z',
+    })
+
+    vi.unstubAllGlobals()
   })
 })

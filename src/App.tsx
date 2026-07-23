@@ -57,7 +57,7 @@ import {
 import { createNotification, normalizeUpdateError } from './utils/notification'
 import { classifyScanStartResponse, type ScanStartResponse } from './utils/scanResponse'
 import { computeDeadlineNotifications, type DeadlineTarget } from './core/deadlineNotify'
-import { applyDeadlineOverrides, getDeadlineOverrides } from './core/deadlineOverride'
+import { applyDeadlineOverrides, getDeadlineOverrides, setDeadlineOverride } from './core/deadlineOverride'
 import { resolveEffectiveTheme } from './core/theme'
 import { AssignmentCard } from './components/AssignmentCard'
 import { CollapsibleSection, Section } from './components/Section'
@@ -927,6 +927,22 @@ export default function App() {
     setMessage('非表示にした課題をすべて再表示しました。')
   }
 
+  // 週間カレンダーの「＋締切」。締切未設定のスキャン課題にユーザー締切を重ねる。
+  // 締切なし→設定の一方向なので、既発火の通知キー剥がし（再アーム）は不要。
+  async function setScanDeadlineFromCalendar(assignmentId: string, deadlineIso: string) {
+    const target = assignments.find((assignment) => assignment.id === assignmentId)
+    if (!target) return
+    await setDeadlineOverride(target.url, deadlineIso)
+    setAssignments((prev) =>
+      prev.map((assignment) =>
+        assignment.id === assignmentId
+          ? { ...assignment, deadline: deadlineIso, deadlineSource: 'user' }
+          : assignment,
+      ),
+    )
+    setMessage('締切を設定しました。設定した締切にも通知が届きます。')
+  }
+
   async function handleDeleteManualAssignment(id: string) {
     const target = manualAssignments.find((a) => a.id === id)
     await deleteManualAssignment(id)
@@ -1413,7 +1429,14 @@ export default function App() {
             </div>
           </section>
 
-          <WeeklyCalendarSection items={calendarTimeline} />
+          <WeeklyCalendarSection
+            items={calendarTimeline}
+            onSetScanDeadline={(id, iso) => void setScanDeadlineFromCalendar(id, iso)}
+            onHideScanAssignment={(id) => void hideAssignment(id)}
+            onUpdateManualAssignment={(id, patch) =>
+              void handleUpdateManualAssignment(id, patch)
+            }
+          />
 
           <TimetableSection
             courses={courses}
