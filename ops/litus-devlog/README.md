@@ -4,7 +4,7 @@ litus の進捗を「自分用ダイジェスト／X下書き／devlogエント�
 
 ## 前提（1度だけ）
 - Discord に管理専用チャンネルを作り、Webhook URL を取得 → 環境変数 `DISCORD_DEVLOG_WEBHOOK` に設定。
-- litus は `C:/dev/litus`（別なら `LITUS_REPO` で指定）。
+- litus は `/Users/waiteu/dev/litus`（別なら `LITUS_REPO` で指定）。
 
 ## 実行（2〜3日に1回、または「今回分やって」で）
 

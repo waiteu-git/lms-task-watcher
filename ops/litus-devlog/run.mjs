@@ -5,7 +5,7 @@ import { readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 
 const STATE = fileURLToPath(new URL('./state.json', import.meta.url))
-const REPO = process.env.LITUS_REPO || 'C:/dev/litus'
+const REPO = process.env.LITUS_REPO || '/Users/waiteu/dev/litus'
 
 export function loadDelta() {
   const { lastSha } = readState(STATE)

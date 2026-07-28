@@ -35,7 +35,7 @@ export function collect({ repo, lastSha, sinceDaysDefault = 7 }) {
 }
 
 if (import.meta.url === `file://${process.argv[1]}` || process.argv[1]?.endsWith('collect.mjs')) {
-  const repo = process.env.LITUS_REPO || 'C:/dev/litus'
+  const repo = process.env.LITUS_REPO || '/Users/waiteu/dev/litus'
   let lastSha = null
   try {
     lastSha = JSON.parse(readFileSync(new URL('./state.json', import.meta.url), 'utf8')).lastSha || null
