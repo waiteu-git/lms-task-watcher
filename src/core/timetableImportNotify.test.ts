@@ -1,7 +1,8 @@
 import { describe, it, expect } from 'vitest'
 import {
   parseTimetableKey,
-  pickFirstImportNotification,
+  pickTimetableImportNotification,
+  timetableNotifyKey,
   buildFirstImportNotification,
 } from './timetableImportNotify'
 
@@ -20,18 +21,35 @@ describe('parseTimetableKey', () => {
   })
 })
 
-describe('pickFirstImportNotification', () => {
-  it('通知済みなら null', () => {
-    expect(pickFirstImportNotification(['timetable:2026:zenki'], true)).toBeNull()
+describe('timetableNotifyKey', () => {
+  it('year:semester 形式の複合キーを作る', () => {
+    expect(timetableNotifyKey(2026, 'zenki')).toBe('2026:zenki')
+    expect(timetableNotifyKey(2026, 'kouki')).toBe('2026:kouki')
+  })
+})
+
+describe('pickTimetableImportNotification', () => {
+  it('その学期を通知済みなら null', () => {
+    expect(
+      pickTimetableImportNotification(['timetable:2026:zenki'], new Set(['2026:zenki'])),
+    ).toBeNull()
   })
 
   it('該当キーがなければ null', () => {
-    expect(pickFirstImportNotification(['timetableView', 'manualAssignments'], false)).toBeNull()
+    expect(
+      pickTimetableImportNotification(['timetableView', 'manualAssignments'], new Set()),
+    ).toBeNull()
   })
 
-  it('最初に一致した timetable キーを返す', () => {
+  it('最初に一致した未通知の timetable キーを返す', () => {
     expect(
-      pickFirstImportNotification(['manualAssignments', 'timetable:2026:kouki'], false),
+      pickTimetableImportNotification(['manualAssignments', 'timetable:2026:kouki'], new Set()),
+    ).toEqual({ year: 2026, semester: 'kouki' })
+  })
+
+  it('前期を通知済みでも後期は通知できる（旧: 一度通知したら永久に止まる問題の修正）', () => {
+    expect(
+      pickTimetableImportNotification(['timetable:2026:kouki'], new Set(['2026:zenki'])),
     ).toEqual({ year: 2026, semester: 'kouki' })
   })
 })

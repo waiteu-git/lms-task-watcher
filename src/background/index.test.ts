@@ -9,6 +9,7 @@ import {
   TERMS_CONSENT_KEY,
   WELCOME_GUIDE_SHOWN_KEY,
   MOODLE_FINGERPRINT_KEY,
+  TIMETABLE_IMPORT_NOTIFIED_KEY,
 } from './storageKeys'
 import type { StoredMoodleFingerprint } from '../core/moodleFingerprint'
 import { TABLE_MINIMAL } from '../core/timetable.fixtures'
@@ -29,7 +30,8 @@ const notificationsCreate = vi.fn(
 vi.stubGlobal('chrome', {
   storage: {
     local: {
-      get: vi.fn(async (keys: string | string[]) => {
+      get: vi.fn(async (keys: string | string[] | null) => {
+        if (keys == null) return { ...store }
         const result: Record<string, unknown> = {}
         const keyList = Array.isArray(keys) ? keys : [keys]
         for (const k of keyList) result[k] = store[k]
@@ -77,6 +79,7 @@ const {
   applyAutoSelect,
   extractSubmissionStatus,
   ALARM_PERIOD_MINUTES,
+  maybeNotifyFirstTimetableImport,
 } = await import('./index')
 
 function makeCourse(overrides: Partial<Course> = {}): Course {
@@ -133,7 +136,8 @@ beforeEach(() => {
   vi.stubGlobal('chrome', {
     storage: {
       local: {
-        get: vi.fn(async (keys: string | string[]) => {
+        get: vi.fn(async (keys: string | string[] | null) => {
+          if (keys == null) return { ...store }
           const result: Record<string, unknown> = {}
           const keyList = Array.isArray(keys) ? keys : [keys]
           for (const k of keyList) result[k] = store[k]
@@ -1288,6 +1292,67 @@ describe('handleInstalled', () => {
       expect.any(String),
       { delayInMinutes: ALARM_PERIOD_MINUTES, periodInMinutes: ALARM_PERIOD_MINUTES },
     )
+  })
+
+  it('アップデート時: 既存キャプチャが無ければ通知済みフラグを空配列で作る', async () => {
+    await handleInstalled({ reason: 'update' } as chrome.runtime.InstalledDetails)
+    expect(store[TIMETABLE_IMPORT_NOTIFIED_KEY]).toEqual([])
+  })
+
+  it('アップデート時: 既存キャプチャがあれば通知済み扱いにする（移行）', async () => {
+    store['timetable:2026:zenki'] = { rawTableHtml: '', jigenText: '', capturedAt: '2026-04-10T00:00:00.000Z' }
+    await handleInstalled({ reason: 'update' } as chrome.runtime.InstalledDetails)
+    expect(store[TIMETABLE_IMPORT_NOTIFIED_KEY]).toEqual(['2026:zenki'])
+  })
+
+  it('アップデート時: 旧boolean(true)も配列へ移行する', async () => {
+    store[TIMETABLE_IMPORT_NOTIFIED_KEY] = true
+    store['timetable:2026:zenki'] = { rawTableHtml: '', jigenText: '', capturedAt: '2026-04-10T00:00:00.000Z' }
+    await handleInstalled({ reason: 'update' } as chrome.runtime.InstalledDetails)
+    expect(store[TIMETABLE_IMPORT_NOTIFIED_KEY]).toEqual(['2026:zenki'])
+  })
+
+  it('アップデート時: 既に配列化済みなら、新たなtimetable:*キーが増えていても再計算しない（再入で履歴を戻さない）', async () => {
+    store[TIMETABLE_IMPORT_NOTIFIED_KEY] = ['2026:zenki']
+    store['timetable:2026:zenki'] = { rawTableHtml: '', jigenText: '', capturedAt: '2026-04-10T00:00:00.000Z' }
+    store['timetable:2026:kouki'] = { rawTableHtml: '', jigenText: '', capturedAt: '2026-09-15T00:00:00.000Z' }
+    await handleInstalled({ reason: 'update' } as chrome.runtime.InstalledDetails)
+    expect(store[TIMETABLE_IMPORT_NOTIFIED_KEY]).toEqual(['2026:zenki'])
+  })
+})
+
+describe('maybeNotifyFirstTimetableImport', () => {
+  it('初回の取込で通知し、通知済み配列へ積む', async () => {
+    await maybeNotifyFirstTimetableImport(['timetable:2026:zenki'])
+    expect(notificationsCreate).toHaveBeenCalled()
+    expect(store[TIMETABLE_IMPORT_NOTIFIED_KEY]).toEqual(['2026:zenki'])
+  })
+
+  it('同じ学期を再度渡しても二重に発火しない', async () => {
+    await maybeNotifyFirstTimetableImport(['timetable:2026:zenki'])
+    notificationsCreate.mockClear()
+    await maybeNotifyFirstTimetableImport(['timetable:2026:zenki'])
+    expect(notificationsCreate).not.toHaveBeenCalled()
+  })
+
+  it('前期を通知済みでも後期は別途通知される（旧バグの回帰テスト）', async () => {
+    await maybeNotifyFirstTimetableImport(['timetable:2026:zenki'])
+    notificationsCreate.mockClear()
+    await maybeNotifyFirstTimetableImport(['timetable:2026:kouki'])
+    expect(notificationsCreate).toHaveBeenCalled()
+    expect(store[TIMETABLE_IMPORT_NOTIFIED_KEY]).toEqual(['2026:zenki', '2026:kouki'])
+  })
+
+  it('timetable:以外のキーだけなら何もしない', async () => {
+    await maybeNotifyFirstTimetableImport(['manualAssignments'])
+    expect(notificationsCreate).not.toHaveBeenCalled()
+  })
+
+  it('旧boolean(true)が残っていても空扱いにして通知する', async () => {
+    store[TIMETABLE_IMPORT_NOTIFIED_KEY] = true
+    await maybeNotifyFirstTimetableImport(['timetable:2026:kouki'])
+    expect(notificationsCreate).toHaveBeenCalled()
+    expect(store[TIMETABLE_IMPORT_NOTIFIED_KEY]).toEqual(['2026:kouki'])
   })
 })
 

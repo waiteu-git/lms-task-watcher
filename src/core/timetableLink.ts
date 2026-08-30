@@ -4,6 +4,7 @@ import type { ManualAssignment } from './manualAssignment'
 import { extractCourseCodes, firstCourseCode } from './courseCode'
 import { deadlineTier, type DeadlineTier } from '../utils/date'
 import { isSubmittedAssignment } from '../utils/assignment'
+import { academicYear } from './syllabus'
 
 export type Semester = 'zenki' | 'kouki'
 export type TimetableOverride = { room?: string; quarter?: Quarter }
@@ -24,14 +25,45 @@ export { extractCourseCodes } from './courseCode'
 /** 先頭の科目コード。無ければ null。 */
 export const extractCourseCode = firstCourseCode
 
-/** 既定表示学期。取得済みがあれば capturedAt 最新、無ければ日付（4–9月=前期）。 */
+/**
+ * 後期開始日はCLASSが公開せず年度ごとに変わる。判明した年度をここに追記する運用。
+ * 未登録の年度は暫定的に旧来の月境界（4-9月=前期）にフォールバックする
+ * （＝誤った早期ナッジより、今日と同じ挙動を優先。年1回、後期開始前にこの表を更新すること）。
+ */
+const KOUKI_START_DATES: Record<number, { month: number; day: number }> = {
+  2026: { month: 9, day: 11 }, // 東京理科大 2026年度後期開始日
+}
+
+/** 日付だけから「今あるべき学期」を判定する（取得データは見ない）。 */
+function calendarSemester(now: Date): Semester {
+  const year = academicYear(now)
+  const confirmed = KOUKI_START_DATES[year]
+  if (!confirmed) return now.getMonth() >= 3 && now.getMonth() <= 8 ? 'zenki' : 'kouki'
+  const koukiStart = new Date(year, confirmed.month - 1, confirmed.day)
+  return now >= koukiStart ? 'kouki' : 'zenki'
+}
+
+/** 既定表示学期。取得済みがあれば capturedAt 最新、無ければ日付から判定（stale でも表示は変えない）。 */
 export function resolveSemester(now: Date, captured: SemesterCapture[]): Semester {
   if (captured.length > 0) {
     const latest = captured.reduce((a, b) => (a.capturedAt >= b.capturedAt ? a : b))
     return latest.semester
   }
-  const month = now.getMonth()
-  return month >= 3 && month <= 8 ? 'zenki' : 'kouki'
+  return calendarSemester(now)
+}
+
+/**
+ * 今、日付上「あるべき」学期のうち未取得のものを返す。取得済みが1件も無ければ null
+ * （未取得は別の空状態UIが既に案内している＝この関数の対象外）。取得済みはあるが
+ * 日付上の現学期がその中に無ければ、その学期を返す（取り込み漏れの合図）。
+ * resolveSemester の「表示に使う学期」（stale でも latest capture を返す既存挙動）は変えない。
+ * TimetableSection と TodayTimetable の両方から、各自が既に持つ captured リストで直接呼ぶ
+ * （resolveViewSemester／直接resolveSemesterのどちらを使っているかに依存しない）。
+ */
+export function findMissingCurrentSemester(now: Date, captured: SemesterCapture[]): Semester | null {
+  if (captured.length === 0) return null
+  const expected = calendarSemester(now)
+  return captured.some((c) => c.semester === expected) ? null : expected
 }
 
 export function applyOverrides(

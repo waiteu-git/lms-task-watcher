@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { extractCourseCode, extractCourseCodes, resolveSemester } from './timetableLink'
+import { extractCourseCode, extractCourseCodes, resolveSemester, findMissingCurrentSemester } from './timetableLink'
 import { applyOverrides, linkAssignmentsToSlots, isQuarterSlot, defaultCurrentQuarter, resolveCurrentQuarter, isDimmedForCurrentQuarter } from './timetableLink'
 import type { TimetableSlot } from './timetable'
 import type { Course, Assignment } from './types'
@@ -59,13 +59,40 @@ describe('resolveSemester', () => {
     ]
     expect(resolveSemester(new Date(2026, 6, 5), captured)).toBe('kouki')
   })
-  it('取得済みが空なら日付で判定（4–9月=前期）', () => {
+  it('取得済みが空なら日付で判定（確定年度は後期開始日の実日付・2026年度は9/11）', () => {
     expect(resolveSemester(new Date(2026, 3, 1), [])).toBe('zenki') // 4月
-    expect(resolveSemester(new Date(2026, 8, 30), [])).toBe('zenki') // 9月
+    expect(resolveSemester(new Date(2026, 8, 10), [])).toBe('zenki') // 9/10＝前期最終日
+    expect(resolveSemester(new Date(2026, 8, 11), [])).toBe('kouki') // 9/11＝後期開始日
+    expect(resolveSemester(new Date(2026, 8, 30), [])).toBe('kouki') // 9月末
   })
   it('取得済みが空なら日付で判定（10–3月=後期）', () => {
     expect(resolveSemester(new Date(2026, 9, 1), [])).toBe('kouki') // 10月
     expect(resolveSemester(new Date(2026, 1, 15), [])).toBe('kouki') // 2月
+  })
+  it('後期開始日が未確定の年度は旧来の月境界（4-9月=前期）にフォールバックする', () => {
+    expect(resolveSemester(new Date(2027, 8, 15), [])).toBe('zenki') // 2027年度9月＝未登録
+    expect(resolveSemester(new Date(2027, 9, 1), [])).toBe('kouki') // 2027年度10月
+  })
+})
+
+describe('findMissingCurrentSemester', () => {
+  it('取得済みが空なら判定しない（別の空状態UIの対象）', () => {
+    expect(findMissingCurrentSemester(new Date(2026, 8, 20), [])).toBeNull()
+  })
+  it('あるべき学期(後期)が未取得なら後期を返す', () => {
+    const captured = [{ semester: 'zenki' as const, capturedAt: '2026-04-10T00:00:00Z' }]
+    expect(findMissingCurrentSemester(new Date(2026, 8, 20), captured)).toBe('kouki') // 9/20=後期
+  })
+  it('あるべき学期が取得済みなら null', () => {
+    const captured = [
+      { semester: 'zenki' as const, capturedAt: '2026-04-10T00:00:00Z' },
+      { semester: 'kouki' as const, capturedAt: '2026-09-15T00:00:00Z' },
+    ]
+    expect(findMissingCurrentSemester(new Date(2026, 8, 20), captured)).toBeNull()
+  })
+  it('逆方向（前期が未取得）でも検出する', () => {
+    const captured = [{ semester: 'kouki' as const, capturedAt: '2026-01-10T00:00:00Z' }]
+    expect(findMissingCurrentSemester(new Date(2026, 4, 1), captured)).toBe('zenki') // 5月=前期
   })
 })
 

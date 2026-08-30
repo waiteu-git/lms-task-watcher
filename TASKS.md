@@ -183,6 +183,13 @@
   - ポップアップ／ダッシュボードは開くたびに自動更新をトリガーするため、ポップアップ→ダッシュボードのように併用すると2つ目の `START_ASSIGNMENT_SCAN` に background が `already_running` を返す。旧 `updateNow` は `not_logged_in`／`network_error` のみ早期returnし、それ以外を `throw` していたため、無害なこのレースが catch に落ちて **①`console.error` で chrome://extensions のエラー欄を汚す ②「更新中にエラーが発生しました」の偽通知を出す** 二次被害を招いていた（機能破壊はなし）
   - 応答分類を純粋層 `src/utils/scanResponse.ts`（`classifyScanStartResponse` → proceed/abort/error）に切り出し、`already_running` を `not_logged_in`／`network_error` と同格の abort（案内メッセージのみ・throwなし）に。想定外 reason だけ error（従来どおり throw＋通知）にフォールバック。`App.tsx` の inline 分岐を差し替え
 
+- [x] **後期の時間割が自動取込されない不具合**（2026-08-01・統合管理ハブ経由のユーザー指摘で発覚）
+  - 症状: 前期に時間割を取り込んだ利用者は、後期になっても前期の時間割・コース連携が表示され続け、促しも出ない
+  - 真因1: `classTimetable.ts`の`detectSemester()`はCLASSページの学期セレクタの現在値をそのまま読むだけで、CLASSが前期のまま初期表示される限り後期は取り込まれない
+  - 真因2: `resolveSemester()`は取得済みキャプチャがあれば`capturedAt`最新のものを無条件に返し、日付を見て古さを判定しない
+  - 真因3: `timetableImportNotified`が単一のグローバルbooleanで、一度通知したら二度と立たない（前期の「取り込みました」通知後、後期の取込を通知できない）＝2026-07-15設計仕様の非目標「学期別の初回通知はYAGNI」を、後期開始という新しい非対称UXの発生を理由に撤回
+  - 修正: `timetableLink.ts`に日付ベースの「あるべき学期」判定(`calendarSemester`・2026年度後期開始日9/11を確定値テーブルで保持)と、取得済みと突き合わせる`findMissingCurrentSemester`を追加。`resolveSemester`の表示挙動（stale許容）自体は変えない、純粋な追加シグナル。ダッシュボード(`TimetableSection`)とポップアップ(`TodayTimetable`)に`.warningCard`で「CLASSを開く→」ボタン付きの案内を追加（CLASSのフォームを裏で操作することはしない）。`timetableImportNotified`を`{year}:{semester}`文字列の配列へ移行（`notifiedDeadlineKeys`と同型）し、`handleInstalled`の移行バックフィルを冪等化（旧実装は更新のたびに再計算し、後期分の通知履歴を消しうる潜在バグだった）
+  - 出典: `docs/superpowers/SPEC-2026-08-01-v1.4.x-semester-transition.md`（ローカル限定）
 - [x] **純粋ロジックのlitus逆流**（2026-07-08 判定: **不要**）
   - litus `src/assignments/buckets.ts`（within24h/tomorrow/thisWeek/…）が拡張の新`deadlineTier`（当日/今週）より高機能で先行＝逆流でもたらす改善なし
   - `selectCoursesByTimetable`（enable管理連動）・`resolveDisplayDay`（popup今日）は拡張固有で単体完結アーキのlitusに非マップ

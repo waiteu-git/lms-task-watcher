@@ -42,7 +42,8 @@ import {
 } from '../core/moduleTypes'
 import { fingerprintPage, type MoodleFingerprint, type StoredMoodleFingerprint } from '../core/moodleFingerprint'
 import { computeCourseUpdate } from '../core/courseUpdates'
-import { pickFirstImportNotification, buildFirstImportNotification } from '../core/timetableImportNotify'
+import { parseTimetableKey, pickTimetableImportNotification, timetableNotifyKey, buildFirstImportNotification } from '../core/timetableImportNotify'
+import type { Semester } from '../core/timetableLink'
 import { getCourseSignature, saveCourseSignature, addUnreadUpdates } from './courseUpdatesStore'
 import { getCapturedCourseCodes } from '../core/timetableView'
 import { selectCoursesByTimetable } from '../core/courseSelect'
@@ -1340,8 +1341,15 @@ export async function handleInstalled(details: chrome.runtime.InstalledDetails):
 
   if (details.reason === 'update') {
     const allKeys = await chrome.storage.local.get(null)
-    if (Object.keys(allKeys).some((k) => k.startsWith('timetable:'))) {
-      await chrome.storage.local.set({ [TIMETABLE_IMPORT_NOTIFIED_KEY]: true })
+    // 既にこの機能を導入済み（配列化済み）なら何もしない。ここで毎回上書きすると、
+    // 導入後の無関係な更新のたびに「既存キャプチャ＝通知済み」で再計算され、
+    // 後期を通知済みにした履歴が消えて再度サイレントに戻ってしまう。
+    if (!Array.isArray(allKeys[TIMETABLE_IMPORT_NOTIFIED_KEY])) {
+      const alreadyCaptured = Object.keys(allKeys)
+        .map(parseTimetableKey)
+        .filter((p): p is { year: number; semester: Semester } => p !== null)
+        .map((p) => timetableNotifyKey(p.year, p.semester))
+      await chrome.storage.local.set({ [TIMETABLE_IMPORT_NOTIFIED_KEY]: alreadyCaptured })
     }
 
     const result = await chrome.storage.local.get(WELCOME_GUIDE_SHOWN_KEY) as {
@@ -1387,15 +1395,18 @@ chrome.alarms.onAlarm.addListener((alarm) => {
   })
 })
 
-/** 初回の時間割取込時にだけ1回OS通知する。フラグは取込前に立てて再入を防ぐ。
- * 通知idは固定なので万一の二重発火でも可視通知は1つ。クリックはダッシュボードへ。 */
-async function maybeNotifyFirstTimetableImport(setKeys: string[]): Promise<void> {
+/** 学期ごとの時間割取込時に1回OS通知する（前期を通知済みでも後期は別途通知される）。
+ * 通知idは固定なので万一の二重発火でも可視通知は1つ。クリックはダッシュボードへ。
+ * フラグは学期の複合キーの配列（旧: 単一boolean＝一度通知したら二度と鳴らなかった）。 */
+export async function maybeNotifyFirstTimetableImport(setKeys: string[]): Promise<void> {
   const stored = (await chrome.storage.local.get(TIMETABLE_IMPORT_NOTIFIED_KEY)) as {
-    timetableImportNotified?: boolean
+    timetableImportNotified?: unknown
   }
-  const pick = pickFirstImportNotification(setKeys, stored.timetableImportNotified === true)
+  const notifiedList = Array.isArray(stored.timetableImportNotified) ? stored.timetableImportNotified : []
+  const pick = pickTimetableImportNotification(setKeys, new Set(notifiedList as string[]))
   if (!pick) return
-  await chrome.storage.local.set({ [TIMETABLE_IMPORT_NOTIFIED_KEY]: true })
+  const nextNotified = [...notifiedList, timetableNotifyKey(pick.year, pick.semester)]
+  await chrome.storage.local.set({ [TIMETABLE_IMPORT_NOTIFIED_KEY]: nextNotified })
   const { title, message } = buildFirstImportNotification(pick.year, pick.semester)
   await createNotification({
     id: 'timetable-imported',

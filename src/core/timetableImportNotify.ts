@@ -10,16 +10,22 @@ export function parseTimetableKey(key: string): { year: number; semester: Semest
   return { year: Number(m[1]), semester: m[2] as Semester }
 }
 
-/** 変更のあった（セットされた）キー群のうち、まだ通知していなければ最初の時間割キーを返す。
- * 初回取込のみ通知するための判定。 */
-export function pickFirstImportNotification(
+/** `timetableImportNotified` に積む重複排除キー（`{year}:{semester}`形式）。notifiedDeadlineKeysと同じ発想。 */
+export function timetableNotifyKey(year: number, semester: Semester): string {
+  return `${year}:${semester}`
+}
+
+/** 変更のあった（セットされた）キー群のうち、学期ごとにまだ通知していない最初の時間割キーを返す。
+ * 前期を通知済みでも後期は別途通知できる（旧: 一度でも通知したら永久に止まる仕様の修正。
+ * 2026-07-15設計の非目標「学期別の初回通知はYAGNI」を撤回：後期開始のタイミングで
+ * 「後期未取込」UIナッジ→ユーザーが取り込む→無反応、という非対称なUXになるため）。 */
+export function pickTimetableImportNotification(
   setKeys: string[],
-  alreadyNotified: boolean,
+  notifiedKeys: Set<string>,
 ): { year: number; semester: Semester } | null {
-  if (alreadyNotified) return null
   for (const key of setKeys) {
     const parsed = parseTimetableKey(key)
-    if (parsed) return parsed
+    if (parsed && !notifiedKeys.has(timetableNotifyKey(parsed.year, parsed.semester))) return parsed
   }
   return null
 }
