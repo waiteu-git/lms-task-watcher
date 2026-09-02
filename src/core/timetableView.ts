@@ -13,7 +13,8 @@ import { parseTimetable } from './timetable'
 /** 既定表示学期を解決（表示選択 > 取得済み最新 > 日付判定）。 */
 export async function resolveViewSemester(year: number, now: Date): Promise<Semester> {
   const pref = await getPreferredView()
-  return pref?.semester ?? resolveSemester(now, await listCapturedSemesters(year))
+  if (pref?.year === year) return pref.semester
+  return resolveSemester(now, await listCapturedSemesters(year))
 }
 
 /**

@@ -190,6 +190,13 @@
   - 真因3: `timetableImportNotified`が単一のグローバルbooleanで、一度通知したら二度と立たない（前期の「取り込みました」通知後、後期の取込を通知できない）＝2026-07-15設計仕様の非目標「学期別の初回通知はYAGNI」を、後期開始という新しい非対称UXの発生を理由に撤回
   - 修正: `timetableLink.ts`に日付ベースの「あるべき学期」判定(`calendarSemester`・2026年度後期開始日9/11を確定値テーブルで保持)と、取得済みと突き合わせる`findMissingCurrentSemester`を追加。`resolveSemester`の表示挙動（stale許容）自体は変えない、純粋な追加シグナル。ダッシュボード(`TimetableSection`)とポップアップ(`TodayTimetable`)に`.warningCard`で「CLASSを開く→」ボタン付きの案内を追加（CLASSのフォームを裏で操作することはしない）。`timetableImportNotified`を`{year}:{semester}`文字列の配列へ移行（`notifiedDeadlineKeys`と同型）し、`handleInstalled`の移行バックフィルを冪等化（旧実装は更新のたびに再計算し、後期分の通知履歴を消しうる潜在バグだった）
   - 出典: `docs/superpowers/SPEC-2026-08-01-v1.4.x-semester-transition.md`（ローカル限定）
+- [x] **年度をまたぐと表示学期の保存設定が誤適用される不具合**（2026-08-30発見・2026-09-02コミット。v1.4.1の後続）
+  - 症状: 前年度に学期タブを明示選択した利用者は、年度が替わっても当時の学期が既定表示に採用され続ける（例: 2025年度後期を選んだまま2026年度前期を迎えると、2026年度「後期」＝未取得の空表示になる）
+  - 真因: `resolveViewSemester()` が `pref?.semester ?? …` と学期だけを見ており、`getPreferredView()` が併せて保存している `year` を照合していなかった。保存側 `setPreferredView(year, semester)` は導入時（`ddc6fa4`）から `{year, semester}` 形で書いており、読む側だけが年を捨てていた
+  - 修正: `if (pref?.year === year) return pref.semester` の年ガードを追加。年度が一致しない pref は捨て、既存の「取得済み最新 > 日付判定」へフォールバックする
+  - 適用範囲: 呼び出し側3箇所（`App.tsx`・`TodayTimetable.tsx`・`TimetableSection.tsx`）はいずれも `11a2c1f` で共有関数 `resolveViewSemester` 経由に統一済みのため、**各コンポーネント側の修正は不要**（`TimetableSection.tsx` は `8750917` 時点では同じ式をインラインで持っていたが `11a2c1f` で解消済み）。`year` は全呼び出し側が `academicYear(now)` を渡すため、pref側の `year` と同じ「年度」で比較される
+  - 非変更（意図的）: 同年度内の明示選択は後期開始後も維持する（`表示選択 > 取得済み最新 > 日付判定` の優先順は不変）。後期未取込の督促は `findMissingCurrentSemester` の警告カードが担当し、表示学期を勝手に動かさない
+  - テスト: `src/core/timetableView.test.ts` に8件（別年度prefの無視×2＝年ガード未適用だと落ちる回帰、後期開始日2026-09-11の境界×2、取得済み最新優先、同年度prefの維持、年度跨ぎ2027-01の採用）
 - [x] **純粋ロジックのlitus逆流**（2026-07-08 判定: **不要**）
   - litus `src/assignments/buckets.ts`（within24h/tomorrow/thisWeek/…）が拡張の新`deadlineTier`（当日/今週）より高機能で先行＝逆流でもたらす改善なし
   - `selectCoursesByTimetable`（enable管理連動）・`resolveDisplayDay`（popup今日）は拡張固有で単体完結アーキのlitusに非マップ
