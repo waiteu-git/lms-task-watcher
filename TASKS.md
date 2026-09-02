@@ -189,14 +189,34 @@
   - 真因2: `resolveSemester()`は取得済みキャプチャがあれば`capturedAt`最新のものを無条件に返し、日付を見て古さを判定しない
   - 真因3: `timetableImportNotified`が単一のグローバルbooleanで、一度通知したら二度と立たない（前期の「取り込みました」通知後、後期の取込を通知できない）＝2026-07-15設計仕様の非目標「学期別の初回通知はYAGNI」を、後期開始という新しい非対称UXの発生を理由に撤回
   - 修正: `timetableLink.ts`に日付ベースの「あるべき学期」判定(`calendarSemester`・2026年度後期開始日9/11を確定値テーブルで保持)と、取得済みと突き合わせる`findMissingCurrentSemester`を追加。`resolveSemester`の表示挙動（stale許容）自体は変えない、純粋な追加シグナル。ダッシュボード(`TimetableSection`)とポップアップ(`TodayTimetable`)に`.warningCard`で「CLASSを開く→」ボタン付きの案内を追加（CLASSのフォームを裏で操作することはしない）。`timetableImportNotified`を`{year}:{semester}`文字列の配列へ移行（`notifiedDeadlineKeys`と同型）し、`handleInstalled`の移行バックフィルを冪等化（旧実装は更新のたびに再計算し、後期分の通知履歴を消しうる潜在バグだった）
-  - 出典: `docs/superpowers/SPEC-2026-08-01-v1.4.x-semester-transition.md`（ローカル限定）
+  - 出典: `docs/superpowers/SPEC-2026-08-01-v1.4.x-semester-transition.md`（ローカル限定）⚠**2026-09-02時点で ~/dev 配下に実在しない**（find 0件）。「同年度prefの維持」が設計上の非目標として決まったのか実装の副作用の追認かを確かめる一次資料が欠落している
 - [x] **年度をまたぐと表示学期の保存設定が誤適用される不具合**（2026-08-30発見・2026-09-02コミット。v1.4.1の後続）
   - 症状: 前年度に学期タブを明示選択した利用者は、年度が替わっても当時の学期が既定表示に採用され続ける（例: 2025年度後期を選んだまま2026年度前期を迎えると、2026年度「後期」＝未取得の空表示になる）
   - 真因: `resolveViewSemester()` が `pref?.semester ?? …` と学期だけを見ており、`getPreferredView()` が併せて保存している `year` を照合していなかった。保存側 `setPreferredView(year, semester)` は導入時（`ddc6fa4`）から `{year, semester}` 形で書いており、読む側だけが年を捨てていた
   - 修正: `if (pref?.year === year) return pref.semester` の年ガードを追加。年度が一致しない pref は捨て、既存の「取得済み最新 > 日付判定」へフォールバックする
   - 適用範囲: 呼び出し側3箇所（`App.tsx`・`TodayTimetable.tsx`・`TimetableSection.tsx`）はいずれも `11a2c1f` で共有関数 `resolveViewSemester` 経由に統一済みのため、**各コンポーネント側の修正は不要**（`TimetableSection.tsx` は `8750917` 時点では同じ式をインラインで持っていたが `11a2c1f` で解消済み）。`year` は全呼び出し側が `academicYear(now)` を渡すため、pref側の `year` と同じ「年度」で比較される
-  - 非変更（意図的）: 同年度内の明示選択は後期開始後も維持する（`表示選択 > 取得済み最新 > 日付判定` の優先順は不変）。後期未取込の督促は `findMissingCurrentSemester` の警告カードが担当し、表示学期を勝手に動かさない
+  - 非変更: 同年度内の明示選択は後期開始後も維持する（`表示選択 > 取得済み最新 > 日付判定` の優先順は不変）。🔴**2026-09-02にこの「意図的」という位置づけが争点化した。下の未決エントリを必ず読むこと**
   - テスト: `src/core/timetableView.test.ts` に8件（別年度prefの無視×2＝年ガード未適用だと落ちる回帰、後期開始日2026-09-11の境界×2、取得済み最新優先、同年度prefの維持、年度跨ぎ2027-01の採用）
+
+- [ ] 🔴**未決・ハブの裁定待ち**: 同年度prefが後期開始後も維持されることの是非（2026-09-02上申。後期開始 2026-09-11 まで9日）
+  - 症状: v1.4.1の督促カードの指示に従って後期を取り込むと、状態が取り込む前より悪くなる。`findMissingCurrentSemester`（`timetableLink.ts:63-67`）は「現学期が captured に有るか」しか見ず**表示中の学期を見ていない**ため、取込でカードが消える。一方 `resolveViewSemester` は pref を返し続けるので**表示は前期のまま**＝指示に従った行動そのものが唯一の警告を消す
+  - pref の母集団は広い: アクティブ側の学期タブが disabled でないため（`TimetableSection.tsx:153-163` の押下ガードは `disabled={!captured.includes(s)}` のみ）、**表示が何も変わらないクリック1回で pref が永続保存される**（同 105-108）。「意図的に固定した人」に限らない
+  - 最も現実的な生成経路では督促カードすら出ない: 8月にCLASSで後期を先に開いて自動取込→表示が後期へ飛ぶ→正当に「前期」タブで戻す。この場合 kouki は既に captured で、9/11以降カードは一度も出ない
+  - 波及: `App.tsx:159-175` の `assignmentSlotMap` も同じ resolver 経由＝後期科目の課題カードから曜限・教室・シラバスが消える。background は前期∪後期の和集合（`background/index.ts:326-336`）なので後期課題の通知は鳴る＝「通知は後期・画面は前期」。取込時のOS通知は「後期の時間割を登録しました。ダッシュボードで確認できます」と言い、遷移先が前期を表示する
+  - 脱出手段なし: `resetAllData`（`App.tsx:1034-1047`）の remove 一覧に `timetableView` は含まれず、初期化しても解除されない。ポップアップには学期ラベルも切替UIも無い（`setPreferredView` の呼び出しは全リポで `TimetableSection.tsx:107` の1箇所）。拡張本体にキルスイッチ／リモートフラグも無い＝外した弾の撤回はストア審査
+  - 選択肢: A=resolver修正で既定を直す（+9/-3行・UI無変更）／B=表示規則据え置き＋「後期は取込済みだが表示は前期」カードと1タップ切替を両画面に追加／D=9/11観測後に決める／F=学期トグル3択化（前期・後期・**自動**。クォーターUIに同じ実装が既存＝新規設計ゼロ）／H=コードを触らずLPで告知（ストア審査を迂回できる唯一の伝達路）
+  - ⚠**A＋Bの同梱は不可**: resolver修正と `TimetableSection.tsx:43` の依存拡大（`[year]`→`[year, courses]`）を同時に入れると courses が毎秒再生成されるため毎秒 `setSemester` が走り、学期タブが押しても即戻って使用不能になる
+  - ⚠**案A単独の既知欠陥2件**: ①`KOUKI_START_DATES` は2026の1件のみで未登録年度のフォールバックは**9月を前期扱い**（`timetableLink.ts:41`）＝案Aだと**2027-09に同じ症状を自分で作る**（現行コードは capturedAt 最新で正しく後期にする）。年次更新は一回性タスクとして未登録＝§8-⑥の「無言で落ちる予定」。②`capture()` は `table.classTable` の有無しか見ず（`classTimetable.ts:74-77`）、`listCapturedSemesters` はキーの存在しか見ない（`timetableStore.ts:23-29`）＝**履修未確定の空の後期表**を最優先で選び、完全な前期表を空の後期に置き換えうる
+  - 締切の実態: **9/11必達ではない**。保存データの破壊でなく描画時判定なので、遅れて着地しても放置された利用者を含め全員が遡って是正される。一方 `store-submission-v1.4.1.md:40` に「Edge審査は数日〜2週間の実績」と自己記録があり9/11に両ストアが揃う見込みは低い ⇒「9月中旬までに確実に、壊さずに出す」が正しい締切
+  - 製品横断: Litus は同じ問題を先に踏み**逆の設計**を実機検証つきで採用済み（`litus/src/collect/semester.ts` は境界を遠隔配信の学年暦から取り「**ここで固定値を作らない**」と明記）。境界もズレる（LTW=9/11固定、Litus=学年暦があれば8/6と9/11の中点＝**8/24**）＝同じ学生が両方使うと8月下旬〜9月上旬に製品間で表示学期が食い違う
+  - ⚠別件で発見（本件より悪い）: `detectSemester`（`classTimetable.ts:34-46`）は学期セレクタに当たらない場合 `document.body.textContent` に「後期」が含まれれば kouki を返す（「前期」より先に判定）。**セレクタの name/id が変わるだけで前期の表が `timetable:2026:kouki` に保存され**、督促カードが「後期取込済み」と誤判定して永久に消える。Litus は同画面で見出しの正規表現方式に切替済み
+  - 全文（ローカル限定・gitignore済み）: `docs/superpowers/ESCALATION-2026-09-02-timetable-view-semester.md`
+
+- [ ] **2026-09-11（後期開始日）に実機観測する**＝日付の一回性タスク（§8-⑥: 条件に紐づけると無言で落ちるので日付で持つ）
+  - CLASSが9/11時点で後期時間割表を返すか。履修登録未確定で**空/部分**にならないか（上の案A欠陥②の前提）
+  - pref 保持状態（DevToolsで `chrome.storage.local` の `timetableView` を確認）でポップアップの「今日の時間割」が何を出すか
+  - 後期科目の課題カードに曜限・教室・シラバスが出るか
+  - ⚠ `store-submission-v1.4.1.md:30` の「実機確認」は**未チェックのまま v1.4.1 が公開されている**。督促カード・取込通知・後期ページでの `detectSemester` は一度も実機で踏まれていない
 - [x] **純粋ロジックのlitus逆流**（2026-07-08 判定: **不要**）
   - litus `src/assignments/buckets.ts`（within24h/tomorrow/thisWeek/…）が拡張の新`deadlineTier`（当日/今週）より高機能で先行＝逆流でもたらす改善なし
   - `selectCoursesByTimetable`（enable管理連動）・`resolveDisplayDay`（popup今日）は拡張固有で単体完結アーキのlitusに非マップ
