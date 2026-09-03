@@ -3,9 +3,9 @@ import type { Course, Assignment } from '../core/types'
 import type { ManualAssignment } from '../core/manualAssignment'
 import type { DayOfWeek, TimetableSlot, Quarter } from '../core/timetable'
 import { parseTimetable } from '../core/timetable'
-import { getTimetableCapture, listCapturedSemesters, setPreferredView, setOverride, getCurrentQuarter, setCurrentQuarter } from '../core/timetableStore'
+import { getTimetableCapture, listCapturedSemesters, getPreferredView, setPreferredView, setOverride, getCurrentQuarter, setCurrentQuarter } from '../core/timetableStore'
 import type { Semester, TimetableOverride } from '../core/timetableLink'
-import { applyOverrides, linkAssignmentsToSlots, extractCourseCodes, isQuarterSlot, resolveCurrentQuarter, isDimmedForCurrentQuarter, findMissingCurrentSemester } from '../core/timetableLink'
+import { applyOverrides, linkAssignmentsToSlots, extractCourseCodes, isQuarterSlot, resolveCurrentQuarter, isDimmedForCurrentQuarter, findMissingCurrentSemester, findStaleDisplayedSemester, resolveSemester } from '../core/timetableLink'
 import { loadCourseOverrides, resolveViewSemester } from '../core/timetableView'
 import { SyllabusContext } from '../core/syllabusContext'
 import { buildSyllabusUrl, academicYear } from '../core/syllabus'
@@ -23,8 +23,11 @@ export function TimetableSection({ courses, assignments, manualAssignments, newC
   const year = academicYear(now)
   const openSyllabus = useContext(SyllabusContext)
   const [semester, setSemester] = useState<Semester | null>(null)
+  /** 表示学期の手動指定。null は未指定＝自動（取得済み最新を使う）。3択トグルの選択状態を表す。 */
+  const [semesterPref, setSemesterPref] = useState<Semester | null>(null)
   const [captured, setCaptured] = useState<Semester[]>([])
   const [missingSemester, setMissingSemester] = useState<Semester | null>(null)
+  const [staleSemester, setStaleSemester] = useState<Semester | null>(null)
   const [rawHtml, setRawHtml] = useState<string | null>(null)
   const [capturedAt, setCapturedAt] = useState<string | null>(null)
   const [overrides, setOverrides] = useState<Record<string, TimetableOverride>>({})
@@ -37,8 +40,11 @@ export function TimetableSection({ courses, assignments, manualAssignments, newC
       const list = await listCapturedSemesters(year)
       setCaptured(list.map((c) => c.semester))
       setMissingSemester(findMissingCurrentSemester(now, list))
+      const pref = await getPreferredView()
+      setSemesterPref(pref?.year === year ? pref.semester : null)
       const initial = await resolveViewSemester(year, now)
       setSemester(initial)
+      setStaleSemester(findStaleDisplayedSemester(now, list, initial))
     })()
   }, [year])
 
@@ -102,9 +108,13 @@ export function TimetableSection({ courses, assignments, manualAssignments, newC
 
   const todayDow = JS_DAY_TO_DOW[now.getDay()]
 
-  async function chooseSemester(s: Semester) {
-    setSemester(s)
-    await setPreferredView(year, s)
+  /** 表示学期を選ぶ。null＝自動（取得済み最新を使う）。前期/後期/自動の明示3択。 */
+  async function chooseSemester(next: Semester | null) {
+    setSemesterPref(next)
+    setStaleSemester(null)
+    await setPreferredView(year, next)
+    const displayed = next ?? resolveSemester(now, await listCapturedSemesters(year))
+    setSemester(displayed)
   }
 
   async function editRoom(courseCode: string, current: string) {
@@ -149,18 +159,23 @@ export function TimetableSection({ courses, assignments, manualAssignments, newC
           時間割 <span className="timetableYear">{year} {semester === 'kouki' ? '後期' : '前期'}</span>
           <span>{open ? '▲' : '▼'}</span>
         </button>
-        <div className="semesterToggle">
-          {(['zenki', 'kouki'] as const).map((s) => (
-            <button
-              key={s}
-              type="button"
-              className={`semesterBtn ${semester === s ? 'active' : ''}`}
-              disabled={!captured.includes(s)}
-              onClick={() => void chooseSemester(s)}
-            >
-              {s === 'zenki' ? '前期' : '後期'}
-            </button>
-          ))}
+        <div className="semesterToggle" role="group" aria-label="表示学期の切替">
+          {([['zenki', '前期'], ['kouki', '後期'], [null, '自動']] as const).map(([val, label]) => {
+            const active = semesterPref === val
+            return (
+              <button
+                key={label}
+                type="button"
+                className={`semesterBtn ${active ? 'active' : ''}`}
+                disabled={val !== null && !captured.includes(val)}
+                aria-pressed={active}
+                title={val === null ? '取得済み最新を自動選択します（新しい学期を取り込むと自動で切り替わります）' : undefined}
+                onClick={() => void chooseSemester(val)}
+              >
+                {label}
+              </button>
+            )
+          })}
         </div>
       </div>
 
@@ -173,6 +188,18 @@ export function TimetableSection({ courses, assignments, manualAssignments, newC
           </span>
           <button type="button" onClick={() => chrome.tabs.create({ url: 'https://class.admin.tus.ac.jp/' })}>
             CLASS を開く →
+          </button>
+        </section>
+      )}
+
+      {staleSemester && (
+        <section className="warningCard">
+          <strong>{staleSemester === 'kouki' ? '後期' : '前期'}の時間割は取込済みです</strong>
+          <span>
+            表示は{staleSemester === 'kouki' ? '前期' : '後期'}のままになっています。切り替えてください。
+          </span>
+          <button type="button" onClick={() => void chooseSemester(staleSemester)}>
+            {staleSemester === 'kouki' ? '後期' : '前期'}の表示に切り替える →
           </button>
         </section>
       )}

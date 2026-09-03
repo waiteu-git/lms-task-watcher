@@ -66,6 +66,24 @@ export function findMissingCurrentSemester(now: Date, captured: SemesterCapture[
   return captured.some((c) => c.semester === expected) ? null : expected
 }
 
+/**
+ * 日付上「あるべき」学期は取得済みなのに、表示中の学期がそれと違う場合に、切替先の学期を返す
+ * （＝表示が古いまま取り残されている合図）。findMissingCurrentSemester とは逆の欠落を拾う：
+ * あちらは「未取得」の合図、こちらは「取得済みなのに表示に反映されていない」の合図。
+ * 表示学期は手動指定(pref)が最優先のため、前の学期を指したまま pref が残っていると、
+ * 新学期を取り込んでもここが検知するまで表示は切り替わらない。
+ */
+export function findStaleDisplayedSemester(
+  now: Date,
+  captured: SemesterCapture[],
+  displayed: Semester | null,
+): Semester | null {
+  if (displayed === null) return null
+  const expected = calendarSemester(now)
+  if (displayed === expected) return null
+  return captured.some((c) => c.semester === expected) ? expected : null
+}
+
 export function applyOverrides(
   slots: TimetableSlot[],
   overrides: Record<string, TimetableOverride>,

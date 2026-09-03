@@ -45,6 +45,11 @@ describe('timetableStore', () => {
     await setPreferredView(2026, 'kouki')
     expect(await getPreferredView()).toEqual({ year: 2026, semester: 'kouki' })
   })
+  it('表示選択に null を渡すと指定を解除する（自動に戻す）', async () => {
+    await setPreferredView(2026, 'kouki')
+    await setPreferredView(2026, null)
+    expect(await getPreferredView()).toBeNull()
+  })
   it('複数コードのオーバーライドをバッチ取得する（存在分のみ返す）', async () => {
     await setOverride(2026, 'zenki', '9973337', { room: 'X教室' })
     await setOverride(2026, 'zenki', '9973344', { room: 'Y教室' })

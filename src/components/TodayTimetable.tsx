@@ -4,8 +4,8 @@ import type { ManualAssignment } from '../core/manualAssignment'
 import type { TimetableSlot, DayOfWeek, Quarter } from '../core/timetable'
 import { parseTimetable } from '../core/timetable'
 import type { Semester, TimetableOverride } from '../core/timetableLink'
-import { applyOverrides, linkAssignmentsToSlots, extractCourseCodes, resolveCurrentQuarter, isDimmedForCurrentQuarter, findMissingCurrentSemester } from '../core/timetableLink'
-import { getTimetableCapture, getCurrentQuarter, listCapturedSemesters } from '../core/timetableStore'
+import { applyOverrides, linkAssignmentsToSlots, extractCourseCodes, resolveCurrentQuarter, isDimmedForCurrentQuarter, findMissingCurrentSemester, findStaleDisplayedSemester } from '../core/timetableLink'
+import { getTimetableCapture, getCurrentQuarter, listCapturedSemesters, setPreferredView } from '../core/timetableStore'
 import { resolveViewSemester, loadCourseOverrides, resolveDisplayDay } from '../core/timetableView'
 import { academicYear } from '../core/syllabus'
 
@@ -23,6 +23,7 @@ export function TodayTimetable({ courses, assignments, manualAssignments, newCod
   const [semester, setSemester] = useState<Semester | null>(null)
   const [currentQuarterPref, setCurrentQuarterPref] = useState<Quarter | null>(null)
   const [missingSemester, setMissingSemester] = useState<Semester | null>(null)
+  const [staleSemester, setStaleSemester] = useState<Semester | null>(null)
 
   useEffect(() => {
     // courses は1秒ごとに再生成されうる（App.refreshAll）。古い読み込みが新しいstateを
@@ -40,10 +41,24 @@ export function TodayTimetable({ courses, assignments, manualAssignments, newCod
       setSemester(sem)
       setCurrentQuarterPref(cq)
       setMissingSemester(findMissingCurrentSemester(now, list))
+      setStaleSemester(findStaleDisplayedSemester(now, list, sem))
       setLoaded(true)
     })()
     return () => { alive = false }
   }, [year, courses])
+
+  /** カードの「切り替える」から呼ぶ1タップ切替。表示学期を明示指定に固定する。 */
+  async function switchToSemester(sem: Semester) {
+    setSemester(sem)
+    setStaleSemester(null)
+    await setPreferredView(year, sem)
+    const cap = await getTimetableCapture(year, sem)
+    const ov = await loadCourseOverrides(year, sem, courses)
+    const cq = await getCurrentQuarter(year, sem)
+    setRawHtml(cap?.rawTableHtml ?? null)
+    setOverrides(ov)
+    setCurrentQuarterPref(cq)
+  }
 
   /** 時間割セクションと同じ判断（純関数で共有）：手動指定が無ければ日付からの既定値。 */
   const currentQuarter: Quarter = resolveCurrentQuarter(currentQuarterPref, now, semester)
@@ -84,11 +99,24 @@ export function TodayTimetable({ courses, assignments, manualAssignments, newCod
     </section>
   )
 
+  const staleCard = staleSemester && (
+    <section className="warningCard">
+      <strong>{staleSemester === 'kouki' ? '後期' : '前期'}の時間割は取込済みです</strong>
+      <span>
+        表示は{staleSemester === 'kouki' ? '前期' : '後期'}のままになっています。切り替えてください。
+      </span>
+      <button type="button" onClick={() => void switchToSemester(staleSemester)}>
+        {staleSemester === 'kouki' ? '後期' : '前期'}の表示に切り替える →
+      </button>
+    </section>
+  )
+
   if (!loaded) return null
   if (rawHtml === null) {
     return (
       <section className="todayTimetable">
         {missingCard}
+        {staleCard}
         <div className="todayTimetableHead">{label}の時間割</div>
         <p className="todayTimetableEmpty">CLASSの「履修 → 学生時間割表」を開くと取り込みます。</p>
       </section>
@@ -98,6 +126,7 @@ export function TodayTimetable({ courses, assignments, manualAssignments, newCod
   return (
     <section className="todayTimetable">
       {missingCard}
+      {staleCard}
       <div className="todayTimetableHead">{label}（{DAY_LABELS[day]}）の時間割</div>
       {todayClasses.length === 0 ? (
         <p className="todayTimetableEmpty">本日は授業なし</p>

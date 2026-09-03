@@ -195,10 +195,10 @@
   - 真因: `resolveViewSemester()` が `pref?.semester ?? …` と学期だけを見ており、`getPreferredView()` が併せて保存している `year` を照合していなかった。保存側 `setPreferredView(year, semester)` は導入時（`ddc6fa4`）から `{year, semester}` 形で書いており、読む側だけが年を捨てていた
   - 修正: `if (pref?.year === year) return pref.semester` の年ガードを追加。年度が一致しない pref は捨て、既存の「取得済み最新 > 日付判定」へフォールバックする
   - 適用範囲: 呼び出し側3箇所（`App.tsx`・`TodayTimetable.tsx`・`TimetableSection.tsx`）はいずれも `11a2c1f` で共有関数 `resolveViewSemester` 経由に統一済みのため、**各コンポーネント側の修正は不要**（`TimetableSection.tsx` は `8750917` 時点では同じ式をインラインで持っていたが `11a2c1f` で解消済み）。`year` は全呼び出し側が `academicYear(now)` を渡すため、pref側の `year` と同じ「年度」で比較される
-  - 非変更: 同年度内の明示選択は後期開始後も維持する（`表示選択 > 取得済み最新 > 日付判定` の優先順は不変）。🔴**2026-09-02にこの「意図的」という位置づけが争点化した。下の未決エントリを必ず読むこと**
+  - 非変更: 同年度内の明示選択は後期開始後も維持する（`表示選択 > 取得済み最新 > 日付判定` の優先順は不変）。**2026-09-02にこの「意図的」という位置づけが争点化したが、B＋Fで実害を塞いだため反転は不要と裁定（2026-09-03）。詳細は下のエントリ**
   - テスト: `src/core/timetableView.test.ts` に8件（別年度prefの無視×2＝年ガード未適用だと落ちる回帰、後期開始日2026-09-11の境界×2、取得済み最新優先、同年度prefの維持、年度跨ぎ2027-01の採用）
 
-- [ ] 🔴**未決・ハブの裁定待ち**: 同年度prefが後期開始後も維持されることの是非（2026-09-02上申。後期開始 2026-09-11 まで9日）
+- [x] **同年度prefが後期開始後も維持される件＝裁定済み（B＋F採用、A却下）**（2026-09-02上申 → 2026-09-03ユーザー裁定・同日実装）
   - 症状: v1.4.1の督促カードの指示に従って後期を取り込むと、状態が取り込む前より悪くなる。`findMissingCurrentSemester`（`timetableLink.ts:63-67`）は「現学期が captured に有るか」しか見ず**表示中の学期を見ていない**ため、取込でカードが消える。一方 `resolveViewSemester` は pref を返し続けるので**表示は前期のまま**＝指示に従った行動そのものが唯一の警告を消す
   - pref の母集団は広い: アクティブ側の学期タブが disabled でないため（`TimetableSection.tsx:153-163` の押下ガードは `disabled={!captured.includes(s)}` のみ）、**表示が何も変わらないクリック1回で pref が永続保存される**（同 105-108）。「意図的に固定した人」に限らない
   - 最も現実的な生成経路では督促カードすら出ない: 8月にCLASSで後期を先に開いて自動取込→表示が後期へ飛ぶ→正当に「前期」タブで戻す。この場合 kouki は既に captured で、9/11以降カードは一度も出ない
@@ -211,6 +211,22 @@
   - 製品横断: Litus は同じ問題を先に踏み**逆の設計**を実機検証つきで採用済み（`litus/src/collect/semester.ts` は境界を遠隔配信の学年暦から取り「**ここで固定値を作らない**」と明記）。境界もズレる（LTW=9/11固定、Litus=学年暦があれば8/6と9/11の中点＝**8/24**）＝同じ学生が両方使うと8月下旬〜9月上旬に製品間で表示学期が食い違う
   - ⚠別件で発見（本件より悪い）: `detectSemester`（`classTimetable.ts:34-46`）は学期セレクタに当たらない場合 `document.body.textContent` に「後期」が含まれれば kouki を返す（「前期」より先に判定）。**セレクタの name/id が変わるだけで前期の表が `timetable:2026:kouki` に保存され**、督促カードが「後期取込済み」と誤判定して永久に消える。Litus は同画面で見出しの正規表現方式に切替済み
   - 全文（ローカル限定・gitignore済み）: `docs/superpowers/ESCALATION-2026-09-02-timetable-view-semester.md`
+  - 裁定（2026-09-03・統合ハブ経由でユーザー「go」）: **B＋F＋H**を採用。A（resolver修正）は不採用——上の「案A単独の既知欠陥2件」のうち①未登録年度は9月を前期扱いへ回帰し2027-09に同じ症状を自作する、②空の後期表を最優先しうる欠陥がよりによって9/11の履修未確定期に最悪化する、の2点が理由。同年度prefの優先順位そのものを反転する案も不採用＝B＋Fで「指示に従うと警告が消えて表示は放置される」実害を塞いだため、優先順位を変える理由が無くなった（line 198の「非変更（意図的）」は据え置き）
+  - 実装:
+    - B: `timetableLink.ts`に`findStaleDisplayedSemester(now, captured, displayed)`を追加（`findMissingCurrentSemester`の逆＝取得済みなのに表示が古い場合に切替先を返す純関数）。`TimetableSection`・`TodayTimetable`の両方に「◯期の時間割は取込済みです」＋1タップ切替ボタンの`.warningCard`を追加
+    - F: 学期トグルを前期/後期/**自動**の3択に拡張（クォーターUIの`Quarter | null`パターンを踏襲）。`setPreferredView`が`semester: Semester | null`を受け付けるよう変更し、nullで`VIEW_KEY`をremove（`setCurrentQuarter`のnull解除と同型）。「自動」選択時は`resolveSemester(now, captured)`で即時再評価する
+    - H: LP（lms.waiteu.dev）告知はコピー未確定のためユーザーと文言協議中。コミットするがpushはしない
+  - テスト: `timetableLink.test.ts`に`findStaleDisplayedSemester`5件、`timetableStore.test.ts`に`setPreferredView(year, null)`の解除確認1件を追加。既存736件＋新規6件、tsc/vite build/eslint（0 errors、既存4警告は変化なしと確認済み）すべて通過
+  - ⚠️別件で発見された次の2件は本裁定のスコープ外として下記の別エントリに分離した（起票のみ・未着手）
+
+- [ ] **`detectSemester`のセレクタ脆弱性**（2026-09-02発見。v1.4.2以降の候補として起票のみ・未着手）
+  - 症状: `classTimetable.ts:34-46`の`detectSemester`は、学期セレクタに当たらない場合`document.body.textContent`に「後期」が含まれればkoukiと判定する（「前期」より先に判定するフォールバック）。CLASSのセレクタのname/idが変わるだけで、前期の時間割表が`timetable:{year}:kouki`として誤保存されうる
+  - 波及: 誤保存後は督促カード（`findMissingCurrentSemester`）が「後期は取込済み」と判定し、二度と正しい取込を促さなくなる。本物の後期データは一度も取り込まれないまま埋もれる
+  - 参考: Litusは同じ画面を見出しの正規表現方式に切替済み（`litus/src/collect/semester.ts`相当）
+
+- [ ] **製品横断の学期境界不整合（LTW固定日 vs Litus学年暦）**（2026-09-02発見。評価・裁定は統合ハブの担当＝本リポでは起票のみ）
+  - 症状: LTWは後期開始日を年度ごとの確定値テーブルで固定管理（`KOUKI_START_DATES`、2026年度=9/11）。Litusは遠隔配信の学年暦から境界を導出し、学年暦が無ければ8/6と9/11の中点＝8/24を使う。同じ学生が両方使うと8月下旬〜9月上旬に表示学期が食い違いうる
+  - 対応: 本リポ単体では解決しない設計判断（どちらかに合わせる／両方を学年暦ベースに統一する、等）。評価・裁定は統合ハブが担当。本リポでは実装しない
 
 - [ ] **2026-09-11（後期開始日）に実機観測する**＝日付の一回性タスク（§8-⑥: 条件に紐づけると無言で落ちるので日付で持つ）
   - CLASSが9/11時点で後期時間割表を返すか。履修登録未確定で**空/部分**にならないか（上の案A欠陥②の前提）

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { extractCourseCode, extractCourseCodes, resolveSemester, findMissingCurrentSemester } from './timetableLink'
+import { extractCourseCode, extractCourseCodes, resolveSemester, findMissingCurrentSemester, findStaleDisplayedSemester } from './timetableLink'
 import { applyOverrides, linkAssignmentsToSlots, isQuarterSlot, defaultCurrentQuarter, resolveCurrentQuarter, isDimmedForCurrentQuarter } from './timetableLink'
 import type { TimetableSlot } from './timetable'
 import type { Course, Assignment } from './types'
@@ -93,6 +93,35 @@ describe('findMissingCurrentSemester', () => {
   it('逆方向（前期が未取得）でも検出する', () => {
     const captured = [{ semester: 'kouki' as const, capturedAt: '2026-01-10T00:00:00Z' }]
     expect(findMissingCurrentSemester(new Date(2026, 4, 1), captured)).toBe('zenki') // 5月=前期
+  })
+})
+
+describe('findStaleDisplayedSemester', () => {
+  it('表示学期が未確定(null)なら判定しない', () => {
+    const captured = [{ semester: 'kouki' as const, capturedAt: '2026-09-15T00:00:00Z' }]
+    expect(findStaleDisplayedSemester(new Date(2026, 8, 20), captured, null)).toBeNull()
+  })
+  it('表示が既にあるべき学期と一致していれば null', () => {
+    const captured = [{ semester: 'kouki' as const, capturedAt: '2026-09-15T00:00:00Z' }]
+    expect(findStaleDisplayedSemester(new Date(2026, 8, 20), captured, 'kouki')).toBeNull()
+  })
+  it('あるべき学期(後期)が未取得なら null（findMissingCurrentSemester の対象であってこちらではない）', () => {
+    const captured = [{ semester: 'zenki' as const, capturedAt: '2026-04-10T00:00:00Z' }]
+    expect(findStaleDisplayedSemester(new Date(2026, 8, 20), captured, 'zenki')).toBeNull()
+  })
+  it('後期は取得済みなのに表示が前期のまま（pref残留）なら後期を返す', () => {
+    const captured = [
+      { semester: 'zenki' as const, capturedAt: '2026-04-10T00:00:00Z' },
+      { semester: 'kouki' as const, capturedAt: '2026-09-15T00:00:00Z' },
+    ]
+    expect(findStaleDisplayedSemester(new Date(2026, 8, 20), captured, 'zenki')).toBe('kouki')
+  })
+  it('逆方向（前期は取得済みなのに表示が後期のまま）でも検出する', () => {
+    const captured = [
+      { semester: 'kouki' as const, capturedAt: '2026-01-10T00:00:00Z' },
+      { semester: 'zenki' as const, capturedAt: '2026-04-10T00:00:00Z' },
+    ]
+    expect(findStaleDisplayedSemester(new Date(2026, 4, 1), captured, 'kouki')).toBe('zenki') // 5月=前期
   })
 })
 
