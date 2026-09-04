@@ -11,6 +11,7 @@ import {
   formatWeekRangeLabel,
   formatDayLabel,
   timelineItemUrl,
+  groupUndatedItems,
 } from './calendarView'
 
 function scanned(over: Partial<Assignment> = {}): TimelineItem {
@@ -173,5 +174,70 @@ describe('ラベル整形', () => {
 
   it('日ラベルは M/D（曜）形式', () => {
     expect(formatDayLabel(new Date(2026, 6, 22))).toBe('7/22（水）')
+  })
+})
+
+describe('groupUndatedItems', () => {
+  it('同一コースが3件以上ならグループにまとまる', () => {
+    const items = [
+      scanned({ id: 'a1', courseId: 'c1', courseName: 'ドイツ語A', deadline: null }),
+      scanned({ id: 'a2', courseId: 'c1', courseName: 'ドイツ語A', deadline: null }),
+      scanned({ id: 'a3', courseId: 'c1', courseName: 'ドイツ語A', deadline: null }),
+    ]
+    const { groups, singles } = groupUndatedItems(items)
+    expect(groups).toHaveLength(1)
+    expect(groups[0]).toEqual({ courseId: 'c1', courseName: 'ドイツ語A', items })
+    expect(singles).toHaveLength(0)
+  })
+
+  it('同一コースが2件以下なら singles に残る（グループ化しない）', () => {
+    const items = [
+      scanned({ id: 'a1', courseId: 'c2', courseName: '基礎情報工学A', deadline: null }),
+      scanned({ id: 'a2', courseId: 'c2', courseName: '基礎情報工学A', deadline: null }),
+    ]
+    const { groups, singles } = groupUndatedItems(items)
+    expect(groups).toHaveLength(0)
+    expect(singles).toEqual(items)
+  })
+
+  it('件数がちょうど閾値(3)のコースはグループ化される境界確認', () => {
+    const items = [
+      scanned({ id: 'a1', courseId: 'c3', deadline: null }),
+      scanned({ id: 'a2', courseId: 'c3', deadline: null }),
+      scanned({ id: 'a3', courseId: 'c3', deadline: null }),
+    ]
+    expect(groupUndatedItems(items, 3).groups).toHaveLength(1)
+    expect(groupUndatedItems(items, 4).groups).toHaveLength(0)
+  })
+
+  it('グループは件数降順で並ぶ', () => {
+    const items = [
+      scanned({ id: 'b1', courseId: 'small', deadline: null }),
+      scanned({ id: 'b2', courseId: 'small', deadline: null }),
+      scanned({ id: 'b3', courseId: 'small', deadline: null }),
+      scanned({ id: 'l1', courseId: 'large', deadline: null }),
+      scanned({ id: 'l2', courseId: 'large', deadline: null }),
+      scanned({ id: 'l3', courseId: 'large', deadline: null }),
+      scanned({ id: 'l4', courseId: 'large', deadline: null }),
+      scanned({ id: 'l5', courseId: 'large', deadline: null }),
+    ]
+    const { groups } = groupUndatedItems(items)
+    expect(groups.map((g) => g.courseId)).toEqual(['large', 'small'])
+    expect(groups.map((g) => g.items.length)).toEqual([5, 3])
+  })
+
+  it('空配列は空のgroups/singlesを返す', () => {
+    expect(groupUndatedItems([])).toEqual({ groups: [], singles: [] })
+  })
+
+  it('scan由来とmanual由来が同一courseIdなら1グループにまとまる', () => {
+    const items = [
+      scanned({ id: 'a1', courseId: 'c4', courseName: '化学A', deadline: null }),
+      manual({ id: 'm1', courseId: 'c4', courseName: '化学A' }),
+      scanned({ id: 'a2', courseId: 'c4', courseName: '化学A', deadline: null }),
+    ]
+    const { groups } = groupUndatedItems(items)
+    expect(groups).toHaveLength(1)
+    expect(groups[0].items.map((i) => i.assignment.id)).toEqual(['a1', 'm1', 'a2'])
   })
 })

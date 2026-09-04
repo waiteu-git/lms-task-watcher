@@ -104,3 +104,38 @@ export function formatDayLabel(date: Date): string {
 export function formatWeekRangeLabel(weekStart: Date): string {
   return `${formatDayLabel(weekStart)}〜 ${formatDayLabel(addDays(weekStart, 6))}`
 }
+
+export type UndatedGroup = { courseId: string; courseName: string; items: TimelineItem[] }
+
+/**
+ * 締切未設定リストをコースごとにグループ化する。
+ * 同一コースの課題が threshold 件以上あれば折りたたみ対象の groups へ、
+ * それ未満（既定: 1〜2件）は単発カードのまま見せる singles へ分ける。
+ * groups は件数の多い順。singles はコースの初出順を保ったまま、
+ * 同一コースの1〜2件は隣接して並ぶ（安定した groupby の副作用）。
+ */
+export function groupUndatedItems(
+  items: TimelineItem[],
+  threshold = 3,
+): { groups: UndatedGroup[]; singles: TimelineItem[] } {
+  const byCourse = new Map<string, TimelineItem[]>()
+  for (const item of items) {
+    const courseId = item.assignment.courseId
+    const bucket = byCourse.get(courseId)
+    if (bucket) bucket.push(item)
+    else byCourse.set(courseId, [item])
+  }
+
+  const groups: UndatedGroup[] = []
+  const singles: TimelineItem[] = []
+  for (const [courseId, courseItems] of byCourse) {
+    if (courseItems.length >= threshold) {
+      groups.push({ courseId, courseName: courseItems[0].assignment.courseName, items: courseItems })
+    } else {
+      singles.push(...courseItems)
+    }
+  }
+  groups.sort((a, b) => b.items.length - a.items.length)
+
+  return { groups, singles }
+}

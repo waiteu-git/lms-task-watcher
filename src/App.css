@@ -1810,10 +1810,65 @@ a.calendarChipMain:hover { background: var(--accent-soft-bg); }
   font-weight: 800;
   color: var(--muted);
 }
-.calendarUndatedList {
+.calendarUndatedList,
+.calendarUndatedGroupBody {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
-  gap: 6px;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 8px;
+}
+
+.calendarUndatedGroup {
+  margin-bottom: 8px;
+}
+.calendarUndatedGroupHead {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  list-style: none;
+  cursor: pointer;
+  padding: 9px 12px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--card);
+  color: var(--text);
+  font-size: 13px;
+  font-weight: 700;
+}
+.calendarUndatedGroupHead::-webkit-details-marker { display: none; }
+.calendarUndatedGroupHead:hover {
+  border-color: var(--accent-soft-border);
+  background: var(--accent-soft-bg);
+}
+.calendarUndatedGroupArrow {
+  display: inline-block;
+  transition: transform .15s;
+  color: var(--accent-ink);
+  font-size: 11px;
+}
+.calendarUndatedGroup[open] > .calendarUndatedGroupHead .calendarUndatedGroupArrow {
+  transform: rotate(90deg);
+}
+.calendarUndatedGroupCount {
+  margin-left: auto;
+  font-size: 11.5px;
+  font-weight: 700;
+  color: var(--muted);
+}
+.calendarUndatedGroupBody {
+  padding: 8px 2px 2px 20px;
+}
+
+.calendarUndatedList .calendarChip,
+.calendarUndatedGroupBody .calendarChip {
+  padding: 9px 10px;
+}
+.calendarUndatedList .calendarChipTitle,
+.calendarUndatedGroupBody .calendarChipTitle {
+  font-size: 13px;
+}
+.calendarUndatedList .calendarChipCourse,
+.calendarUndatedGroupBody .calendarChipCourse {
+  font-size: 11.5px;
 }
 
 @media (max-width: 720px) {
