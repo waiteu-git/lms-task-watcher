@@ -30,7 +30,23 @@ manifest version: **1.4.2**（**公開中の 1.4.1 からの通常アップデ�
 
 ## 1. ストア掲載文の更新（提出時）
 
-- 「新機能」欄: 時間割の学期表示が古いままになる場合を検知し、1タップで切り替えられるようにしました（バグ修正）
+**「新機能」欄（コピペ用・JP）**
+```
+時間割の学期表示が古いままになる場合を検知し、1タップで切り替えられるようにしました。学期の表示切替も「前期／後期／自動」の3択になりました。
+```
+
+**"What's new" field（コピペ用・EN）**
+```
+Detects when the timetable display is stuck on an old term and lets you switch it with one tap. The term switch is now a 3-way choice: Spring / Fall / Auto.
+```
+
+**Long description本文**: `store-assets/description.txt`（JP）／`store-assets/description-en.txt`（EN）を今回更新済み（週間カレンダー・クォーター対応の機能追記が抜けていたため合わせて反映、「新機能」節をv1.4.2へ差替え、末尾にリタスの配信開始告知を追加）。ストアの詳細説明欄へそのまま貼り付け可能。
+
+**Edge Partner Center「Notes for certification」（コピペ用・EN）**
+```
+This update fixes a bug where the timetable display could remain stuck on the previous academic term even after the current term's data was imported, and adds a one-tap way to switch it. No new permissions or hosts were added. The extension can be fully evaluated without a Tokyo University of Science account: install it, and the popup/dashboard UI (course list, deadline list, settings) is visible immediately. Full functionality (fetching real assignment/timetable data) requires a login session at letus.ed.tus.ac.jp and class.admin.tus.ac.jp, which we cannot provide a test account for (university-issued credentials only) — this is unchanged from prior approved versions.
+```
+
 - データセーフティ/権限の申告変更: **なし**（収集項目・送信先・権限とも v1.4.1 から不変）
 
 ## 2. 申請方針
