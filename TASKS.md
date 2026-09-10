@@ -231,6 +231,14 @@
 - [x] **v1.4.2が両ストアで公開されたら、lms.waiteu.devの一時告知を撤去する**（2026-09-04追加・同日完了。commit `642995b`で追加した一時告知の受け皿）
   - 発火（2026-09-04・統合ハブ実測: Chrome/Edgeとも掲載版1.4.2。自分でもEdgeのAPIで直接確認）→ 対象2箇所（トップ告知バー・v1.4.1エントリの3件目のブレット）を撤去し`eeb2971`でコミット。合わせてヒーローピル・changelogエントリ・transparency/privacy.htmlの対象版数もv1.4.2へ追随（版数追随チェックリスト＝[[litus-webpages-state]]）
 
+- [ ] **アイコン刷新（Vite由来の意匠・配色を置き換え）＝新アイコン確定待ち・段取りのみ先行準備**（2026-09-10 開発本部より回付。LTWのアイコン/faviconがVite雛形の稲妻を平行移動・着色したもので、色#863bffもVite公式ロゴの色と一致と判明。開発本部がLitusと共通の造形ルールで候補を生成・審査中＝色は紫・すみれ系を避ける前提）
+  - 所管: 新アイコン確定後の実装（manifest icons・public/icons・landing favicon一式・store-assets差し替え・両ストア提出）はLTW開発ハブ（本ハブ）。開発本部はSVGと生成スクリプト（出所記録つき）を渡す
+  - ⚠️#863bff使用箇所は開発本部の報告(10本)を自分で再grep実測し**9本**と判明（`store-assets/x-card-v140-calendar-1200x675.html`は対象外＝実測で#863bffを含まず、既に現行の`--accent`系パープル`#7c3aed`等を使用していた。開発本部へ訂正済み）: `landing/favicon.svg`・`public/favicon.svg`・`store-assets/logo-300x300.svg`・`store-assets/promo-tile-440x280.html`・`-en.html`・`store-assets/promo-tile-large-1400x560.html`・`-en.html`・`store-assets/screenshot-640x400.html`・`-en.html`
+  - 版数方針（案）: v1.4.3（保守モードの範囲内・パッチ扱い。機能追加ではないため）
+  - changelog方針（案）: LICENSE修正と同じ非対称開示＝コミットメッセージには商標由来の経緯を詳述するが、利用者向けchangelogは「アイコン・ブランディングを刷新しました」程度の中立表現に留める（trademark issueだったと利用者向けに強調する必要はない）
+  - 審査期間の実績: Chromeは速い（当日〜数日）。Edgeはばらつきあり（v1.4.2は当日、v1.2.1は2週間以上の実績）。両ストア同日申請の保守モード方針を継続
+  - 新アイコンSVG到着後の実装順序: ①manifest.jsonのicons差し替え・public/icons/*再生成 ②landing/favicon.svg・public/favicon.svg差し替え ③9本のstore-assets差し替え（HTML編集→render.sh等で再生成→目視確認必須） ④manifest version bump ⑤changelog.html更新 ⑥ビルド・全検証 ⑦zip作成・store-submission-v1.4.3.md作成 ⑧Chrome/Edge同日申請
+
 - [ ] **2026-09-11（後期開始日）に実機観測する**＝日付の一回性タスク（§8-⑥: 条件に紐づけると無言で落ちるので日付で持つ）
   - 🔴**観測前に必ず「どのブラウザで見たか」＋そのブラウザにインストール済みの拡張機能バージョンを記録すること**（統合ハブ2026-09-04指摘）。Edgeは審査に2週間かかった実績があり（v1.2.1=7/14提出→7/29時点も掲載1.2.1のまま）、v1.4.2をChrome/Edge同日提出しても**9/11時点でChromeだけv1.4.2・Edgeはv1.4.1のまま**の状態があり得る。この場合B+F（学期表示が古いまま検知・修正）はEdge側に入っていない。バージョン記録が無いと「直っていない」のか「まだEdgeに届いていない」のかを後から切り分けられない
   - 掲載版数はcurlで無認証確認可能（本ファイル内既出の恒久知見）: Chromeは掲載HTMLに`>Version</div><div class="nBZElf">`、Edgeは`https://microsoftedge.microsoft.com/addons/getproductdetailsbycrxid/femdjgdgelnbdpgnfehacobmpbfmbdoa`のJSON`version`
