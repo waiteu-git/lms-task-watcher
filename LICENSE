@@ -1,6 +1,8 @@
 LETUS Task Watcher — Source-Available License
 Copyright (c) 2026 waiteu. All rights reserved.
 本ライセンス適用日 / License effective date: 2026-07-04 (JST)
+改定日: 2026-09-10 (JST) — fork の扱いを GitHub 利用規約 D.5 に合わせて明確化
+Revised: 2026-09-10 (JST) — forking clarified per GitHub Terms of Service D.5
 
 【日本語】
 
@@ -20,9 +22,39 @@ Copyright (c) 2026 waiteu. All rights reserved.
 3. 本ソフトウェアの全部または一部を商用利用すること
 4. 上記の許可される行為の範囲を超えて本ソフトウェアを利用すること
 
+■ GitHub 上での fork について
+本リポジトリは GitHub 上で公開している。
+GitHub の利用者が GitHub 利用規約 D.5（2026年9月時点の条番号による。その後の
+改番・改定があった場合は、改定後のこれに相当する条項を指す）に基づいて行う
+ことができる行為（本リポジトリおよびその fork を fork すること、これらを
+GitHub 上で閲覧・表示することを含む。以下「D.5 の行為」という）は、
+本ライセンスによる許諾の有無にかかわらず同規約に基づいて行うことができ、
+本ライセンスは、下記「■ 不正利用の禁止」を除き、これを制限しない。
+D.5 の行為（fork したリポジトリが GitHub 上で公開状態になることを含む）は、
+上記「禁止される行為」のいずれにもあたらない。また、fork すること、GitHub 上で
+閲覧・表示すること、および fork したリポジトリが公開状態になることは、
+それ自体では下記「■ 不正利用の禁止」にもあたらない。
+上記の括弧書きは例示であり、自ら加えた改変およびその公開（fork した
+リポジトリにおけるもの、GitHub の Pages 等によるものを含む）を D.5 の行為に
+含めるものではない。
+D.5 の行為（下記「■ 不正利用の禁止」は適用される）を除き、本ソフトウェア
+（fork によって得たソースコードを含む）の利用には、GitHub 上で行うか否かを
+問わず本ライセンスが適用される。たとえば、fork したリポジトリに自ら改変を
+加えること（コミット・push 等）、fork 以外の方法で複製したソースコードを、
+本リポジトリの fork でないリポジトリ（GitHub 上のものを含む）、Gist、
+Web サイト等に公開・掲載すること、GitHub の Releases・Pages 等を用いた配布、
+他のソフトウェアへの組み込み、拡張機能ストア・アプリストア等への公開、
+商用利用は、本ライセンスの禁止条項の対象となる（上記「許可される行為」の
+ために自身の環境へ複製することは妨げない。改変とその公開は、下記「■ 貢献」の
+貢献目的の例外に該当する場合に限り許される）。
+fork したリポジトリ（その Releases 等を含む）を、ビルド済み成果物を配布する
+手段として利用することはできない。
+本節の他の定めが D.5 の行為に及ぶ場合は、その限りで、本節の D.5 の行為に
+関する定めが優先する。
+
 ■ 不正利用の禁止
-本ソフトウェアのコード、技術または知見を用いて、次の行為を行うことを
-禁止する。
+本ソフトウェアのコード、技術または知見を用いて（D.5 の行為として行う場合を
+含む）、次の行為を行うことを禁止する。
 1. 大学のシステム（LETUS・CLASS を含む）に過度な負荷をかけること
 2. スクレイピングを乱用すること、および収集間隔の改変等によりこれを
    容易にすること
@@ -59,16 +91,21 @@ haya9924 氏が開発するアプリ「cabetus」（github.com/haya9924/cabetus�
 著作者人格権の不行使を含む）に同意したものとみなす。受け入れられた貢献は
 本ライセンスの下で公開される。
 
-貢献を準備・提出する目的に限り、上記の禁止条項にかかわらず、次の行為を
-許可する（貢献目的の例外）:
-1. GitHub 上で本リポジトリを fork すること
-2. 貢献の作成に必要な範囲でソースコードを改変すること
-3. 当該改変を、fork リポジトリおよび Pull Request として GitHub 上で
-   公開すること
-この例外は貢献の準備・提出以外の利用を許可するものではない。fork
-リポジトリを本ソフトウェアの配布・提供の手段として利用すること
-（ビルド済み成果物の配布を含む）はできない。
+本プロジェクトへの貢献を準備・提出する目的に限り、上記「禁止される行為」に
+かかわらず、次の行為を許可する（貢献目的の例外）:
+1. 貢献の作成に必要な範囲でソースコードを複製（自身の環境へのクローンを
+   含む）し、改変すること
+2. 当該改変を、本リポジトリ（またはその fork）の fork リポジトリ、および
+   本リポジトリ（github.com/waiteu-git/lms-task-watcher）宛ての
+   Pull Request として GitHub 上で公開すること（提出後も公開したままに
+   しておくことを含む）
+この例外は貢献の準備・提出以外の利用を許可するものではない。また、この例外は、
+貢献の目的であっても、fork リポジトリを、2 の公開を超えて本ソフトウェアまたは
+その派生物の配布・提供の手段として利用すること（GitHub の Releases・Pages 等を
+用いた配布・公開・提供を含む）、および手段を問わずビルド済み成果物を配布する
+ことを許可するものではない。
 （貢献受け入れ開始日: 2026-07-23）
+（fork すること自体をこの例外から外した: 2026-09-10）
 
 【English】
 
@@ -88,8 +125,43 @@ PROHIBITED (without prior written permission from the copyright holder):
 3. Any commercial use of this software, in whole or in part.
 4. Any use of this software beyond the permissions granted above.
 
+FORKING ON GITHUB:
+This repository is published on GitHub.
+Acts that users of GitHub may perform under Section D.5 of the GitHub Terms of
+Service (numbered as of September 2026; if later renumbered or amended, this
+refers to the corresponding section as amended) (including forking this
+repository and its forks, and viewing and displaying them on GitHub;
+hereinafter "D.5 Acts") may be performed under the GitHub Terms of Service
+regardless of whether this license permits them, and, except for PROHIBITED
+USES below, this license does not restrict them. D.5 Acts (including a forked
+repository being publicly visible on GitHub) do not constitute a violation of
+any of items 1 to 4 under PROHIBITED above; and forking, viewing or displaying
+on GitHub, and a forked repository being publicly visible, do not in themselves
+constitute a violation of PROHIBITED USES below.
+The parentheticals above are illustrative and do not bring within D.5 Acts your
+own modifications or their publication (including in a forked repository or
+through GitHub Pages or similar features).
+Except for D.5 Acts (which remain subject to PROHIBITED USES below), this
+license applies to any use of this software (including source code obtained by
+forking), whether on or off GitHub. For example, the following are subject to
+the prohibitions of this license: making your own modifications to a forked
+repository (e.g., by committing or pushing); posting or publishing, in
+repositories that are not forks of this repository (including ones on GitHub),
+Gists, websites or the like, copies of the source code made by means other than
+forking; distributing this software through GitHub Releases, Pages or similar
+features; incorporating it into other software; publishing it to any extension
+or app store; and commercial use. This does not prevent copying to your own
+environment for the PERMITTED acts above. Modifications and their publication
+are permitted only as provided in the contribution-purpose exception under
+CONTRIBUTIONS below.
+A forked repository (including its Releases and similar features) may not be
+used as a means of distributing built artifacts.
+To the extent any other provision of this section would apply to a D.5 Act, the
+provisions of this section on D.5 Acts prevail.
+
 PROHIBITED USES:
-Using the code, techniques, or knowledge derived from this software to:
+Using (including when done as a D.5 Act) the code, techniques, or knowledge
+derived from this software to:
 1. Impose excessive load on university systems (including LETUS and CLASS);
 2. Abuse scraping, or facilitate such abuse by modifying collection intervals;
 3. Repurpose it for automation tools or any use that violates university
@@ -131,19 +203,23 @@ the copyright holder of rights to use, modify, distribute, and relicense
 the contribution, and the waiver of assertion of moral rights. Accepted
 contributions are published under this license.
 
-Solely for the purpose of preparing and submitting a contribution, and
-notwithstanding the prohibitions above, the following are permitted
-(contribution-purpose exception):
-1. Forking this repository on GitHub;
-2. Modifying the source code to the extent necessary to create the
-   contribution; and
-3. Publishing such modifications on GitHub as a forked repository and as
-   a pull request.
-This exception does not permit any use other than preparing and submitting
-a contribution. A forked repository may not be used as a means of
-distributing or providing this software (including distribution of built
-artifacts).
+Solely for the purpose of preparing and submitting a contribution to this
+project, and notwithstanding items 1 to 4 under PROHIBITED above, the following
+are permitted (contribution-purpose exception):
+1. Copying (including cloning to your own environment) and modifying the
+   source code to the extent necessary to create the contribution; and
+2. Publishing such modifications on GitHub as a fork of this repository (or of
+   its forks) and as a pull request to this repository
+   (github.com/waiteu-git/lms-task-watcher) (including keeping them published
+   after submission).
+This exception does not permit any use other than preparing and submitting a
+contribution. Nor does this exception permit, even for that purpose, using a
+forked repository, beyond the publication under item 2 above, as a means of
+distributing or providing this software or any derivative work (including
+distributing, publishing or providing it through GitHub Releases, Pages or
+similar features), or distributing built artifacts by any means.
 (Contributions accepted from: 2026-07-23)
+(Forking itself removed from this exception: 2026-09-10)
 
 In case of any discrepancy between the Japanese and English texts, the
 Japanese text shall prevail.
