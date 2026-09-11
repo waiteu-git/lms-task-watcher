@@ -30,10 +30,9 @@ LETUS Task Watcher is a Chrome extension that helps you never miss an assignment
 4. Select the courses you want to track in the dashboard
 5. Press "Update now" to fetch your assignments (after that, it updates automatically once a day)
 
-— New in v1.4.2 —
+— New in v1.4.3 —
 
-・Detects when your timetable display is stuck on an old term: if the fall term is imported but the display is still showing spring, a card with a one-tap switch now appears on the dashboard and popup
-・The term switch is now a 3-way choice: Spring / Fall / Auto. "Auto" always shows the most recently imported term
+・Refreshed the icon and branding. No functional changes
 
 — Also —
 
