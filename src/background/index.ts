@@ -1325,6 +1325,9 @@ export async function updateConsentBadge(): Promise<void> {
   }
 }
 
+/** アイコン刷新など機能変更を伴わない版はchangelog.htmlを開かない（サイレントアップデート）。 */
+const SILENT_UPDATE_VERSIONS = new Set(['1.4.3'])
+
 export async function handleInstalled(details: chrome.runtime.InstalledDetails): Promise<void> {
   chrome.alarms.create(ALARM_NAME, {
     delayInMinutes: ALARM_PERIOD_MINUTES,
@@ -1356,7 +1359,9 @@ export async function handleInstalled(details: chrome.runtime.InstalledDetails):
       welcomeGuideShown?: boolean
     }
     if (result.welcomeGuideShown === true) {
-      await chrome.tabs.create({ url: chrome.runtime.getURL('changelog.html') })
+      if (!SILENT_UPDATE_VERSIONS.has(chrome.runtime.getManifest().version)) {
+        await chrome.tabs.create({ url: chrome.runtime.getURL('changelog.html') })
+      }
     } else {
       await chrome.storage.local.set({ [WELCOME_GUIDE_SHOWN_KEY]: true })
       await chrome.tabs.create({ url: chrome.runtime.getURL('welcome.html') })

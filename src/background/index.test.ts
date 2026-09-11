@@ -63,6 +63,7 @@ vi.stubGlobal('chrome', {
     onStartup: { addListener: vi.fn() },
     onMessage: { addListener: vi.fn() },
     getURL: vi.fn((path: string) => path),
+    getManifest: vi.fn(() => ({ version: '1.0.0' })),
   },
   tabs: {
     create: vi.fn(),
@@ -169,6 +170,7 @@ beforeEach(() => {
       onStartup: { addListener: vi.fn() },
       onMessage: { addListener: vi.fn() },
       getURL: vi.fn((path: string) => path),
+      getManifest: vi.fn(() => ({ version: '1.0.0' })),
     },
     tabs: {
       create: vi.fn(),
@@ -1282,6 +1284,16 @@ describe('handleInstalled', () => {
     await handleInstalled({ reason: 'update' } as chrome.runtime.InstalledDetails)
 
     expect(chrome.tabs.create).toHaveBeenCalledWith({ url: 'changelog.html' })
+    expect(chrome.tabs.create).not.toHaveBeenCalledWith({ url: 'welcome.html' })
+  })
+
+  it('サイレントアップデート対象の版では、フラグ保存済みでもchangelog.htmlを開かない', async () => {
+    store[WELCOME_GUIDE_SHOWN_KEY] = true
+    vi.mocked(chrome.runtime.getManifest).mockReturnValue({ version: '1.4.3' } as chrome.runtime.Manifest)
+
+    await handleInstalled({ reason: 'update' } as chrome.runtime.InstalledDetails)
+
+    expect(chrome.tabs.create).not.toHaveBeenCalledWith({ url: 'changelog.html' })
     expect(chrome.tabs.create).not.toHaveBeenCalledWith({ url: 'welcome.html' })
   })
 
