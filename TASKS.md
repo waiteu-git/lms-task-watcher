@@ -231,20 +231,20 @@
 - [x] **v1.4.2が両ストアで公開されたら、lms.waiteu.devの一時告知を撤去する**（2026-09-04追加・同日完了。commit `642995b`で追加した一時告知の受け皿）
   - 発火（2026-09-04・統合ハブ実測: Chrome/Edgeとも掲載版1.4.2。自分でもEdgeのAPIで直接確認）→ 対象2箇所（トップ告知バー・v1.4.1エントリの3件目のブレット）を撤去し`eeb2971`でコミット。合わせてヒーローピル・changelogエントリ・transparency/privacy.htmlの対象版数もv1.4.2へ追随（版数追随チェックリスト＝[[litus-webpages-state]]）
 
-- [ ] **アイコン刷新（Vite由来の意匠・配色を置き換え）＝2026-09-11意匠決定・仕上げ中・実装はまだ待つ**（2026-09-10 開発本部より回付。LTWのアイコン/faviconがVite雛形の稲妻を平行移動・着色したもので、色#863bffもVite公式ロゴの色と一致と判明）
-  - ✅決定（2026-09-11ユーザー裁定）: 「足つきT」＝朱`#CF4E2A`の角丸容器に白のT（縦画の下端が右へ折れて足になる・LとTの合字）。画像検索(Googleレンズ・色付き＋シルエット)で既存アプリとの酷似なしを確認済み
-  - 旧`#863bff`(Vite色)の置き換え先は`#CF4E2A`。`gen-promo.mjs`・店頭画像HTML内の`#863bff`はこの色に差し替える（紫系アクセントカラーの店頭画像全体配色としての扱いは実装時に判断）
-  - ⚠️まだ実装しない: 開発本部が128px以上の光学補正・16/32pxの別版仕上げを実施中。仕上げ後にもう一度画像検索を通してから、生成スクリプト・全サイズ(manifest 16/32/48/128・ストア128・Edge 300・favicon一式・apple-touch 180・stripe 512・ベクターSVG)が渡される予定
-  - 所管: 新アイコン確定後の実装（manifest icons・public/icons・landing favicon一式・store-assets差し替え・両ストア提出）はLTW開発ハブ（本ハブ）。開発本部はSVGと生成スクリプト（出所記録つき）を渡す
-  - 対象ファイル、開発本部との往復と自分の再実測で確定（当初「10本」は稲妻パス一致と#863bff一致という別々の一覧を混同していたと判明・合算11本）:
-    - 両方該当（9本・自分でも実測済み）: `landing/favicon.svg`・`public/favicon.svg`・`store-assets/logo-300x300.svg`・`store-assets/promo-tile-440x280.html`・`-en.html`・`store-assets/promo-tile-large-1400x560.html`・`-en.html`・`store-assets/screenshot-640x400.html`・`-en.html`
-    - 稲妻パスのみ該当（1本・色は既に`#c4b5fd`等でVite色ではないが同じ稲妻path"M25.946 44.938..."を使用・自分で該当pathを確認済み）: `store-assets/x-card-v140-calendar-1200x675.html`
-    - #863bffのみ該当（1本・生成スクリプト。ここを直さないと再生成時に旧色が戻る・自分で3箇所の使用を確認済み）: `scripts/gen-promo.mjs`
-    - ⚠️描き出し済みPNGが`public/icons`・`landing`・`store-assets`に**34枚**（自分でも数を確認済み）。テキスト検索不可＝新アイコン反映後に全数目視で確認すること（[[generated-media-needs-visual-check]]）
-  - 版数方針（案）: v1.4.3（保守モードの範囲内・パッチ扱い。機能追加ではないため）
-  - changelog方針（案）: LICENSE修正と同じ非対称開示＝コミットメッセージには商標由来の経緯を詳述するが、利用者向けchangelogは「アイコン・ブランディングを刷新しました」程度の中立表現に留める（trademark issueだったと利用者向けに強調する必要はない）
+- [~] **アイコン刷新（Vite由来の意匠・配色を置き換え）＝画像の差替え完了・残りはリリース手順（版数〜ストア申請）**（2026-09-10開発本部回付・2026-09-11意匠確定・同日実装）
+  - ✅決定・実装済み: 「足つきT」＝朱`#CF4E2A`の角丸容器に白のT（LとTの合字）。座標は開発本部の手計算（フォント・既存ロゴ・アイコンセット・画像生成AI不使用）。出所記録は`docs/brand-mark.md`（ローカル限定）
+  - ✅反映済み（コミット`0fdc90c`・`42eab9d`）:
+    - `public/icons/icon-16/32/48/128.png`（manifest参照）
+    - `landing/favicon.svg`・`public/favicon.svg`・`landing/favicon-16/32/48.png`・`landing/icon-128.png`・`landing/apple-touch-icon.png`（grep調査で当初見落としていた参照先＝login/register/mypage/forgot-password/reset-password.htmlのfavicon、index/privacy/transparency.htmlのヘッダーicon-128.pngも対象漏れと判明・追加済み）
+    - `store-assets/logo-300x300.svg`・`.png`（Edgeストアロゴ）、`store-assets/icon-128.png`（CWS掲載アイコン余白版）、`store-assets/stripe-icon.png`
+    - `store-assets/promo-tile-440x280(.html/-en.html)`・`-large-1400x560(.html/-en.html)`・`screenshot-640x400(.html/-en.html)`・`x-card-v140-calendar-1200x675(.html/@2x.png)`＝稲妻pathを正規表現で一括置換（計13箇所）、render.shで再生成、代表画像を目視確認
+    - `scripts/gen-promo.mjs`（`store-promo.png`生成元。稲妻path+`#863bff`3箇所を新意匠+朱色へ）
+    - `landing/og-image.png`（og:image等で配信中・専用ソース無しだったが`store-assets/promo-tile-large-1400x560.png`と寸法・内容が完全一致と判明しコピーで解決）
+  - ⚠️未対応のまま据え置き（低優先度・現行の能動的なストア提出フローでは不使用と確認済み）: `store-assets/store-shot1/2/3.png`・`promo-marquee-1400x560.png`・`promo-small-440x280.png`（いずれも`store-submission-v1.2.x`のみが参照する旧世代アセット・現行の`store-submission-v1.4.2.md`は不使用）、`store-assets/stripe-logo.png`・`product-final.png`（参照元ゼロの孤立ファイル）。いずれもソースHTML/SVGが無く、`promo-marquee`/`promo-small`は`.pptx`のみ（編集ツール無し）。再開時は新規にHTML化するか手動編集が必要
+  - 版数方針: v1.4.3（保守モードの範囲内・パッチ扱い）※未着手
+  - changelog方針: LICENSE修正と同じ非対称開示＝コミットメッセージには商標由来の経緯を詳述するが、利用者向けchangelogは「アイコン・ブランディングを刷新しました」程度の中立表現に留める（trademark issueだったと利用者向けに強調する必要はない）※未着手
   - 審査期間の実績: Chromeは速い（当日〜数日）。Edgeはばらつきあり（v1.4.2は当日、v1.2.1は2週間以上の実績）。両ストア同日申請の保守モード方針を継続
-  - 新アイコンSVG到着後の実装順序: ①`scripts/gen-promo.mjs`の`#863bff`を新配色へ ②manifest.jsonのicons差し替え・public/icons/*再生成 ③landing/favicon.svg・public/favicon.svg差し替え ④store-assets 10本（HTML/SVGソース編集→①のスクリプト等で再生成→目視確認必須） ⑤PNG34枚を新アイコン反映後に全数目視確認 ⑥manifest version bump ⑦changelog.html更新 ⑧ビルド・全検証 ⑨zip作成・store-submission-v1.4.3.md作成 ⑩Chrome/Edge同日申請
+  - 残タスク: ⑥manifest version bump ⑦changelog.html更新 ⑧ビルド・全検証 ⑨zip作成・store-submission-v1.4.3.md作成 ⑩Chrome/Edge同日申請
 
 - [ ] **2026-09-11（後期開始日）に実機観測する**＝日付の一回性タスク（§8-⑥: 条件に紐づけると無言で落ちるので日付で持つ）
   - 🔴**観測前に必ず「どのブラウザで見たか」＋そのブラウザにインストール済みの拡張機能バージョンを記録すること**（統合ハブ2026-09-04指摘）。Edgeは審査に2週間かかった実績があり（v1.2.1=7/14提出→7/29時点も掲載1.2.1のまま）、v1.4.2をChrome/Edge同日提出しても**9/11時点でChromeだけv1.4.2・Edgeはv1.4.1のまま**の状態があり得る。この場合B+F（学期表示が古いまま検知・修正）はEdge側に入っていない。バージョン記録が無いと「直っていない」のか「まだEdgeに届いていない」のかを後から切り分けられない
