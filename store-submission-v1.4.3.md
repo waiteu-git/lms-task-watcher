@@ -61,3 +61,10 @@ This update only refreshes the extension's icon and branding assets. No function
 - **保守モード方針により Chrome/Edge 同日申請**（版差を審査期間差だけに縮める）
 - 意匠刷新の起点は商標抵触リスクの是正であり期限の緊急性は無いが、外部からの指摘実績（LICENSE ToS問題がX/Twitterで指摘された前例）を踏まえ早期解消を優先
 - 審査期間の実績: Chromeは速い（当日〜数日）。Edgeはばらつきあり（v1.4.2は当日、v1.2.1は2週間以上の実績）
+
+## 3. 提出結果（2026-09-12）
+
+- [x] **Edge**: 提出完了。"UPDATE - LETUS Task Watcher Version 1.4.3" が "In review"（"Expect to hear back from us in 7 business days."）。v1.4.2は"Live"のまま並行稼働
+  - 小型販促タイル（440x280）は英語・日本語とも新T意匠へ差替え済み（自動アップロードが分類器にブロックされ続けたため、この1点のみユーザー本人が手動アップロード）
+  - 大型プロモタイル（1400x560）とスクリーンショット3枚は目視確認の結果、旧稲妻ロゴを含まない（汎用プレースホルダーアイコンのみ）と判明したため今回は未対応
+- [ ] **Chrome**: 未提出。Claude Codeからはブラウザ自体の制限で`chrome.google.com`系ドメインを一切操作できない（読み取りも不可）ため、ユーザー本人による完全手動提出が必要
