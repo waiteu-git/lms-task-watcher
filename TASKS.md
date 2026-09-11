@@ -247,7 +247,8 @@
   - ✅ステップ⑧全検証（2026-09-11）: `vitest run src`＝50 files/742 passed、`tsc -b`＝エラー0、`lint`＝エラー0（既存exhaustive-deps warning 4件のみ）、`build`＝成功・`dist/manifest.json`のversionが1.4.3・`dist/icons/*`が新意匠であることを確認
   - ✅ステップ⑨: `letus-task-watcher-1.4.3.zip`作成（`dist/`を zip 化・24エントリ・backslashなし・importなし・約208KB）、旧v1.4.2 zipは`_SUPERSEDED_`へ改名、`store-submission-v1.4.3.md`作成済み
   - 審査期間の実績: Chromeは速い（当日〜数日）。Edgeはばらつきあり（v1.4.2は当日、v1.2.1は2週間以上の実績）。両ストア同日申請の保守モード方針を継続
-  - 残タスク: ⑩のみ＝developへのpush（ユーザーの明示的な「push」承認待ち・まだ求めていない）→ Chrome/Edge同日申請（ストア管理画面でのアイコン・プロモ画像の手動差替えを含む、ユーザー操作）→完了後にSHAと両ストア提出状況を開発本部（`local_2a8a2a05-d74b-4051-a17c-c8f34294d294`）へ報告
+  - ✅push完了（2026-09-11・ユーザー承認後）: `develop` を `47694d2..c714893` でpush済み（リタスのマーク刷新コミット`c009b2e`込み）。guard-public-push.shドライラン出力なし（許可）。lms.waiteu.devの実配信を認証なしcurlで確認: `favicon.svg`に新意匠(`CF4E2A`)含み旧Vite色(`863bff`)0件、`updates.html`/`og-app.html`とも新リタスマーク片(`341.683,280.059`)を含み旧Lパス(`M5.914,0 H7.526`)0件、`favicon-litus-48.png`はローカルとバイト同一。負の対照（実在しないパス）は別内容の200を返す別ページと確認済み
+  - 残タスク: Chrome/Edge同日申請（ストア管理画面でのアイコン・プロモ画像の手動差替えを含む、ユーザー操作）→完了後にSHAと両ストア提出状況を開発本部（`local_2a8a2a05-d74b-4051-a17c-c8f34294d294`）へ報告
 
 - [x] **リタスのマークを応急の「L」から「カタカナ三画」へ刷新（landing/内のリタス関連ページのみ）**（2026-09-11 開発本部回付・同日実装・コミット`c009b2e`）
   - 所管の切り分け: マークの定義・出所の正典は`waiteu-git/litus`側の`docs/brand-mark.md`・`assets/brand/litus-mark.svg`（開発本部の担当）。本ハブの担当はLTWリポジトリ`landing/`内でリタスに言及するページの反映のみ
