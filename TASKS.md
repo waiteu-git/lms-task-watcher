@@ -231,7 +231,7 @@
 - [x] **v1.4.2が両ストアで公開されたら、lms.waiteu.devの一時告知を撤去する**（2026-09-04追加・同日完了。commit `642995b`で追加した一時告知の受け皿）
   - 発火（2026-09-04・統合ハブ実測: Chrome/Edgeとも掲載版1.4.2。自分でもEdgeのAPIで直接確認）→ 対象2箇所（トップ告知バー・v1.4.1エントリの3件目のブレット）を撤去し`eeb2971`でコミット。合わせてヒーローピル・changelogエントリ・transparency/privacy.htmlの対象版数もv1.4.2へ追随（版数追随チェックリスト＝[[litus-webpages-state]]）
 
-- [~] **アイコン刷新（Vite由来の意匠・配色を置き換え）＝画像の差替え完了・残りはリリース手順（版数〜ストア申請）**（2026-09-10開発本部回付・2026-09-11意匠確定・同日実装）
+- [~] **アイコン刷新（Vite由来の意匠・配色を置き換え）＝実装完了・残るはユーザー承認後のpushとストア申請のみ**（2026-09-10開発本部回付・2026-09-11意匠確定・同日実装）
   - ✅決定・実装済み: 「足つきT」＝朱`#CF4E2A`の角丸容器に白のT（LとTの合字）。座標は開発本部の手計算（フォント・既存ロゴ・アイコンセット・画像生成AI不使用）。出所記録は`docs/brand-mark.md`（ローカル限定）
   - ✅反映済み（コミット`0fdc90c`・`42eab9d`）:
     - `public/icons/icon-16/32/48/128.png`（manifest参照）
@@ -242,10 +242,12 @@
     - `landing/og-image.png`（og:image等で配信中・専用ソース無しだったが`store-assets/promo-tile-large-1400x560.png`と寸法・内容が完全一致と判明しコピーで解決）
   - ✅ステップ⑤完了（コミット`6af9e76`）: 差替え済み全PNG（アイコン16/32/48/128・favicon一式・apple-touch-icon・Edgeロゴ・stripe-icon・store-assets掲載アイコン・promo-tile/screenshot/x-card全種・og-image）をRead toolで目視確認。**1件の再生成漏れを発見・修正済み**＝`store-assets/x-card-v140-calendar-2400x1350@2x.png`が左上1200x675にしか描画されず残り半分が白のままだった（`render.sh`は`--force-device-scale-factor=1`固定のため、2400x1350をウィンドウ幅にそのまま渡すとHTML側の1200px固定レイアウトがキャンバス半分にしか収まらない）。`--force-device-scale-factor=2`・`window-size=1200,675`で再描画し、刷新前コミット(`b1a43dc`)と同一レイアウトになることを確認して解決。**⚠教訓＝@2xアセットをrender.shで作り直す時は倍サイズを直接渡さず、原寸+scale-factor=2で描くこと**
   - ⚠️未対応のまま据え置き（低優先度・現行の能動的なストア提出フローでは不使用と確認済み）: `store-assets/store-shot1/2/3.png`・`promo-marquee-1400x560.png`・`promo-small-440x280.png`（いずれも`store-submission-v1.2.x`のみが参照する旧世代アセット・現行の`store-submission-v1.4.2.md`は不使用）、`store-assets/stripe-logo.png`・`product-final.png`（参照元ゼロの孤立ファイル）。いずれもソースHTML/SVGが無く、`promo-marquee`/`promo-small`は`.pptx`のみ（編集ツール無し）。再開時は新規にHTML化するか手動編集が必要
-  - 版数方針: v1.4.3（保守モードの範囲内・パッチ扱い）※未着手
-  - changelog方針: LICENSE修正と同じ非対称開示＝コミットメッセージには商標由来の経緯を詳述するが、利用者向けchangelogは「アイコン・ブランディングを刷新しました」程度の中立表現に留める（trademark issueだったと利用者向けに強調する必要はない）※未着手
+  - ✅版数方針: v1.4.3（保守モードの範囲内・パッチ扱い）＝`public/manifest.json`反映済み（コミット`d0c4ce8`）
+  - ✅changelog: LICENSE修正と同じ非対称開示＝コミットメッセージ(`0fdc90c`・`42eab9d`)には商標由来の経緯を詳述、`public/changelog.html`・`store-assets/description(.txt/-en.txt)`の利用者向け文言は「アイコン・ブランディングを刷新しました」の中立表現に留めた（コミット`d0c4ce8`・`80b2c06`）
+  - ✅ステップ⑧全検証（2026-09-11）: `vitest run src`＝50 files/742 passed、`tsc -b`＝エラー0、`lint`＝エラー0（既存exhaustive-deps warning 4件のみ）、`build`＝成功・`dist/manifest.json`のversionが1.4.3・`dist/icons/*`が新意匠であることを確認
+  - ✅ステップ⑨: `letus-task-watcher-1.4.3.zip`作成（`dist/`を zip 化・24エントリ・backslashなし・importなし・約208KB）、旧v1.4.2 zipは`_SUPERSEDED_`へ改名、`store-submission-v1.4.3.md`作成済み
   - 審査期間の実績: Chromeは速い（当日〜数日）。Edgeはばらつきあり（v1.4.2は当日、v1.2.1は2週間以上の実績）。両ストア同日申請の保守モード方針を継続
-  - 残タスク: ⑥manifest version bump ⑦changelog.html更新 ⑧ビルド・全検証 ⑨zip作成・store-submission-v1.4.3.md作成 ⑩Chrome/Edge同日申請（ユーザーの明示的な「push」承認後）
+  - 残タスク: ⑩のみ＝developへのpush（ユーザーの明示的な「push」承認待ち・まだ求めていない）→ Chrome/Edge同日申請（ストア管理画面でのアイコン・プロモ画像の手動差替えを含む、ユーザー操作）→完了後にSHAと両ストア提出状況を開発本部（`local_2a8a2a05-d74b-4051-a17c-c8f34294d294`）へ報告
 
 - [ ] **2026-09-11（後期開始日）に実機観測する**＝日付の一回性タスク（§8-⑥: 条件に紐づけると無言で落ちるので日付で持つ）
   - 🔴**観測前に必ず「どのブラウザで見たか」＋そのブラウザにインストール済みの拡張機能バージョンを記録すること**（統合ハブ2026-09-04指摘）。Edgeは審査に2週間かかった実績があり（v1.2.1=7/14提出→7/29時点も掲載1.2.1のまま）、v1.4.2をChrome/Edge同日提出しても**9/11時点でChromeだけv1.4.2・Edgeはv1.4.1のまま**の状態があり得る。この場合B+F（学期表示が古いまま検知・修正）はEdge側に入っていない。バージョン記録が無いと「直っていない」のか「まだEdgeに届いていない」のかを後から切り分けられない
