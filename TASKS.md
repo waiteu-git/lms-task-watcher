@@ -240,11 +240,12 @@
     - `store-assets/promo-tile-440x280(.html/-en.html)`・`-large-1400x560(.html/-en.html)`・`screenshot-640x400(.html/-en.html)`・`x-card-v140-calendar-1200x675(.html/@2x.png)`＝稲妻pathを正規表現で一括置換（計13箇所）、render.shで再生成、代表画像を目視確認
     - `scripts/gen-promo.mjs`（`store-promo.png`生成元。稲妻path+`#863bff`3箇所を新意匠+朱色へ）
     - `landing/og-image.png`（og:image等で配信中・専用ソース無しだったが`store-assets/promo-tile-large-1400x560.png`と寸法・内容が完全一致と判明しコピーで解決）
+  - ✅ステップ⑤完了（コミット`6af9e76`）: 差替え済み全PNG（アイコン16/32/48/128・favicon一式・apple-touch-icon・Edgeロゴ・stripe-icon・store-assets掲載アイコン・promo-tile/screenshot/x-card全種・og-image）をRead toolで目視確認。**1件の再生成漏れを発見・修正済み**＝`store-assets/x-card-v140-calendar-2400x1350@2x.png`が左上1200x675にしか描画されず残り半分が白のままだった（`render.sh`は`--force-device-scale-factor=1`固定のため、2400x1350をウィンドウ幅にそのまま渡すとHTML側の1200px固定レイアウトがキャンバス半分にしか収まらない）。`--force-device-scale-factor=2`・`window-size=1200,675`で再描画し、刷新前コミット(`b1a43dc`)と同一レイアウトになることを確認して解決。**⚠教訓＝@2xアセットをrender.shで作り直す時は倍サイズを直接渡さず、原寸+scale-factor=2で描くこと**
   - ⚠️未対応のまま据え置き（低優先度・現行の能動的なストア提出フローでは不使用と確認済み）: `store-assets/store-shot1/2/3.png`・`promo-marquee-1400x560.png`・`promo-small-440x280.png`（いずれも`store-submission-v1.2.x`のみが参照する旧世代アセット・現行の`store-submission-v1.4.2.md`は不使用）、`store-assets/stripe-logo.png`・`product-final.png`（参照元ゼロの孤立ファイル）。いずれもソースHTML/SVGが無く、`promo-marquee`/`promo-small`は`.pptx`のみ（編集ツール無し）。再開時は新規にHTML化するか手動編集が必要
   - 版数方針: v1.4.3（保守モードの範囲内・パッチ扱い）※未着手
   - changelog方針: LICENSE修正と同じ非対称開示＝コミットメッセージには商標由来の経緯を詳述するが、利用者向けchangelogは「アイコン・ブランディングを刷新しました」程度の中立表現に留める（trademark issueだったと利用者向けに強調する必要はない）※未着手
   - 審査期間の実績: Chromeは速い（当日〜数日）。Edgeはばらつきあり（v1.4.2は当日、v1.2.1は2週間以上の実績）。両ストア同日申請の保守モード方針を継続
-  - 残タスク: ⑥manifest version bump ⑦changelog.html更新 ⑧ビルド・全検証 ⑨zip作成・store-submission-v1.4.3.md作成 ⑩Chrome/Edge同日申請
+  - 残タスク: ⑥manifest version bump ⑦changelog.html更新 ⑧ビルド・全検証 ⑨zip作成・store-submission-v1.4.3.md作成 ⑩Chrome/Edge同日申請（ユーザーの明示的な「push」承認後）
 
 - [ ] **2026-09-11（後期開始日）に実機観測する**＝日付の一回性タスク（§8-⑥: 条件に紐づけると無言で落ちるので日付で持つ）
   - 🔴**観測前に必ず「どのブラウザで見たか」＋そのブラウザにインストール済みの拡張機能バージョンを記録すること**（統合ハブ2026-09-04指摘）。Edgeは審査に2週間かかった実績があり（v1.2.1=7/14提出→7/29時点も掲載1.2.1のまま）、v1.4.2をChrome/Edge同日提出しても**9/11時点でChromeだけv1.4.2・Edgeはv1.4.1のまま**の状態があり得る。この場合B+F（学期表示が古いまま検知・修正）はEdge側に入っていない。バージョン記録が無いと「直っていない」のか「まだEdgeに届いていない」のかを後から切り分けられない
