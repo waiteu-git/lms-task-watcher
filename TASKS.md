@@ -249,6 +249,15 @@
   - 審査期間の実績: Chromeは速い（当日〜数日）。Edgeはばらつきあり（v1.4.2は当日、v1.2.1は2週間以上の実績）。両ストア同日申請の保守モード方針を継続
   - 残タスク: ⑩のみ＝developへのpush（ユーザーの明示的な「push」承認待ち・まだ求めていない）→ Chrome/Edge同日申請（ストア管理画面でのアイコン・プロモ画像の手動差替えを含む、ユーザー操作）→完了後にSHAと両ストア提出状況を開発本部（`local_2a8a2a05-d74b-4051-a17c-c8f34294d294`）へ報告
 
+- [x] **リタスのマークを応急の「L」から「カタカナ三画」へ刷新（landing/内のリタス関連ページのみ）**（2026-09-11 開発本部回付・同日実装・コミット`c009b2e`）
+  - 所管の切り分け: マークの定義・出所の正典は`waiteu-git/litus`側の`docs/brand-mark.md`・`assets/brand/litus-mark.svg`（開発本部の担当）。本ハブの担当はLTWリポジトリ`landing/`内でリタスに言及するページの反映のみ
+  - 素材配布元: `/Users/waiteu/dev/waiteu-brand/litus-2026-09/`（`litus-store-assets/tools/make_mark.py`の生成物、README付き）。独立審査済み（ブロッカー0）
+  - 反映済み: `landing/favicon-litus.svg`・`favicon-litus-16/32/48.png`・`apple-touch-icon-litus.png`／`landing/og-app.html`（ヘッダーmark・起動画面boot-markの2箇所のインラインsvg、boot-mark CSSの高さを新svgに合わせ84px→88pxへ調整）／`landing/app-og.png`（og-app.htmlを1200x630で描画済みのものを受領）／`landing/updates.html`（ヘッダーロゴのインラインsvg、23x22→23x23、faviconリンク3箇所に`?v=20260911`付与）
+  - 検証: 置き換え前に`landing/og-app.html`と配布元コピーの差分が意匠svg2箇所のみであることを確認してから採用（他の差分なし）。置き換え後`git grep 'M5.914,0 H7.526' landing/`が0件であることを確認。新旧全PNG・updates.htmlのBrowserペイン表示・app-og.pngの両マーク箇所をRead tool/目視で確認、崩れなし
+  - ⚠️既知の制約（開発本部の独立審査より）: `favicon-litus-16.png`は16px描画で交差部が潰れて塊になる（16px専用の画素合わせ版は未作成）。ただし`landing/updates.html`は`sizes="16x16"`のlinkを持たず32/48+SVGのみ参照しているため実害なし（このリポでは対応不要と確認済み）
+  - `landing/index.html`等LTW本体の見た目には影響なし（このマークが出るのはリタスに言及する`landing/updates.html`と`og-app.html`のみ）。LTW自身のアイコン刷新（足つきT・v1.4.3）と同じpushに載せて構わないと開発本部から回付済み
+  - リタス本体（アプリ本体・ビルド214）と`litus-site`は開発本部側が別途ユーザー承認を得てpushする（本ハブの担当外）
+
 - [ ] **2026-09-11（後期開始日）に実機観測する**＝日付の一回性タスク（§8-⑥: 条件に紐づけると無言で落ちるので日付で持つ）
   - 🔴**観測前に必ず「どのブラウザで見たか」＋そのブラウザにインストール済みの拡張機能バージョンを記録すること**（統合ハブ2026-09-04指摘）。Edgeは審査に2週間かかった実績があり（v1.2.1=7/14提出→7/29時点も掲載1.2.1のまま）、v1.4.2をChrome/Edge同日提出しても**9/11時点でChromeだけv1.4.2・Edgeはv1.4.1のまま**の状態があり得る。この場合B+F（学期表示が古いまま検知・修正）はEdge側に入っていない。バージョン記録が無いと「直っていない」のか「まだEdgeに届いていない」のかを後から切り分けられない
   - 掲載版数はcurlで無認証確認可能（本ファイル内既出の恒久知見）: Chromeは掲載HTMLに`>Version</div><div class="nBZElf">`、Edgeは`https://microsoftedge.microsoft.com/addons/getproductdetailsbycrxid/femdjgdgelnbdpgnfehacobmpbfmbdoa`のJSON`version`
