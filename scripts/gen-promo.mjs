@@ -26,13 +26,15 @@ const svg = `
   <rect width="440" height="280" fill="url(#bg)"/>
 
   <!-- Decorative glow -->
-  <ellipse cx="370" cy="60" rx="120" ry="80" fill="#863bff" opacity="0.12"/>
+  <ellipse cx="370" cy="60" rx="120" ry="80" fill="#CF4E2A" opacity="0.12"/>
   <ellipse cx="80" cy="220" rx="90" ry="60" fill="#47bfff" opacity="0.08"/>
 
-  <!-- Logo icon (lightning bolt shape, simplified) -->
-  <g transform="translate(32, 32)">
-    <path d="M19 0 L7 18 h9 L12 36 L28 14 h-10 Z" fill="#863bff"/>
-    <path d="M19 0 L7 18 h9 L12 36 L28 14 h-10 Z" fill="url(#iconGlow)" opacity="0.4"/>
+  <!-- Logo icon (LTW mark: 足つきT。ltw-final.svgのrect+pathをそのまま埋め込み） -->
+  <g transform="translate(32, 24)">
+    <svg width="40" height="40" viewBox="0 0 1024 1024">
+      <rect x="64" y="64" width="896" height="896" rx="200" fill="#CF4E2A"/>
+      <path fill="#FFFFFF" d="M288 264 H704 A60 60 0 0 1 704 384 H560 V656 H704 A60 60 0 0 1 704 776 H492 A60 60 0 0 1 432 716 V384 H288 A60 60 0 0 1 288 264 Z"/>
+    </svg>
   </g>
 
   <!-- Title -->
@@ -42,7 +44,7 @@ const svg = `
   <text x="32" y="80" font-family="system-ui, -apple-system, sans-serif" font-size="13" fill="#c4a8ff" letter-spacing="0.3">課題の締切を、見逃さない。</text>
 
   <!-- Card 1: 24h -->
-  <rect x="32" y="106" width="116" height="68" rx="10" fill="url(#card)" stroke="#863bff" stroke-width="1" stroke-opacity="0.5"/>
+  <rect x="32" y="106" width="116" height="68" rx="10" fill="url(#card)" stroke="#CF4E2A" stroke-width="1" stroke-opacity="0.5"/>
   <text x="44" y="127" font-family="system-ui, sans-serif" font-size="10" fill="#c4a8ff">24時間以内</text>
   <text x="44" y="149" font-family="system-ui, sans-serif" font-size="28" font-weight="700" fill="#ff6b6b">2</text>
   <text x="72" y="149" font-family="system-ui, sans-serif" font-size="12" fill="#888" dy="-2">件</text>
