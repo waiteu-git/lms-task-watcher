@@ -165,32 +165,18 @@
 <body>
   <div class="container">
     <p class="eyebrow">LETUS Task Watcher</p>
-    <h1>v1.4.0 にアップデートしました</h1>
+    <h1>v1.4.2 にアップデートしました</h1>
     <p class="subtitle">ご利用ありがとうございます。今回のアップデート内容をお知らせします。</p>
 
-    <h2>📅 週間カレンダーが使えるようになりました</h2>
+    <h2>🔄 学期表示が古いままの場合を検知・1タップで修正</h2>
     <ul>
-      <li>ダッシュボードに<strong>週間カレンダー</strong>を追加しました。1週間の締切をカレンダー形式でまとめて確認でき、前後の週にも移動できます。手動で追加した課題も一緒に表示されます。</li>
-      <li>課題の締切を<strong>.icsファイルに書き出せる</strong>ようになりました。Googleカレンダーなどお使いのカレンダーアプリに取り込めます（書き出し時点のスナップショットで、自動では同期されません）。</li>
-      <li>ポップアップの「週間カレンダーで見る」からすぐに開けます。</li>
+      <li>後期を取り込んだのに時間割の表示が前期のままになる場合がありました。ダッシュボードとポップアップの両方に、正しい学期へ切り替えるボタン付きの案内カードを追加しました。</li>
+      <li>学期の表示切替を「前期／後期／自動」の3択にしました。「自動」を選ぶと、取込済みの中で最新の学期を常に表示します。</li>
     </ul>
 
-    <h2>➕ 課題は手動でも追加できます（おさらい）</h2>
+    <h2>📱 モバイルアプリ「リタス」配信開始</h2>
     <ul>
-      <li>動画の視聴やフォーラムへの投稿など、LETUSが課題として扱わないものも、<strong>コースページ右下の「課題を追加」ボタン</strong>から自由に登録できます。登録した課題にも締切前通知が届きます。</li>
-      <li>コースページの各項目の横に出る<strong>「+」バッジ</strong>を押すと、その項目をワンクリックで追跡に追加できます。今回のアップデートで、「+」が出る項目の種類を大幅に増やしました（外部ツールの動画教材・レッスンなど）。</li>
-      <li>締切を読み取れなかった課題には、バッジの「＋締切」から自分で締切を設定できます。</li>
-    </ul>
-
-    <h2>⚖ 利用規約について</h2>
-    <ul>
-      <li>本拡張は東京理科大学の公式拡張ではありません。取得するのはLETUSの課題情報とCLASSの時間割・シラバスのみで、成績等は取得せず、すべて端末内に保存され外部へ送信されません。</li>
-      <li>全文は<a href="https://lms.waiteu.dev/terms" target="_blank">こちら</a>でご覧いただけます。</li>
-    </ul>
-
-    <h2>📱 モバイルアプリ「リタス」開発中</h2>
-    <ul>
-      <li>LETUSの課題も、CLASSの時間割も出席も、スマホひとつに。理科大生向けアプリ「リタス（Litus）」を2026年後期の公開を目標に開発中です。<a href="https://litus.waiteu.dev/" target="_blank">事前登録はこちら</a>。</li>
+      <li>LETUSの課題も、CLASSの時間割も出席も、スマホひとつに。理科大生向けアプリ「リタス（Litus）」がiOS・Androidどちらでも配信を開始しました。<a href="https://litus.waiteu.dev/" target="_blank">リタスを見る →</a></li>
     </ul>
 
     <h2>🗺 ロードマップ</h2>
@@ -214,6 +200,8 @@
             <li>締切の手動設定・変更（読み取れない課題向け）</li>
             <li>登録済みページの「✓ 登録済み」インジケーター</li>
             <li>週間カレンダー表示・.ics書き出し（v1.4.0）</li>
+            <li>後期の時間割未取込を検出・案内（v1.4.1）</li>
+            <li>取込済みなのに表示が古い学期のままの場合を検知・1タップで修正（v1.4.2）</li>
           </ul>
         </div>
       </div>
@@ -236,14 +224,14 @@
         </div>
       </div>
 
-      <div class="phase-card future" id="phase3">
+      <div class="phase-card soon" id="phase3">
         <div class="phase-header">
-          <span class="phase-badge">開発中</span>
+          <span class="phase-badge">配信中</span>
           <span class="phase-title">フェーズ3 — モバイルアプリ「リタス」</span>
           <span class="phase-arrow">▼</span>
         </div>
         <div class="phase-body">
-          <p class="phase-desc">LETUSの課題も、CLASSの時間割も出席も、スマホひとつに。理科大生向けアプリ「リタス（Litus）」。ブラウザを開かなくてもプッシュ通知を受け取れます。2026年後期の公開を目標に開発中で、<a href="https://litus.waiteu.dev/" target="_blank">事前登録を受付中</a>です。</p>
+          <p class="phase-desc">LETUSの課題も、CLASSの時間割も出席も、スマホひとつに。理科大生向けアプリ「リタス（Litus）」。ブラウザを開かなくてもプッシュ通知を受け取れます。iOS・Androidどちらでも<a href="https://litus.waiteu.dev/" target="_blank">配信中</a>です。</p>
           <ul class="phase-features">
             <li>iOSアプリ（App Store）</li>
             <li>Androidアプリ（Google Play）</li>

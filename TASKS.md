@@ -183,6 +183,101 @@
   - ポップアップ／ダッシュボードは開くたびに自動更新をトリガーするため、ポップアップ→ダッシュボードのように併用すると2つ目の `START_ASSIGNMENT_SCAN` に background が `already_running` を返す。旧 `updateNow` は `not_logged_in`／`network_error` のみ早期returnし、それ以外を `throw` していたため、無害なこのレースが catch に落ちて **①`console.error` で chrome://extensions のエラー欄を汚す ②「更新中にエラーが発生しました」の偽通知を出す** 二次被害を招いていた（機能破壊はなし）
   - 応答分類を純粋層 `src/utils/scanResponse.ts`（`classifyScanStartResponse` → proceed/abort/error）に切り出し、`already_running` を `not_logged_in`／`network_error` と同格の abort（案内メッセージのみ・throwなし）に。想定外 reason だけ error（従来どおり throw＋通知）にフォールバック。`App.tsx` の inline 分岐を差し替え
 
+- [x] **後期の時間割が自動取込されない不具合**（2026-08-01・統合管理ハブ経由のユーザー指摘で発覚）
+  - 症状: 前期に時間割を取り込んだ利用者は、後期になっても前期の時間割・コース連携が表示され続け、促しも出ない
+  - 真因1: `classTimetable.ts`の`detectSemester()`はCLASSページの学期セレクタの現在値をそのまま読むだけで、CLASSが前期のまま初期表示される限り後期は取り込まれない
+  - 真因2: `resolveSemester()`は取得済みキャプチャがあれば`capturedAt`最新のものを無条件に返し、日付を見て古さを判定しない
+  - 真因3: `timetableImportNotified`が単一のグローバルbooleanで、一度通知したら二度と立たない（前期の「取り込みました」通知後、後期の取込を通知できない）＝2026-07-15設計仕様の非目標「学期別の初回通知はYAGNI」を、後期開始という新しい非対称UXの発生を理由に撤回
+  - 修正: `timetableLink.ts`に日付ベースの「あるべき学期」判定(`calendarSemester`・2026年度後期開始日9/11を確定値テーブルで保持)と、取得済みと突き合わせる`findMissingCurrentSemester`を追加。`resolveSemester`の表示挙動（stale許容）自体は変えない、純粋な追加シグナル。ダッシュボード(`TimetableSection`)とポップアップ(`TodayTimetable`)に`.warningCard`で「CLASSを開く→」ボタン付きの案内を追加（CLASSのフォームを裏で操作することはしない）。`timetableImportNotified`を`{year}:{semester}`文字列の配列へ移行（`notifiedDeadlineKeys`と同型）し、`handleInstalled`の移行バックフィルを冪等化（旧実装は更新のたびに再計算し、後期分の通知履歴を消しうる潜在バグだった）
+  - 出典: `docs/superpowers/SPEC-2026-08-01-v1.4.x-semester-transition.md`（ローカル限定）⚠**2026-09-02時点で ~/dev 配下に実在しない**（find 0件）。「同年度prefの維持」が設計上の非目標として決まったのか実装の副作用の追認かを確かめる一次資料が欠落している
+- [x] **年度をまたぐと表示学期の保存設定が誤適用される不具合**（2026-08-30発見・2026-09-02コミット。v1.4.1の後続）
+  - 症状: 前年度に学期タブを明示選択した利用者は、年度が替わっても当時の学期が既定表示に採用され続ける（例: 2025年度後期を選んだまま2026年度前期を迎えると、2026年度「後期」＝未取得の空表示になる）
+  - 真因: `resolveViewSemester()` が `pref?.semester ?? …` と学期だけを見ており、`getPreferredView()` が併せて保存している `year` を照合していなかった。保存側 `setPreferredView(year, semester)` は導入時（`ddc6fa4`）から `{year, semester}` 形で書いており、読む側だけが年を捨てていた
+  - 修正: `if (pref?.year === year) return pref.semester` の年ガードを追加。年度が一致しない pref は捨て、既存の「取得済み最新 > 日付判定」へフォールバックする
+  - 適用範囲: 呼び出し側3箇所（`App.tsx`・`TodayTimetable.tsx`・`TimetableSection.tsx`）はいずれも `11a2c1f` で共有関数 `resolveViewSemester` 経由に統一済みのため、**各コンポーネント側の修正は不要**（`TimetableSection.tsx` は `8750917` 時点では同じ式をインラインで持っていたが `11a2c1f` で解消済み）。`year` は全呼び出し側が `academicYear(now)` を渡すため、pref側の `year` と同じ「年度」で比較される
+  - 非変更: 同年度内の明示選択は後期開始後も維持する（`表示選択 > 取得済み最新 > 日付判定` の優先順は不変）。**2026-09-02にこの「意図的」という位置づけが争点化したが、B＋Fで実害を塞いだため反転は不要と裁定（2026-09-03）。詳細は下のエントリ**
+  - テスト: `src/core/timetableView.test.ts` に8件（別年度prefの無視×2＝年ガード未適用だと落ちる回帰、後期開始日2026-09-11の境界×2、取得済み最新優先、同年度prefの維持、年度跨ぎ2027-01の採用）
+
+- [x] **同年度prefが後期開始後も維持される件＝裁定済み（B＋F採用、A却下）**（2026-09-02上申 → 2026-09-03ユーザー裁定・同日実装）
+  - 症状: v1.4.1の督促カードの指示に従って後期を取り込むと、状態が取り込む前より悪くなる。`findMissingCurrentSemester`（`timetableLink.ts:63-67`）は「現学期が captured に有るか」しか見ず**表示中の学期を見ていない**ため、取込でカードが消える。一方 `resolveViewSemester` は pref を返し続けるので**表示は前期のまま**＝指示に従った行動そのものが唯一の警告を消す
+  - pref の母集団は広い: アクティブ側の学期タブが disabled でないため（`TimetableSection.tsx:153-163` の押下ガードは `disabled={!captured.includes(s)}` のみ）、**表示が何も変わらないクリック1回で pref が永続保存される**（同 105-108）。「意図的に固定した人」に限らない
+  - 最も現実的な生成経路では督促カードすら出ない: 8月にCLASSで後期を先に開いて自動取込→表示が後期へ飛ぶ→正当に「前期」タブで戻す。この場合 kouki は既に captured で、9/11以降カードは一度も出ない
+  - 波及: `App.tsx:159-175` の `assignmentSlotMap` も同じ resolver 経由＝後期科目の課題カードから曜限・教室・シラバスが消える。background は前期∪後期の和集合（`background/index.ts:326-336`）なので後期課題の通知は鳴る＝「通知は後期・画面は前期」。取込時のOS通知は「後期の時間割を登録しました。ダッシュボードで確認できます」と言い、遷移先が前期を表示する
+  - 脱出手段なし: `resetAllData`（`App.tsx:1034-1047`）の remove 一覧に `timetableView` は含まれず、初期化しても解除されない。ポップアップには学期ラベルも切替UIも無い（`setPreferredView` の呼び出しは全リポで `TimetableSection.tsx:107` の1箇所）。拡張本体にキルスイッチ／リモートフラグも無い＝外した弾の撤回はストア審査
+  - 選択肢: A=resolver修正で既定を直す（+9/-3行・UI無変更）／B=表示規則据え置き＋「後期は取込済みだが表示は前期」カードと1タップ切替を両画面に追加／D=9/11観測後に決める／F=学期トグル3択化（前期・後期・**自動**。クォーターUIに同じ実装が既存＝新規設計ゼロ）／H=コードを触らずLPで告知（ストア審査を迂回できる唯一の伝達路）
+  - ⚠**A＋Bの同梱は不可**: resolver修正と `TimetableSection.tsx:43` の依存拡大（`[year]`→`[year, courses]`）を同時に入れると courses が毎秒再生成されるため毎秒 `setSemester` が走り、学期タブが押しても即戻って使用不能になる
+  - ⚠**案A単独の既知欠陥2件**: ①`KOUKI_START_DATES` は2026の1件のみで未登録年度のフォールバックは**9月を前期扱い**（`timetableLink.ts:41`）＝案Aだと**2027-09に同じ症状を自分で作る**（現行コードは capturedAt 最新で正しく後期にする）。年次更新は一回性タスクとして未登録＝§8-⑥の「無言で落ちる予定」。②`capture()` は `table.classTable` の有無しか見ず（`classTimetable.ts:74-77`）、`listCapturedSemesters` はキーの存在しか見ない（`timetableStore.ts:23-29`）＝**履修未確定の空の後期表**を最優先で選び、完全な前期表を空の後期に置き換えうる
+  - 締切の実態: **9/11必達ではない**。保存データの破壊でなく描画時判定なので、遅れて着地しても放置された利用者を含め全員が遡って是正される。一方 `store-submission-v1.4.1.md:40` に「Edge審査は数日〜2週間の実績」と自己記録があり9/11に両ストアが揃う見込みは低い ⇒「9月中旬までに確実に、壊さずに出す」が正しい締切
+  - 製品横断: Litus は同じ問題を先に踏み**逆の設計**を実機検証つきで採用済み（`litus/src/collect/semester.ts` は境界を遠隔配信の学年暦から取り「**ここで固定値を作らない**」と明記）。境界もズレる（LTW=9/11固定、Litus=学年暦があれば8/6と9/11の中点＝**8/24**）＝同じ学生が両方使うと8月下旬〜9月上旬に製品間で表示学期が食い違う
+  - ⚠別件で発見（本件より悪い）: `detectSemester`（`classTimetable.ts:34-46`）は学期セレクタに当たらない場合 `document.body.textContent` に「後期」が含まれれば kouki を返す（「前期」より先に判定）。**セレクタの name/id が変わるだけで前期の表が `timetable:2026:kouki` に保存され**、督促カードが「後期取込済み」と誤判定して永久に消える。Litus は同画面で見出しの正規表現方式に切替済み
+  - 全文（ローカル限定・gitignore済み）: `docs/superpowers/ESCALATION-2026-09-02-timetable-view-semester.md`
+  - 裁定（2026-09-03・統合ハブ経由でユーザー「go」）: **B＋F＋H**を採用。A（resolver修正）は不採用——上の「案A単独の既知欠陥2件」のうち①未登録年度は9月を前期扱いへ回帰し2027-09に同じ症状を自作する、②空の後期表を最優先しうる欠陥がよりによって9/11の履修未確定期に最悪化する、の2点が理由。同年度prefの優先順位そのものを反転する案も不採用＝B＋Fで「指示に従うと警告が消えて表示は放置される」実害を塞いだため、優先順位を変える理由が無くなった（line 198の「非変更（意図的）」は据え置き）
+  - 実装:
+    - B: `timetableLink.ts`に`findStaleDisplayedSemester(now, captured, displayed)`を追加（`findMissingCurrentSemester`の逆＝取得済みなのに表示が古い場合に切替先を返す純関数）。`TimetableSection`・`TodayTimetable`の両方に「◯期の時間割は取込済みです」＋1タップ切替ボタンの`.warningCard`を追加
+    - F: 学期トグルを前期/後期/**自動**の3択に拡張（クォーターUIの`Quarter | null`パターンを踏襲）。`setPreferredView`が`semester: Semester | null`を受け付けるよう変更し、nullで`VIEW_KEY`をremove（`setCurrentQuarter`のnull解除と同型）。「自動」選択時は`resolveSemester(now, captured)`で即時再評価する
+    - H: LP（lms.waiteu.dev）告知はコピー未確定のためユーザーと文言協議中。コミットするがpushはしない
+  - テスト: `timetableLink.test.ts`に`findStaleDisplayedSemester`5件、`timetableStore.test.ts`に`setPreferredView(year, null)`の解除確認1件を追加。既存736件＋新規6件、tsc/vite build/eslint（0 errors、既存4警告は変化なしと確認済み）すべて通過
+  - ⚠️別件で発見された次の2件は本裁定のスコープ外として下記の別エントリに分離した（起票のみ・未着手）
+
+- [ ] **`detectSemester`のセレクタ脆弱性**（2026-09-02発見。v1.4.2以降の候補として起票のみ・未着手）
+  - 症状: `classTimetable.ts:34-46`の`detectSemester`は、学期セレクタに当たらない場合`document.body.textContent`に「後期」が含まれればkoukiと判定する（「前期」より先に判定するフォールバック）。CLASSのセレクタのname/idが変わるだけで、前期の時間割表が`timetable:{year}:kouki`として誤保存されうる
+  - 波及: 誤保存後は督促カード（`findMissingCurrentSemester`）が「後期は取込済み」と判定し、二度と正しい取込を促さなくなる。本物の後期データは一度も取り込まれないまま埋もれる
+  - 参考: Litusは同じ画面を見出しの正規表現方式に切替済み（`litus/src/collect/semester.ts`相当）
+
+- [ ] **製品横断の学期境界不整合（LTW固定日 vs Litus学年暦）**（2026-09-02発見。評価・裁定は統合ハブの担当＝本リポでは起票のみ）
+  - 症状: LTWは後期開始日を年度ごとの確定値テーブルで固定管理（`KOUKI_START_DATES`、2026年度=9/11）。Litusは遠隔配信の学年暦から境界を導出し、学年暦が無ければ8/6と9/11の中点＝8/24を使う。同じ学生が両方使うと8月下旬〜9月上旬に表示学期が食い違いうる
+  - 対応: 本リポ単体では解決しない設計判断（どちらかに合わせる／両方を学年暦ベースに統一する、等）。評価・裁定は統合ハブが担当。本リポでは実装しない
+
+- [x] **v1.4.2が両ストアで公開されたら、lms.waiteu.devの一時告知を撤去する**（2026-09-04追加・同日完了。commit `642995b`で追加した一時告知の受け皿）
+  - 発火（2026-09-04・統合ハブ実測: Chrome/Edgeとも掲載版1.4.2。自分でもEdgeのAPIで直接確認）→ 対象2箇所（トップ告知バー・v1.4.1エントリの3件目のブレット）を撤去し`eeb2971`でコミット。合わせてヒーローピル・changelogエントリ・transparency/privacy.htmlの対象版数もv1.4.2へ追随（版数追随チェックリスト＝[[litus-webpages-state]]）
+
+- [x] **アイコン刷新（Vite由来の意匠・配色を置き換え）＝v1.4.3としてChrome/Edge両ストア提出完了**（2026-09-10開発本部回付・2026-09-11意匠確定・09-11実装・09-12両ストア提出）
+  - ✅決定・実装済み: 「足つきT」＝朱`#CF4E2A`の角丸容器に白のT（LとTの合字）。座標は開発本部の手計算（フォント・既存ロゴ・アイコンセット・画像生成AI不使用）。出所記録は`docs/brand-mark.md`（ローカル限定）
+  - ✅反映済み（コミット`0fdc90c`・`42eab9d`）:
+    - `public/icons/icon-16/32/48/128.png`（manifest参照）
+    - `landing/favicon.svg`・`public/favicon.svg`・`landing/favicon-16/32/48.png`・`landing/icon-128.png`・`landing/apple-touch-icon.png`（grep調査で当初見落としていた参照先＝login/register/mypage/forgot-password/reset-password.htmlのfavicon、index/privacy/transparency.htmlのヘッダーicon-128.pngも対象漏れと判明・追加済み）
+    - `store-assets/logo-300x300.svg`・`.png`（Edgeストアロゴ）、`store-assets/icon-128.png`（CWS掲載アイコン余白版）、`store-assets/stripe-icon.png`
+    - `store-assets/promo-tile-440x280(.html/-en.html)`・`-large-1400x560(.html/-en.html)`・`screenshot-640x400(.html/-en.html)`・`x-card-v140-calendar-1200x675(.html/@2x.png)`＝稲妻pathを正規表現で一括置換（計13箇所）、render.shで再生成、代表画像を目視確認
+    - `scripts/gen-promo.mjs`（`store-promo.png`生成元。稲妻path+`#863bff`3箇所を新意匠+朱色へ）
+    - `landing/og-image.png`（og:image等で配信中・専用ソース無しだったが`store-assets/promo-tile-large-1400x560.png`と寸法・内容が完全一致と判明しコピーで解決）
+  - ✅ステップ⑤完了（コミット`6af9e76`）: 差替え済み全PNG（アイコン16/32/48/128・favicon一式・apple-touch-icon・Edgeロゴ・stripe-icon・store-assets掲載アイコン・promo-tile/screenshot/x-card全種・og-image）をRead toolで目視確認。**1件の再生成漏れを発見・修正済み**＝`store-assets/x-card-v140-calendar-2400x1350@2x.png`が左上1200x675にしか描画されず残り半分が白のままだった（`render.sh`は`--force-device-scale-factor=1`固定のため、2400x1350をウィンドウ幅にそのまま渡すとHTML側の1200px固定レイアウトがキャンバス半分にしか収まらない）。`--force-device-scale-factor=2`・`window-size=1200,675`で再描画し、刷新前コミット(`b1a43dc`)と同一レイアウトになることを確認して解決。**⚠教訓＝@2xアセットをrender.shで作り直す時は倍サイズを直接渡さず、原寸+scale-factor=2で描くこと**
+  - ⚠️未対応のまま据え置き（低優先度・現行の能動的なストア提出フローでは不使用と確認済み）: `store-assets/store-shot1/2/3.png`・`promo-marquee-1400x560.png`・`promo-small-440x280.png`（いずれも`store-submission-v1.2.x`のみが参照する旧世代アセット・現行の`store-submission-v1.4.2.md`は不使用）、`store-assets/stripe-logo.png`・`product-final.png`（参照元ゼロの孤立ファイル）。いずれもソースHTML/SVGが無く、`promo-marquee`/`promo-small`は`.pptx`のみ（編集ツール無し）。再開時は新規にHTML化するか手動編集が必要
+  - ✅版数方針: v1.4.3（保守モードの範囲内・パッチ扱い）＝`public/manifest.json`反映済み（コミット`d0c4ce8`）
+  - ✅changelog: LICENSE修正と同じ非対称開示＝コミットメッセージ(`0fdc90c`・`42eab9d`)には商標由来の経緯を詳述、`public/changelog.html`・`store-assets/description(.txt/-en.txt)`の利用者向け文言は「アイコン・ブランディングを刷新しました」の中立表現に留めた（コミット`d0c4ce8`・`80b2c06`）
+  - ✅ステップ⑧全検証（2026-09-11）: `vitest run src`＝50 files/742 passed、`tsc -b`＝エラー0、`lint`＝エラー0（既存exhaustive-deps warning 4件のみ）、`build`＝成功・`dist/manifest.json`のversionが1.4.3・`dist/icons/*`が新意匠であることを確認
+  - ✅ステップ⑨: `letus-task-watcher-1.4.3.zip`作成（`dist/`を zip 化・24エントリ・backslashなし・importなし・約208KB）、旧v1.4.2 zipは`_SUPERSEDED_`へ改名、`store-submission-v1.4.3.md`作成済み
+  - 審査期間の実績: Chromeは速い（当日〜数日）。Edgeはばらつきあり（v1.4.2は当日、v1.2.1は2週間以上の実績）。両ストア同日申請の保守モード方針を継続
+  - ✅push完了（2026-09-11・ユーザー承認後）: `develop` を `47694d2..c714893` でpush済み（リタスのマーク刷新コミット`c009b2e`込み）。guard-public-push.shドライラン出力なし（許可）。lms.waiteu.devの実配信を認証なしcurlで確認: `favicon.svg`に新意匠(`CF4E2A`)含み旧Vite色(`863bff`)0件、`updates.html`/`og-app.html`とも新リタスマーク片(`341.683,280.059`)を含み旧Lパス(`M5.914,0 H7.526`)0件、`favicon-litus-48.png`はローカルとバイト同一。負の対照（実在しないパス）は別内容の200を返す別ページと確認済み
+  - ✅サイレントアップデート化のpush（2026-09-11）: `develop` を `c714893..4b4d303` で追加push済み（`SILENT_UPDATE_VERSIONS`実装＋changelog/description差戻し）
+  - ✅Edge Partner Center 下書き提出（2026-09-11〜12・ユーザー指示「販促タイルも直す」への対応込み）:
+    - v1.4.3パッケージをアップロード・検証済み（"Your current package has been verified"）。host_permissions・権限は不変を確認
+    - 「拡張機能のロゴ」（300x300）を英語・日本語の両店舗掲載でRead tool目視確認済みの新T意匠へ差替え（Chrome側のアイコンと別管理の掲載用ロゴ）
+    - ⚠️発見・訂正: 「小型の販促用タイル」「スクリーンショット」「大型プロモタイル」はEdge側で`store-shot1/2/3.png`・`promo-marquee-1400x560.png`という**ファイル名で実際に使用中**と判明（DOM調査で確認）。本ファイルの前の版で「現行の能動的な提出フローでは不使用」と書いたのは誤り＝リポジトリのファイル名と実際にEdgeへアップロード済みの資産は別物（アップロード時点のバイト列がそのまま残り、リポジトリの現在のファイル内容とは連動しない）
+    - 小型販促タイル（440x280）: 実際のライブ版はリポジトリのどの版の`promo-tile-440x280.html`とも文言が一致しない別デザイン（「課題の締切と時間割を、ひとつに。」）と判明。さらに目視で再訂正＝アイコンは旧稲妻ではなく汎用チェックマークバッジだった（最初の遠目の確認は誤り）。SAS付き画像URLはJS読み取りがCookie/クエリ保護でブロックされ直接取得不可のため、zoomスクリーンショットから配色・レイアウトを目視で再現し、アイコン部分のみ新T意匠に置換したPNGを作成（`store-assets/promo-tile-440x280-edge-live-reconstruction.png`）。文言・レイアウトは変更なし
+    - ⚠️自動アップロードがこの1ファイルのみauto mode分類器に拒否され続けた（ロゴは3回成功）。ユーザー本人が手動でEdge管理画面からアップロードし、英語・日本語の両方に反映済みであることをBrowserペインで目視確認済み
+    - ✅大型プロモタイル（`promo-marquee-1400x560.png`）とスクリーンショット3枚（`store-shot1/2/3.png`）を目視確認済み（2026-09-12・zoomスクリーンショット）：**いずれも旧稲妻ロゴは含まれていなかった**。4点とも共通の紫/白イラストのアプリモックアップ様式で、ヘッダーに小さな汎用アイコン（チェックマーク系バッジ）が入っているが、実際の拡張機能アイコン（稲妻／新T）とは別の装飾用プレースホルダーと判明。商標由来の緊急対応は不要＝上記「未対応のまま」は取り下げ。ブランド統一の観点で汎用アイコンを新T意匠へ差し替える余地はあるが優先度低・未着手（4点とも元HTML無し・再現には個別の労力が要る）
+  - ⚠️Chrome Web Store: `chrome.google.com/webstore`系ドメインはブラウザ自体がスクリプト実行・読み取りを一切拒否（"The extensions gallery cannot be scripted"）＝Claude in Chromeからは完全に触れない。ユーザー本人による手動提出が必須
+  - ✅Edge提出完了（2026-09-12・ユーザー承認「おす」後）: 「Notes for certification」欄に検証用アカウント無しでの評価可否・LETUS/CLASSログインが必要な理由を記入（571/2000字）、「Publish」実行。**"UPDATE - LETUS Task Watcher Version 1.4.3" は "In review"**（"Expect to hear back from us in 7 business days."と表示）。v1.4.2は"Live"のまま並行稼働中
+  - ✅Chrome Web Store提出済み（2026-09-12・ユーザー本人が手動提出。私からはこのドメインを一切操作・確認できないため詳細は未確認）
+  - **両ストアとも提出完了＝v1.4.3リリース作業のこのハブでの担当分は完了**。残るのは審査結果待ち（Edgeは目安7営業日）と、大型プロモタイル・スクリーンショット3枚の新T意匠への差替え（優先度低・保留のまま）
+
+- [x] **リタスのマークを応急の「L」から「カタカナ三画」へ刷新（landing/内のリタス関連ページのみ）**（2026-09-11 開発本部回付・同日実装・コミット`c009b2e`）
+  - 所管の切り分け: マークの定義・出所の正典は`waiteu-git/litus`側の`docs/brand-mark.md`・`assets/brand/litus-mark.svg`（開発本部の担当）。本ハブの担当はLTWリポジトリ`landing/`内でリタスに言及するページの反映のみ
+  - 素材配布元: `/Users/waiteu/dev/waiteu-brand/litus-2026-09/`（`litus-store-assets/tools/make_mark.py`の生成物、README付き）。独立審査済み（ブロッカー0）
+  - 反映済み: `landing/favicon-litus.svg`・`favicon-litus-16/32/48.png`・`apple-touch-icon-litus.png`／`landing/og-app.html`（ヘッダーmark・起動画面boot-markの2箇所のインラインsvg、boot-mark CSSの高さを新svgに合わせ84px→88pxへ調整）／`landing/app-og.png`（og-app.htmlを1200x630で描画済みのものを受領）／`landing/updates.html`（ヘッダーロゴのインラインsvg、23x22→23x23、faviconリンク3箇所に`?v=20260911`付与）
+  - 検証: 置き換え前に`landing/og-app.html`と配布元コピーの差分が意匠svg2箇所のみであることを確認してから採用（他の差分なし）。置き換え後`git grep 'M5.914,0 H7.526' landing/`が0件であることを確認。新旧全PNG・updates.htmlのBrowserペイン表示・app-og.pngの両マーク箇所をRead tool/目視で確認、崩れなし
+  - ⚠️既知の制約（開発本部の独立審査より）: `favicon-litus-16.png`は16px描画で交差部が潰れて塊になる（16px専用の画素合わせ版は未作成）。ただし`landing/updates.html`は`sizes="16x16"`のlinkを持たず32/48+SVGのみ参照しているため実害なし（このリポでは対応不要と確認済み）
+  - `landing/index.html`等LTW本体の見た目には影響なし（このマークが出るのはリタスに言及する`landing/updates.html`と`og-app.html`のみ）。LTW自身のアイコン刷新（足つきT・v1.4.3）と同じpushに載せて構わないと開発本部から回付済み
+  - リタス本体（アプリ本体・ビルド214）と`litus-site`は開発本部側が別途ユーザー承認を得てpushする（本ハブの担当外）
+
+- [ ] **2026-09-11（後期開始日）に実機観測する**＝日付の一回性タスク（§8-⑥: 条件に紐づけると無言で落ちるので日付で持つ）
+  - ✅**9/11朝、スケジュールタスク`ltw-koki-first-class-observation`が配信版チェックを自動実施済み（人手不要な部分）**: Chrome掲載版=1.4.2（更新日2026-09-04・curl実測）／Edge掲載版=1.4.2（Edge API実測・lastUpdateDate同時期）。**両ストアとも226b96c（年ガード修正）を含む1.4.2以降＝直っているはずの版が両方に届いている。** CLASSへのログインが要る実機観測（下記項目）はユーザー本人待ち＝未実施
+  - 🔴**観測前に必ず「どのブラウザで見たか」＋そのブラウザにインストール済みの拡張機能バージョンを記録すること**（統合ハブ2026-09-04指摘）。Edgeは審査に2週間かかった実績があり（v1.2.1=7/14提出→7/29時点も掲載1.2.1のまま）、v1.4.2をChrome/Edge同日提出しても**9/11時点でChromeだけv1.4.2・Edgeはv1.4.1のまま**の状態があり得る。この場合B+F（学期表示が古いまま検知・修正）はEdge側に入っていない。バージョン記録が無いと「直っていない」のか「まだEdgeに届いていない」のかを後から切り分けられない
+  - 掲載版数はcurlで無認証確認可能（本ファイル内既出の恒久知見）: Chromeは掲載HTMLに`>Version</div><div class="nBZElf">`、Edgeは`https://microsoftedge.microsoft.com/addons/getproductdetailsbycrxid/femdjgdgelnbdpgnfehacobmpbfmbdoa`のJSON`version`
+  - CLASSが9/11時点で後期時間割表を返すか。履修登録未確定で**空/部分**にならないか（上の案A欠陥②の前提）
+  - pref 保持状態（DevToolsで `chrome.storage.local` の `timetableView` を確認）でポップアップの「今日の時間割」が何を出すか
+  - 後期科目の課題カードに曜限・教室・シラバスが出るか
+  - ⚠ `store-submission-v1.4.1.md:30` の「実機確認」は**未チェックのまま v1.4.1 が公開されている**。督促カード・取込通知・後期ページでの `detectSemester` は一度も実機で踏まれていない
 - [x] **純粋ロジックのlitus逆流**（2026-07-08 判定: **不要**）
   - litus `src/assignments/buckets.ts`（within24h/tomorrow/thisWeek/…）が拡張の新`deadlineTier`（当日/今週）より高機能で先行＝逆流でもたらす改善なし
   - `selectCoursesByTimetable`（enable管理連動）・`resolveDisplayDay`（popup今日）は拡張固有で単体完結アーキのlitusに非マップ

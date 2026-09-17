@@ -7,6 +7,7 @@ import {
   calendarDateKey,
   formatDayLabel,
   formatWeekRangeLabel,
+  groupUndatedItems,
   isTimelineItemSubmitted,
   startOfCalendarWeek,
   timelineItemUrl,
@@ -375,6 +376,8 @@ export function WeeklyCalendarSection({
 /**
  * 締切未設定リスト。提出済みは済んだものなので既定で畳んで格納し、
  * 未提出（＝締切を設定するか非表示にするか判断が要るもの）だけを見せる。
+ * 未提出のうち同一コースが3件以上ある場合は <details> でコースごとに
+ * 折りたたむ（groupUndatedItems）。1〜2件のコースはそのまま個別カード。
  */
 function UndatedArea({
   items,
@@ -386,6 +389,7 @@ function UndatedArea({
   const [showSubmitted, setShowSubmitted] = useState(false)
   const active = items.filter((item) => !isTimelineItemSubmitted(item))
   const submitted = items.filter((item) => isTimelineItemSubmitted(item))
+  const { groups, singles } = useMemo(() => groupUndatedItems(active), [active])
 
   if (items.length === 0) return null
 
@@ -408,8 +412,27 @@ function UndatedArea({
       {active.length === 0 && !showSubmitted && (
         <p className="calendarDayEmpty">未提出の締切未設定はありません。</p>
       )}
+      {groups.map((group) => (
+        <details key={group.courseId} className="calendarUndatedGroup">
+          <summary className="calendarUndatedGroupHead">
+            <span className="calendarUndatedGroupArrow" aria-hidden="true">▸</span>
+            <span>{group.courseName}</span>
+            <span className="calendarUndatedGroupCount">{group.items.length}件</span>
+          </summary>
+          <div className="calendarUndatedGroupBody">
+            {group.items.map((item) => (
+              <CalendarChip
+                key={`${item.kind}-${item.assignment.id}`}
+                item={item}
+                withTime={false}
+                {...chipHandlers}
+              />
+            ))}
+          </div>
+        </details>
+      ))}
       <div className="calendarUndatedList">
-        {active.map((item) => (
+        {singles.map((item) => (
           <CalendarChip
             key={`${item.kind}-${item.assignment.id}`}
             item={item}

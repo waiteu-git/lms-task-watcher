@@ -15,9 +15,63 @@ vi.stubGlobal('chrome', {
   },
 })
 
-const { getCapturedCourseCodes, resolveDisplayDay, loadCourseOverrides } = await import('./timetableView')
+const { getCapturedCourseCodes, resolveDisplayDay, loadCourseOverrides, resolveViewSemester } = await import('./timetableView')
 
 beforeEach(() => { for (const k of Object.keys(store)) delete store[k] })
+
+describe('resolveViewSemester', () => {
+  it('別年度のprefは無視し、取得済みが無ければ日付から解決する', async () => {
+    store['timetableView'] = { year: 2025, semester: 'kouki' }
+    const now = new Date('2026-07-08T10:00:00+09:00') // 日付判定なら zenki の時期
+    expect(await resolveViewSemester(2026, now)).toBe('zenki')
+  })
+
+  it('別年度のprefは無視し、取得済みがあればそれを使う', async () => {
+    store['timetableView'] = { year: 2025, semester: 'zenki' } // pref の値をそのまま採用すると誤って zenki になる
+    store['timetable:2026:kouki'] = { rawTableHtml: TABLE_MINIMAL, jigenText: '', capturedAt: '2026-07-01T00:00:00.000Z' }
+    const now = new Date('2026-07-08T10:00:00+09:00')
+    expect(await resolveViewSemester(2026, now)).toBe('kouki')
+  })
+
+  it('同年度のprefはそのまま採用する', async () => {
+    store['timetableView'] = { year: 2026, semester: 'kouki' }
+    const now = new Date('2026-07-08T10:00:00+09:00') // 日付判定なら zenki の時期でも pref を優先すべき
+    expect(await resolveViewSemester(2026, now)).toBe('kouki')
+  })
+
+  it('保存済み設定が無ければ、後期開始日(2026-09-11)当日は kouki と判定する', async () => {
+    const now = new Date('2026-09-11T09:00:00+09:00')
+    expect(await resolveViewSemester(2026, now)).toBe('kouki')
+  })
+
+  it('保存済み設定が無ければ、後期開始前日(2026-09-10)は zenki のまま', async () => {
+    const now = new Date('2026-09-10T23:59:00+09:00')
+    expect(await resolveViewSemester(2026, now)).toBe('zenki')
+  })
+
+  it('保存済み設定が無く前期のみ取得済みなら、9/11以降も取得済み最新の zenki を返す', async () => {
+    // 「取得済み最新 > 日付判定」は年ガード導入後も不変（後期未取込の案内は
+    // findMissingCurrentSemester が別途出す＝表示学期を勝手に動かさない）。
+    store['timetable:2026:zenki'] = { rawTableHtml: TABLE_MINIMAL, jigenText: '', capturedAt: '2026-04-10T00:00:00.000Z' }
+    const now = new Date('2026-09-11T09:00:00+09:00')
+    expect(await resolveViewSemester(2026, now)).toBe('zenki')
+  })
+
+  it('同年度の pref=zenki は 9/11 以降も維持する（表示選択が最優先）', async () => {
+    // 年ガードは「別年度の pref を捨てる」だけで、同年度の明示選択は後期開始後も尊重する。
+    store['timetableView'] = { year: 2026, semester: 'zenki' }
+    store['timetable:2026:kouki'] = { rawTableHtml: TABLE_MINIMAL, jigenText: '', capturedAt: '2026-09-11T00:00:00.000Z' }
+    const now = new Date('2026-09-20T09:00:00+09:00')
+    expect(await resolveViewSemester(2026, now)).toBe('zenki')
+  })
+
+  it('年をまたいでも年度が同じなら pref を採用する（2027-01 は2026年度）', async () => {
+    // 呼び出し側は全て academicYear(now) を渡す＝1〜3月は前年。西暦で比較していないことを固定する。
+    store['timetableView'] = { year: 2026, semester: 'kouki' }
+    const now = new Date('2027-01-15T09:00:00+09:00')
+    expect(await resolveViewSemester(2026, now)).toBe('kouki')
+  })
+})
 
 describe('getCapturedCourseCodes', () => {
   it('未取得なら空配列', async () => {

@@ -93,6 +93,8 @@ export async function getPreferredView(): Promise<{ year: number; semester: Seme
   return res[VIEW_KEY] ?? null
 }
 
-export async function setPreferredView(year: number, semester: Semester): Promise<void> {
-  await chrome.storage.local.set({ [VIEW_KEY]: { year, semester } })
+/** 表示学期の手動指定を書き込む。null を渡すと指定を解除し、取得済み最新優先の既定値に戻す。 */
+export async function setPreferredView(year: number, semester: Semester | null): Promise<void> {
+  if (semester === null) await chrome.storage.local.remove(VIEW_KEY)
+  else await chrome.storage.local.set({ [VIEW_KEY]: { year, semester } })
 }
