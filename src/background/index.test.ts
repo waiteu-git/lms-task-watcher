@@ -6,6 +6,7 @@ import {
   ASSIGNMENTS_KEY,
   COURSES_KEY,
   DEADLINE_SCAN_STATUS_KEY,
+  LAST_REFRESH_AT_KEY,
   TERMS_CONSENT_KEY,
   WELCOME_GUIDE_SHOWN_KEY,
   MOODLE_FINGERPRINT_KEY,
@@ -1259,6 +1260,75 @@ describe('diagnosticsState 保存配線（runAutoScanのスキャン完了処理
     await runAutoScan(noopPacer)
 
     expect(getLedger()).toEqual(before)
+  })
+})
+
+describe('lastSuccessfulRefreshAt はスキャンが実際に成功した時だけ更新する', () => {
+  const consent = { version: TERMS_VERSION, acceptedAt: '2026-07-10T00:00:00.000Z' }
+
+  /** M.cfg入りのログイン済みコースページ（assignリンクあり＝健全） */
+  const healthyPage =
+    '<script>M.cfg = {"wwwroot":"https:\\/\\/letus.ed.tus.ac.jp","sesskey":"AbCd012345"};</script>' +
+    '<a href="/mod/assign/view.php?id=1">課題1</a>'
+
+  it('runAutoScan: 課題スキャンが already_running（他のスキャンと競合）でスキップされた場合、直前の成功時刻を上書きしない（偽の成功記録の防止）', async () => {
+    store[TERMS_CONSENT_KEY] = consent
+    store[COURSES_KEY] = [makeCourse()]
+    store[LAST_REFRESH_AT_KEY] = '2026-07-17T00:00:00.000Z'
+
+    // 1本目の課題スキャン（下でawaitせず先行起動）のfetchは意図的に保留にし、
+    // isAssignmentScanningフラグを立てたまま保持する。2回目以降（runAutoScan側の
+    // checkIsLoggedInやdeadlineスキャン）は素直に成功させる。
+    // （テスト終了時に releaseFirstFetch で解放し、isAssignmentScanning を
+    // 次のテストへ持ち越さないようにする＝モジュール状態はテスト間で共有される）
+    let callCount = 0
+    let releaseFirstFetch: () => void = () => {}
+    const firstFetchGate = new Promise<void>((resolve) => { releaseFirstFetch = resolve })
+    vi.stubGlobal('fetch', vi.fn(async (url: string) => {
+      callCount += 1
+      if (callCount === 1) {
+        await firstFetchGate
+        return { ok: true, type: 'basic', url, text: async () => healthyPage }
+      }
+      return { ok: true, type: 'basic', url, text: async () => healthyPage }
+    }))
+
+    // 課題スキャンを先に開始し、await せずに in-flight のまま保持する
+    // （isAssignmentScanning フラグを立てたままにする）。
+    const leakedScan = scanAssignmentCandidatesInBackground('standard', noopPacer)
+    // 起動直後の内部await（getCourses等）が先行fetch呼び出しまで進むのを待つ。
+    await new Promise((r) => setTimeout(r, 0))
+
+    await runAutoScan(noopPacer)
+
+    // 課題スキャンは already_running で何もせずスキップされたはず＝実質ノーオペ。
+    // ここで lastSuccessfulRefreshAt が進んでしまうと「更新した」という偽の記録になる。
+    expect(store[LAST_REFRESH_AT_KEY]).toBe('2026-07-17T00:00:00.000Z')
+
+    // 後片付け: 保留していた1本目のスキャンを完了させ、isAssignmentScanningを
+    // falseへ戻す（module-level stateなので次のテストへ持ち越すと汚染する）。
+    releaseFirstFetch()
+    await leakedScan
+  })
+
+  it('runAutoScan: スキャンが実際に成功した時は更新する', async () => {
+    store[TERMS_CONSENT_KEY] = consent
+    store[COURSES_KEY] = [makeCourse()]
+    store[LAST_REFRESH_AT_KEY] = '2026-07-17T00:00:00.000Z'
+
+    vi.stubGlobal('fetch', vi.fn(async (url: string) => ({
+      ok: true,
+      url,
+      text: async () =>
+        url.includes('/mod/assign/')
+          ? '<script>M.cfg = {"wwwroot":"https:\\/\\/letus.ed.tus.ac.jp","sesskey":"AbCd012345"};</script>提出期限 2026年12月1日 23時59分'
+          : '<script>M.cfg = {"wwwroot":"https:\\/\\/letus.ed.tus.ac.jp","sesskey":"AbCd012345"};</script>' +
+            '<a href="/mod/assign/view.php?id=1">課題1</a>',
+    })))
+
+    await runAutoScan(noopPacer)
+
+    expect(store[LAST_REFRESH_AT_KEY]).not.toBe('2026-07-17T00:00:00.000Z')
   })
 })
 
