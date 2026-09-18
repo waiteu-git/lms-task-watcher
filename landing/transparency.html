@@ -50,7 +50,7 @@
 
     <h2>通信先</h2>
     <p>拡張機能が通信するのは <code>https://letus.ed.tus.ac.jp</code>（LETUS）と <code>https://class.admin.tus.ac.jp</code>（CLASS）の2つのみです。CLASSへのアクセスは v1.2.0 で追加され、取得するのは履修科目・時間割（曜日時限・科目コード）だけで、成績・出欠記録などにはアクセスしません。<strong>いずれも自前サーバーを経由せず、お使いのブラウザの中で完結します。外部サーバーへのデータ送信は一切ありません。</strong>取得したデータはすべて <code>chrome.storage.local</code>（端末内）に保存されます。</p>
-    <p>これは設定や実装ではなく<strong>マニフェストの権限レベルで保証</strong>されています。<code>manifest.json</code> の <code>host_permissions</code> が上記2ドメインに限定されているため、拡張機能は技術的にそれ以外のドメインへリクエストを送れません。</p>
+    <p><code>manifest.json</code> の <code>host_permissions</code> を上記2ドメインに限定しているため、拡張機能が他ドメインの内容を読み取ったり、そこへコンテンツスクリプトを注入したりすることはできません。ただし通信を一切行わないことの保証は権限設定そのものではなく、<strong>ソースコードを全文公開しており、外部へ通信するコードが存在しないことを誰でも確認できる</strong>という透明性によるものです（詳しくは後述の「ソースコードの公開」をご覧ください）。</p>
     <table>
       <tr><th>項目</th><th>内容</th></tr>
       <tr><td>権限（permissions）</td><td><code>storage</code> / <code>notifications</code> / <code>alarms</code></td></tr>
