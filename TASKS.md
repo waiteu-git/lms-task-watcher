@@ -282,10 +282,12 @@
   - ✅**検証**: 6件とも実在を確認（develop `origin/develop`・`origin/main`のwelcome.html452-455／og-app.html:46／origin/mainのchangelog／updates.html／未push分）。**ハブ指摘のうち訂正2点**＝①上流とされた`waiteu-brand/litus-2026-09/og-app.html`はmake_mark.pyの生成物ではなくLTW `landing/og-app.html`の写し（同READMEにも「写し」と明記・make_mark.pyはog-appに触れない）＝真の出所はLTW側 ②welcome.htmlは拡張パッケージ同梱なのでdevelopにpushしても既存の利用者には届かない（届くのは次のストア版から）
   - ✅**1 welcome.html**: 「開発中／事前登録はこちら」→「配信中／iOS・Androidどちらでも配信中です／リタスを見る」（`4183b1d`・既存changelog.htmlと同じ表現に揃えた）。**利用者への到達には次のストア版（v1.4.4想定）が必要**。runAutoScan修正(`2b867ca`)と同梱する案（本人の「次回機能リリースに併設」裁定と整合）
   - ✅**2・3 og-app.html／app-og.png**: バッジを「iOS ・ Android 配信中」へ、render.shで再生成し旧画像と目視比較（バッジ以外の差なし）（`fbb2b4e`）。`waiteu-brand`側の写しは開発本部の所管のため未編集
-  - ✅**4 mainの古いchangelog**: developの現在のツリーをそのまま採る再同期コミット`8f5026e16e4de7a691db94b34cf8a18b013ceadf`を作成済み（parents=旧同期`a00deff`+develop `4183b1d`・tree一致検証済み・**ローカルmainブランチへ未反映のdangling**）。mainへの反映＝ローカルref移動＋`git push origin main`は本人承認待ち
+  - ✅**4 mainの古いchangelog／manifest(1.4.0)**: developの現在のツリーをそのまま採る再同期コミットを作成済み（親=旧同期`a00deff`+develop。**developへコミットを足すたびに作り直す＝最後に作る。現行のSHAは本人への承認依頼時に確認**）。ローカルmainブランチへ未反映のdangling。mainへの反映＝ローカルref移動＋`git push origin main`は本人承認待ち。実測: origin/mainのmanifest=1.4.0（3世代古い）が同期で1.4.3に揃う
   - ⏸️**5 transparency.html**: 修正は`54a813d`・`b5235f9`でコミット済み、**未push**（本人承認待ち）
   - ⏸️**6 landing/updates.html**: 手書き修正は不可。`ops/litus-devlog`の半自動パイプライン（スケジュールタスク`litus-devlog-report`・毎週火曜・enabled）が出力するページで、state.jsonのlastRunAtが9/15で止まっているのは、9/22の実行が下書きをDiscordへ出してレビュー待ち（公開はレビュー後の手動publish）のため。次回9/29火曜。1.1.0出荷を反映した新エントリの公開はその流れに乗せる
   - ⚠**pushガードが新たに1件**: develop pushのドライランで`src/background/index.test.ts`に「sesskeyの値」を検出。私の新規テストが既存と同じ架空のフィクスチャ`AbCd012345`を流用した3行が原因で、同じ文字列は既に公開中のテストコードに26箇所ある（誤検知と判断・ただし「指摘が1つでも出たらpushせず人間に確認」の規定どおり本人確認待ち）
+  - ✅**LP heroの版数バッジを外した**（`c798333`）: 「LPに版数を書かない」裁定と同じ構造（更新主体が居らず、サイレント更新で外部の更新契機が発生しない）。統合ハブも同意。**リタス側2ページ（waiteu.dev:143／litus.waiteu.dev:263）の「v1.4.2」は実測でChrome・Edgeとも1.4.3＝古い。Webページ管理の所管**（LTW側は触らない）。Edge版数の機械取得は公開API `getproductdetailsbycrxid/<crxid>`（JSON）
+  - ℹ**ストア説明欄「v1.4.2の新機能」は意図した状態**（v1.4.3は機能変更ゼロのサイレント更新）。ただしJP見出し「このバージョンの新機能（v1.4.2）」は版固定の言い方へ直す価値あり＝**次に説明欄を触る時（v1.4.4想定）に同梱**。統合ハブの「1世代古い」指摘は同ハブ自身が誤りと訂正済み
   - 🔴**別件・9/18から未回答のまま**: landing/terms.htmlの「提供者はサーバーを運用していません」と、公開中のlogin/register/mypage等（api.waiteu.dev稼働・サイト内リンクなし）の矛盾の対応方針
 
 - [ ] **2026-09-11（後期開始日）に実機観測する**＝日付の一回性タスク（§8-⑥: 条件に紐づけると無言で落ちるので日付で持つ）
