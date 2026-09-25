@@ -40,7 +40,7 @@
     <main style="max-width:820px;margin:0 auto;padding:44px 24px 20px;">
       <span style="display:inline-block;background:#eef2ff;color:#4f46e5;border:1px solid #e0e7ff;font-size:11px;font-weight:800;letter-spacing:0.08em;padding:4px 12px;border-radius:999px;margin-bottom:14px;">TRANSPARENCY</span>
       <h1 style="font-size:clamp(26px,4vw,34px);font-weight:900;letter-spacing:-0.02em;margin-bottom:8px;color:#0f172a;">透明性レポート</h1>
-      <p style="font-size:13px;color:#64748b;font-weight:600;">最終更新日: 2026年9月10日 ／ 対象: v1.4.2</p>
+      <p style="font-size:13px;color:#64748b;font-weight:600;">最終更新日: 2026年9月18日 ／ 対象: v1.4.2</p>
     </main>
   </div>
 
@@ -50,7 +50,7 @@
 
     <h2>通信先</h2>
     <p>拡張機能が通信するのは <code>https://letus.ed.tus.ac.jp</code>（LETUS）と <code>https://class.admin.tus.ac.jp</code>（CLASS）の2つのみです。CLASSへのアクセスは v1.2.0 で追加され、取得するのは履修科目・時間割（曜日時限・科目コード）だけで、成績・出欠記録などにはアクセスしません。<strong>いずれも自前サーバーを経由せず、お使いのブラウザの中で完結します。外部サーバーへのデータ送信は一切ありません。</strong>取得したデータはすべて <code>chrome.storage.local</code>（端末内）に保存されます。</p>
-    <p>これは設定や実装ではなく<strong>マニフェストの権限レベルで保証</strong>されています。<code>manifest.json</code> の <code>host_permissions</code> が上記2ドメインに限定されているため、拡張機能は技術的にそれ以外のドメインへリクエストを送れません。</p>
+    <p><code>manifest.json</code> の <code>host_permissions</code> を上記2ドメインに限定しているため、拡張機能が他ドメインの内容を読み取ったり、そこへコンテンツスクリプトを注入したりすることはできません。それ以外の通信が実際に発生していないことは、設定の説明を信用するのではなく、<strong>下記「自分で検証する方法」にある DevTools の Network タブで、あなた自身の目で確認</strong>できます。</p>
     <table>
       <tr><th>項目</th><th>内容</th></tr>
       <tr><td>権限（permissions）</td><td><code>storage</code> / <code>notifications</code> / <code>alarms</code></td></tr>

@@ -1262,10 +1262,16 @@ export async function runAutoScan(pacer: Pacer = letusPacer): Promise<void> {
   const assignment = await scanAssignmentCandidatesInBackground('standard', pacer)
   const deadline = await scanDeadlinesInBackground(pacer)
   // スキャン完了処理（spec§4）: サイクル全体の診断観測を diagnosticsState へ畳み込む。
-  // 従来どおり結果の ok に関わらず最終処理へ進む挙動は変えない（記録は追加のみ）。
+  // 診断台帳への記録は結果の ok に関わらず常に行う（失敗の観測こそが台帳の役目）。
   await recordScanCycleOutcome([assignment, deadline])
-  await saveLastRefreshAt(new Date().toISOString())
-  await checkDeadlineWarningNotifications()
+  // lastSuccessfulRefreshAt は runManualUpdate と同様、実際に両スキャンが成功した
+  // 時だけ更新する。ここを無条件にすると「更新に成功した」という偽の記録が残り、
+  // ポップアップに依存しない唯一の能動的なstale検知（App.tsxの経過時間チェック）が
+  // 機能しなくなる（diagnosticsStateはネットワーク障害等を意図的に中立扱いするため）。
+  if (assignment.ok && deadline.ok) {
+    await saveLastRefreshAt(new Date().toISOString())
+    await checkDeadlineWarningNotifications()
+  }
 }
 
 /** 手動更新が途中で失敗したときの通知。スキャンは throw せず {ok:false} を返すため、
