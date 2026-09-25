@@ -278,6 +278,16 @@
   - ✅**④letus-apiのCORS設定（ACAOが存在しないchrome-extension://オリジンにも応答）**: LTW側は無関係と確認（現行manifest/コードに`api.waiteu.dev`参照は一切無し・以前の「サブスク・認証UI撤去」で完全削除済み）。ラズパイ／letus-api管理セッションへ共有依頼のみ、本ハブでの対応なし
   - 上記①②とも統合ハブへ検証結果を報告済み（2026-09-18）
 
+- [~] **統合ハブ公開面棚卸し（2026-09-25・リタス両OS製品版配信開始に伴うLTW側の古い記述6件）**＝独立検証のうえ対応中
+  - ✅**検証**: 6件とも実在を確認（develop `origin/develop`・`origin/main`のwelcome.html452-455／og-app.html:46／origin/mainのchangelog／updates.html／未push分）。**ハブ指摘のうち訂正2点**＝①上流とされた`waiteu-brand/litus-2026-09/og-app.html`はmake_mark.pyの生成物ではなくLTW `landing/og-app.html`の写し（同READMEにも「写し」と明記・make_mark.pyはog-appに触れない）＝真の出所はLTW側 ②welcome.htmlは拡張パッケージ同梱なのでdevelopにpushしても既存の利用者には届かない（届くのは次のストア版から）
+  - ✅**1 welcome.html**: 「開発中／事前登録はこちら」→「配信中／iOS・Androidどちらでも配信中です／リタスを見る」（`4183b1d`・既存changelog.htmlと同じ表現に揃えた）。**利用者への到達には次のストア版（v1.4.4想定）が必要**。runAutoScan修正(`2b867ca`)と同梱する案（本人の「次回機能リリースに併設」裁定と整合）
+  - ✅**2・3 og-app.html／app-og.png**: バッジを「iOS ・ Android 配信中」へ、render.shで再生成し旧画像と目視比較（バッジ以外の差なし）（`fbb2b4e`）。`waiteu-brand`側の写しは開発本部の所管のため未編集
+  - ✅**4 mainの古いchangelog**: developの現在のツリーをそのまま採る再同期コミット`8f5026e16e4de7a691db94b34cf8a18b013ceadf`を作成済み（parents=旧同期`a00deff`+develop `4183b1d`・tree一致検証済み・**ローカルmainブランチへ未反映のdangling**）。mainへの反映＝ローカルref移動＋`git push origin main`は本人承認待ち
+  - ⏸️**5 transparency.html**: 修正は`54a813d`・`b5235f9`でコミット済み、**未push**（本人承認待ち）
+  - ⏸️**6 landing/updates.html**: 手書き修正は不可。`ops/litus-devlog`の半自動パイプライン（スケジュールタスク`litus-devlog-report`・毎週火曜・enabled）が出力するページで、state.jsonのlastRunAtが9/15で止まっているのは、9/22の実行が下書きをDiscordへ出してレビュー待ち（公開はレビュー後の手動publish）のため。次回9/29火曜。1.1.0出荷を反映した新エントリの公開はその流れに乗せる
+  - ⚠**pushガードが新たに1件**: develop pushのドライランで`src/background/index.test.ts`に「sesskeyの値」を検出。私の新規テストが既存と同じ架空のフィクスチャ`AbCd012345`を流用した3行が原因で、同じ文字列は既に公開中のテストコードに26箇所ある（誤検知と判断・ただし「指摘が1つでも出たらpushせず人間に確認」の規定どおり本人確認待ち）
+  - 🔴**別件・9/18から未回答のまま**: landing/terms.htmlの「提供者はサーバーを運用していません」と、公開中のlogin/register/mypage等（api.waiteu.dev稼働・サイト内リンクなし）の矛盾の対応方針
+
 - [ ] **2026-09-11（後期開始日）に実機観測する**＝日付の一回性タスク（§8-⑥: 条件に紐づけると無言で落ちるので日付で持つ）
   - ✅**9/11朝、スケジュールタスク`ltw-koki-first-class-observation`が配信版チェックを自動実施済み（人手不要な部分）**: Chrome掲載版=1.4.2（更新日2026-09-04・curl実測）／Edge掲載版=1.4.2（Edge API実測・lastUpdateDate同時期）。**両ストアとも226b96c（年ガード修正）を含む1.4.2以降＝直っているはずの版が両方に届いている。** CLASSへのログインが要る実機観測（下記項目）はユーザー本人待ち＝未実施
   - 🔴**観測前に必ず「どのブラウザで見たか」＋そのブラウザにインストール済みの拡張機能バージョンを記録すること**（統合ハブ2026-09-04指摘）。Edgeは審査に2週間かかった実績があり（v1.2.1=7/14提出→7/29時点も掲載1.2.1のまま）、v1.4.2をChrome/Edge同日提出しても**9/11時点でChromeだけv1.4.2・Edgeはv1.4.1のまま**の状態があり得る。この場合B+F（学期表示が古いまま検知・修正）はEdge側に入っていない。バージョン記録が無いと「直っていない」のか「まだEdgeに届いていない」のかを後から切り分けられない
