@@ -292,7 +292,7 @@
 
 - [~] **旧マーク（Vite稲妻＋Vite由来の紫）の取りこぼし洗い出し（2026-09-25・統合ハブ依頼）**
   - ✅**ココナラのポートフォリオ画像「LETUS Task Watcher」カード**＝生成元を新規作成（`~/dev/waiteu-brand/coconala-portfolio-2026-09/ltw-card.html`・README追記）→`ltw-card-1200x1200.png`を描画して目視済み。旧カードは罫線が`#843aff`（=Vite色`#863bff`のJPEG丸め）・強調/ワードマーク/背景も紫系＝**マークだけでなく色も全部替えた**（マーク=`ltw-final.svg`原本の埋め込み・朱`#CF4E2A`／背景=暖色生成り／紫系画素0個を計数）。**ココナラへのアップロードは外部書き込み＝本人の許可待ち**
-  - ✅**LTWリポ（PUBLIC）に旧マークのPNGが2枚残存していた→追跡から外した**（`git rm`・リポ内の参照ゼロを確認）: `store-assets/product-final.png`（512²・Stripe「Premium」商品画像・巨大な稲妻）／`store-assets/stripe-logo.png`（680×128・稲妻＋「LETUS Task Watcher」）。7/2以降無編集・9/11の差し替え対象表が`stripe-icon.png`だけを数えていて漏れていた＝「同じ資産が何製品に入っているか」の数え漏れ。**追跡から外しても公開の履歴には残る（履歴の書き換えは人間のみ・既定はやらない）**。Stripeダッシュボードにアップロード済みかは私から確認できない（本人確認事項・Premium再開時はT-markで作り直す）
+  - ✅**LTWリポ（PUBLIC）に旧マークのPNGが2枚残存していた→追跡から外した**（`git rm`・リポ内の参照ゼロを確認）: `store-assets/product-final.png`（512²・Stripe「Premium」商品画像・巨大な稲妻）／`store-assets/stripe-logo.png`（680×128・稲妻＋「LETUS Task Watcher」）。7/2以降無編集・9/11の差し替え対象表が`stripe-icon.png`だけを数えていて漏れていた＝「同じ資産が何製品に入っているか」の数え漏れ。**追跡から外しても公開の履歴には残る（履歴の書き換えは人間のみ・既定はやらない）**。Stripe側の旧マーク3か所は2026-09-27に差し替え完了（Premium画像もT-markで作り直し済み）
   - ✅**`~/dev/waiteu-brand/x-shots-2026-07/ltw/x-card-v140-calendar-{1200x675,2400x1350@2x}.png`**（左上に紫の稲妻が残っていた）→LTWリポの再生成済みPNG（T-mark・`6af9e76`）で置換（md5一致・目視済み）。ソースはリポのHTML＝正典はリポ側
   - ✅**`store-assets/logo-300x300.svg`とpngの食い違い**（svgは背景グラデ＋ワードマーク付きの旧構図・pngは原本のマークのみ＝「svgから焼き直すと別物になる」罠）→svgを原本`ltw-final.svg`のマークに揃えて書き直し、Chromeで描画してpngと画素差を計測（最大差20・>24の画素0）
   - ℹ`store-assets/promo-marquee-1400x560.png`・`promo-small-440x280.png`・`store-shot1〜3.png`は稲妻ではないが**旧デザインの残り**（7/10以降無編集・生成元なし・カレンダーチェック型アイコン＋紫）。参照元はstore-submission-v1.2.1.mdのみ。稲妻ではなく`#863bff`の系統かは未測定。ストアに実際に掲載されている画像は別（`promo-tile-large-1400x560.png`＝T-mark・9/11再生成済み）
@@ -304,7 +304,7 @@
   - `landing/transparency.html`の「対象: v1.4.2」→v1.4.3（v1.4.2→v1.4.3の差分がアイコンとサイレント更新の判定のみで通信に関わる変更が無いことを再確認してから）
   - Dependabot open 12件（high4/medium8）は全て`pnpm-lock.yaml`のdevelopmentスコープ（browserslist/postcss/sharp/undici/vitest系・拡張に同梱されない）。依存更新を見る（急がない）
   - ⏳**同期ツリーの画像39点の目視監査は未実施**（分類器に止められて途中まで・回避していない）。公開mainの重い4本（logo-300x300.svg・favicon 3本）の署名0件と、アイコン/apple-touch/logo pngのmd5照合は済み。やる時は本人の許可を取る
-  - 本人操作待ち（リポ外）: Stripe（アイコン・反転ロゴ・Premium画像・色`CF4E2A`/`1D1410`・保存）／ココナラLTWカードのアップロード。差し替え4点＝`~/dev/waiteu-brand/upload-ready-2026-09-25/`
+  - ✅Stripeの旧マーク3か所＋紫のブランドカラーは2026-09-27に差し替え完了（統合ハブが本人許可のもとブラウザで実施・案A・保存後リロードとCheckoutプレビュー/商品サムネイルで実測。私は独立確認できていない）。**本人操作待ち（リポ外）: ココナラLTWカードのアップロード**（`~/dev/waiteu-brand/upload-ready-2026-09-25/4-coconala-ltw-card-1200x1200.png`）
   - 本人裁定待ち: terms.htmlの「提供者はサーバーを運用していません」と公開中のlogin/register/mypage等の矛盾（9/18から）／ココナラLTWカードの配色（暖色）の最終確認
 
 - [ ] **2026-09-11（後期開始日）に実機観測する**＝日付の一回性タスク（§8-⑥: 条件に紐づけると無言で落ちるので日付で持つ）
