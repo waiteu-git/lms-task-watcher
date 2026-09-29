@@ -69,9 +69,15 @@ describe('resolveSemester', () => {
     expect(resolveSemester(new Date(2026, 9, 1), [])).toBe('kouki') // 10月
     expect(resolveSemester(new Date(2026, 1, 15), [])).toBe('kouki') // 2月
   })
-  it('後期開始日が未確定の年度は旧来の月境界（4-9月=前期）にフォールバックする', () => {
-    expect(resolveSemester(new Date(2027, 8, 15), [])).toBe('zenki') // 2027年度9月＝未登録
+  it('後期開始日が未確定の年度は、登録済みで最新の年度(2026=9/11)の月日を推定値として使う', () => {
+    expect(resolveSemester(new Date(2027, 8, 10), [])).toBe('zenki') // 2027/9/10＝推定の前日
+    expect(resolveSemester(new Date(2027, 8, 11), [])).toBe('kouki') // 2027/9/11＝推定の後期開始日
+    expect(resolveSemester(new Date(2027, 8, 30), [])).toBe('kouki') // 2027年度9月末
     expect(resolveSemester(new Date(2027, 9, 1), [])).toBe('kouki') // 2027年度10月
+  })
+  it('確定年度(2026)の挙動は推定ロジック導入後も変わらない（負の対照）', () => {
+    expect(resolveSemester(new Date(2026, 8, 10), [])).toBe('zenki') // 9/10＝前期最終日
+    expect(resolveSemester(new Date(2026, 8, 11), [])).toBe('kouki') // 9/11＝後期開始日
   })
 })
 
@@ -93,6 +99,10 @@ describe('findMissingCurrentSemester', () => {
   it('逆方向（前期が未取得）でも検出する', () => {
     const captured = [{ semester: 'kouki' as const, capturedAt: '2026-01-10T00:00:00Z' }]
     expect(findMissingCurrentSemester(new Date(2026, 4, 1), captured)).toBe('zenki') // 5月=前期
+  })
+  it('後期開始日が未確定の年度(2027)でも推定日から督促が出る（従来は10/1まで出なかった穴の修正）', () => {
+    const captured = [{ semester: 'zenki' as const, capturedAt: '2027-04-10T00:00:00Z' }]
+    expect(findMissingCurrentSemester(new Date(2027, 8, 20), captured)).toBe('kouki') // 2027/9/20
   })
 })
 
