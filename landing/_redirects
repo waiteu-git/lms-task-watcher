@@ -1,6 +1,7 @@
 # リタスLPは litus.waiteu.dev へ移設。X等に既出の旧URLからの流入を維持する。
-# ※Cloudflare Pages は静的ファイルを優先するため、landing/app.html を残したままだと
-#   このリダイレクトは効かない（旧ファイル削除とセットで機能する）。
+# ※Cloudflare Pages は「資産の有無によらず_redirectsを常に先に適用する」（公式・2026-10-01に実測で確認＝
+#   削除済みなのにasset retentionで旧ページが残っていたURLも、ルールを足した直後に301になった）。
+#   旧ファイルを残したままでも効く。（以前ここに「静的ファイル優先で効かない」と書いていたのは誤り。）
 /app                 https://litus.waiteu.dev/              301
 /app.html            https://litus.waiteu.dev/              301
 /app-privacy         https://litus.waiteu.dev/app-privacy   301
