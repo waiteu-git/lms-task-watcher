@@ -1357,9 +1357,9 @@ describe('handleInstalled', () => {
     expect(chrome.tabs.create).not.toHaveBeenCalledWith({ url: 'welcome.html' })
   })
 
-  it('サイレントアップデート対象の版では、フラグ保存済みでもchangelog.htmlを開かない', async () => {
+  it.each(['1.4.3', '1.4.4'])('サイレントアップデート対象の版(%s)では、フラグ保存済みでもchangelog.htmlを開かない', async (version) => {
     store[WELCOME_GUIDE_SHOWN_KEY] = true
-    vi.mocked(chrome.runtime.getManifest).mockReturnValue({ version: '1.4.3' } as chrome.runtime.Manifest)
+    vi.mocked(chrome.runtime.getManifest).mockReturnValue({ version } as chrome.runtime.Manifest)
 
     await handleInstalled({ reason: 'update' } as chrome.runtime.InstalledDetails)
 
