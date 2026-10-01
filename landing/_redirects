@@ -9,3 +9,18 @@
 # 変更履歴の共有用URL。独立ページを持たないため、トップのアップデート履歴へ着地させる。
 /changelog           /#changelog                            301
 /changelog.html      /#changelog                            301
+
+# Premium用の認証ページ5枚（休眠中・2026-10-01にlanding/から削除）。削除後もCloudflare Pagesの
+# asset retention（古い資産を最大7日配り続ける・cf-cache-status: DYNAMICでゾーンのキャッシュではない＝
+# purgeでは消えない）で旧ページが残るため、明示的にトップへ301する。
+# 公式: 「Redirects are always followed, regardless of whether or not an asset matches」（Pages > Redirects）
+/login                  /   301
+/login.html             /   301
+/register               /   301
+/register.html          /   301
+/mypage                 /   301
+/mypage.html            /   301
+/forgot-password        /   301
+/forgot-password.html   /   301
+/reset-password         /   301
+/reset-password.html    /   301
