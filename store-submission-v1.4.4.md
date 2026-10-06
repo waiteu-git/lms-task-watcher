@@ -27,6 +27,15 @@ manifest version: **1.4.4**（**公開中の 1.4.3 からの通常アップデ�
 - [x] **作った版が入っていることを成果物で確認**: `dist/assets/*.js` に追記した1文が1ファイルに存在／`dist/welcome.html` に「iOS・Androidどちらでも配信中です」／旧マークの署名（`#863bff`・稲妻パス）は `dist/` に0件
 - [x] zip 内パスに backslash なし・24エントリ・zip内の `manifest.json` の version が 1.4.4
 
+## 0-b. 10/6 の再検証（統合ハブの稼働開始の合図を受けて・提出日10/10の前）
+
+- [x] HEAD（`729bb37`）で `vitest` 748件通過・`tsc` エラー0・`lint` エラー0（既存警告4件のみ）
+- [x] **HEADから作り直した `dist/` は、パッケージ済み `letus-task-watcher-1.4.4.zip` の中身と完全一致**（`diff -r` で差分なし・24ファイル・約209KB）＝10/1以降にコードが動いていても、zip は現行HEADと同じ
+- [x] v1.4.3 → HEAD のソース差分は `App.tsx`（説明1文）・`background/index.ts`（runAutoScan・サイレント対象）・`timetableLink.ts`（学期境界）・`welcome.html`・`manifest.json` のみ。**ネットワーク・ストレージ・権限に関わる追加コード0件**（`fetch`／`chrome.storage`／`sendMessage`／権限の追加行を数えて0）＝プライバシー・透明性ページの記述（「対象: v1.4.2」）は9/17裁定どおりそのままでよい
+- [x] 個人情報の検査 `scan-private-terms.sh --check` は通過（語は出ない）
+- [x] 公開側: 認証ページ5枚は301でトップへ（10/6も維持）・Edge掲載版は 1.4.3（提出前の想定どおり）
+- [x] 説明欄（`description.txt`／`description-en.txt`）の主張を現行のコード・公開状態と突き合わせ: 変更が要るのは日本語の見出し1行だけ（上記）。リタスの「iOS・Androidで配信中」は9/24〜25の製品版に一致
+
 ## 1. ストア掲載文の更新（提出時）
 
 **サイレントアップデート方針のため、「新機能」欄は一般的な文言に留める：**
@@ -61,6 +70,17 @@ This update contains internal bug fixes and one added sentence of guidance text 
 - 審査期間の実績: Chromeは速い（当日〜数日）。Edgeはばらつきあり（v1.4.2は当日、v1.2.1は2週間以上の実績）
 - 提出は本人の操作（Chromeはブラウザの制限でこちらから操作できない）。Edge Partner Center は本人許可のもとで操作可能だった実績あり
 - **この版が届くまで利用者に届いていないもの**: `2b867ca`（9/18〜）・`4183b1d`（9/25〜）・`d0ba9c7`（9/30〜）。2027年度の学期境界の修正は**配信版に載るまで完了ではない**（受け皿は2027-08-25の定期タスク `ltw-koki-observation-2027-backstop`）
+
+## 2-b. 提出手順（本人・約15分）
+
+1. **Chrome ウェブストア（デベロッパー ダッシュボード）**: LETUS Task Watcher → パッケージ → 新しいパッケージをアップロード → `letus-task-watcher-1.4.4.zip`（リポ直下・`~/dev/lms-task-watcher-develop/`）。ストアの掲載情報 → 詳細説明（日本語）の見出し1行を差し替え（上記 §1）。提出。
+2. **Edge アドオン（Partner Center）**: 同じzipを更新としてアップロード。「Notes for certification」に §1 の英文を貼る。詳細説明（日本語）の見出し1行を差し替え。提出。
+3. 提出後は **§3 に提出日・状態を記録**する（保存画面でなく「審査中」の一覧表示で確かめる）。
+
+## 2-c. 提出後の作業（提出日に依存しない相対条件）
+
+- **「両ストアで公開された版が 1.4.4 になったら」**: ①`main` を develop と再同期する（theirs-tree 方式・コミットは私が作る・**pushは本人**）。10/6時点で `origin/main` は `origin/develop` より15コミット遅れている（9/25に`13b6f8f`へ同期した後のdevelopの積み増し）。②メモリ `ltw-state-and-backlog` の「v1.4.4待ち」を「配信済み」へ直し、**2027年度の学期境界の修正（`d0ba9c7`）が配信版に載ったことを実物で確認**してから「完了」とする（定期タスク `ltw-koki-observation-2027-backstop`＝2027-08-25 の確認項目）。
+- 気づく主体: 10/8 9:30 の `ltw-v144-presubmit-check-1008` が提出前の状態を確認する。提出後の公開確認は、提出日をこの文書に記録した時点で、**Edge公開API・Chrome掲載ページ（未認証）で版が 1.4.4 になったか**を私が見に行く（本人から「提出した」と連絡があった時）。
 
 ## 3. 提出結果
 
