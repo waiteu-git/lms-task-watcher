@@ -327,7 +327,7 @@
   - 同梱する変更（すでにdevelopにある）: `runAutoScan`の偽成功記録の修正（`2b867ca`）／`public/welcome.html`のリタス紹介「配信中」（`4183b1d`・**同梱welcome.htmlは次のストア版からしか利用者に届かない**）。`SILENT_UPDATE_VERSIONS`に1.4.4を入れるかは、機能変更を含むので**入れない**方向（changelog.htmlを出す）で本人と決める
   - 日本語ストア説明欄の見出し「このバージョンの新機能（v1.4.2）」→「v1.4.2 で追加した新機能」のように版に固定した言い方へ（説明欄だけの更新でも両ストアの再審査が要る＝v1.4.4に同梱）
   - `landing/transparency.html`の「対象: v1.4.2」→v1.4.3（v1.4.2→v1.4.3の差分がアイコンとサイレント更新の判定のみで通信に関わる変更が無いことを再確認してから）
-  - Dependabot open 13件（high5/medium8・2026-10-01に`gh api`で実測＝9/25の12件にundici 7.29.1(high)が1件増）は全て`pnpm-lock.yaml`のdevelopmentスコープ（browserslist/postcss/sharp/undici/vitest系・拡張に同梱されない）。依存更新を見る（急がない）
+  - Dependabot open 18件（high5/medium10/low3・2026-10-08に`gh api`で実測・全て`development`スコープ。10/1の13件から増えた分は、lockを変えていない＝GitHubのアドバイザリ追加に伴う新規アラートと見る）は全て`pnpm-lock.yaml`のdevelopmentスコープ（browserslist/postcss/sharp/undici/vitest系・拡張に同梱されない）。依存更新を見る（急がない）
   - ⏳**同期ツリーの画像39点の目視監査は未実施**（分類器に止められて途中まで・回避していない）。公開mainの重い4本（logo-300x300.svg・favicon 3本）の署名0件と、アイコン/apple-touch/logo pngのmd5照合は済み。やる時は本人の許可を取る
   - ✅Stripeの旧マーク3か所＋紫のブランドカラーは2026-09-27に差し替え完了（統合ハブが本人許可のもとブラウザで実施・案A・保存後リロードとCheckoutプレビュー/商品サムネイルで実測。私は独立確認できていない）。ココナラのLTWカードは9/25夜にアップロード済み（上記）＝**本人操作待ちのリポ外作業は無い**
   - 本人裁定待ち: terms.htmlの「提供者はサーバーを運用していません」と公開中のlogin/register/mypage等の矛盾（9/18から）（ココナラLTWカードの配色は、アップロード済みのため確認済み扱い）
