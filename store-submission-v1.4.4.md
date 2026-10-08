@@ -74,9 +74,14 @@ Fixed: Saturday classes now appear in the timetable and in the popup's daily vie
 - 理由: 表示版が1.4.3以降のとき「このバージョンの」は文字通りには合わない。英語版（`description-en.txt`）は「New in v1.4.2」で既に版固定の表現＝**変更なし**
 - 説明欄だけの更新でも両ストアの再審査が要るため、本パッケージの提出に同梱する
 
-**Edge Partner Center「Notes for certification」（コピペ用・EN）**
+**Edge Partner Center「Notes for certification」（コピペ用・EN・1,010文字＝上限2,000未満）**
+- 前提: 「拡張機能をテストするためにテスターに資格情報…が必要ですか？」は **「はい」のまま**（実データの取得には大学発行のログインが要り、テスト用アカウントを渡せないため。過去の承認済みの版と同じ）。「はい」を選ぶと下の欄が必須になる。
 ```
-This update contains internal bug fixes, a fix so that Saturday classes appear in the timetable grid and in the popup's daily view, and one added sentence of guidance text in the course-selection settings. No new permissions or hosts. The extension can be fully evaluated without a Tokyo University of Science account: install it, and the popup/dashboard UI (course list, deadline list, settings) is visible immediately. Full functionality (fetching real assignment/timetable data) requires a login session at letus.ed.tus.ac.jp and class.admin.tus.ac.jp, which we cannot provide a test account for (university-issued credentials only) — this is unchanged from prior approved versions.
+This update (v1.4.4) contains internal bug fixes, a fix so that Saturday classes appear in the timetable grid and in the popup's daily view, and one added sentence of guidance text in the course-selection settings. No new permissions or hosts, and no new network requests.
+
+The extension can be installed, and its popup/dashboard UI (course list, deadline list, settings) is visible without a Tokyo University of Science account. Full functionality (fetching real assignment and timetable data) requires a login session at letus.ed.tus.ac.jp and class.admin.tus.ac.jp, for which we cannot provide a test account (university-issued credentials only). This is unchanged from prior approved versions.
+
+The Saturday fix only changes how an already-imported timetable is displayed: the dashboard grid adds a Saturday column when the timetable contains a Saturday class, and on a Saturday the popup shows that day's classes. It cannot be exercised without a real CLASS timetable, so it is covered by automated tests.
 ```
 
 - データセーフティ/権限の申告変更: **なし**（収集項目・送信先・権限とも v1.4.3 から不変）
