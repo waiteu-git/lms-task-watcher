@@ -1,6 +1,6 @@
 import type { Course } from './types'
 import type { Semester, TimetableOverride } from './timetableLink'
-import type { DayOfWeek } from './timetable'
+import type { DayOfWeek, TimetableSlot } from './timetable'
 import { extractCourseCodes, resolveSemester } from './timetableLink'
 import { getPreferredView, listCapturedSemesters, getOverrides, getTimetableCapture } from './timetableStore'
 import { parseTimetable } from './timetable'
@@ -44,10 +44,34 @@ export async function getCapturedCourseCodes(year: number, semester: Semester): 
   return Array.from(codes)
 }
 
-const WEEKDAY: Record<number, DayOfWeek | undefined> = { 1: 'mon', 2: 'tue', 3: 'wed', 4: 'thu', 5: 'fri' }
+/** JSの曜日（Date#getDay）を時間割の曜日へ対応づける。日曜は授業が無いので undefined。 */
+const WEEKDAY: Record<number, DayOfWeek | undefined> = { 1: 'mon', 2: 'tue', 3: 'wed', 4: 'thu', 5: 'fri', 6: 'sat' }
 
-/** ポップアップに表示する曜日を決める。平日は当日、土日は翌月曜。 */
-export function resolveDisplayDay(now: Date): { day: DayOfWeek; label: string } {
-  const day = WEEKDAY[now.getDay()]
+export function dayOfWeekOf(date: Date): DayOfWeek | undefined {
+  return WEEKDAY[date.getDay()]
+}
+
+const WEEKDAYS: DayOfWeek[] = ['mon', 'tue', 'wed', 'thu', 'fri']
+
+/** 土曜に授業が1件でもあるか（授業なしのコマは数えない）。 */
+export function hasSaturdayClasses(slots: TimetableSlot[]): boolean {
+  return slots.some((s) => s.day === 'sat' && s.classes.length > 0)
+}
+
+/**
+ * 時間割グリッドに出す曜日の列。平日5列は常に出し、土曜は授業があるときだけ6列目に足す。
+ * （CLASSの時間割は月〜土の6列で取り込まれる。授業が無い人に空の土曜列を見せないための条件付き）
+ */
+export function visibleDays(slots: TimetableSlot[]): DayOfWeek[] {
+  return hasSaturdayClasses(slots) ? [...WEEKDAYS, 'sat'] : [...WEEKDAYS]
+}
+
+/**
+ * ポップアップに表示する曜日を決める。平日は当日、日曜は翌月曜。
+ * 土曜は、土曜に授業がある時間割なら当日（授業が無い人は従来どおり翌月曜）。
+ */
+export function resolveDisplayDay(now: Date, slots: TimetableSlot[] = []): { day: DayOfWeek; label: string } {
+  const day = dayOfWeekOf(now)
+  if (day === 'sat' && !hasSaturdayClasses(slots)) return { day: 'mon', label: '月曜' }
   return day ? { day, label: '今日' } : { day: 'mon', label: '月曜' }
 }

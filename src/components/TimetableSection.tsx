@@ -6,14 +6,12 @@ import { parseTimetable } from '../core/timetable'
 import { getTimetableCapture, listCapturedSemesters, getPreferredView, setPreferredView, setOverride, getCurrentQuarter, setCurrentQuarter } from '../core/timetableStore'
 import type { Semester, TimetableOverride } from '../core/timetableLink'
 import { applyOverrides, linkAssignmentsToSlots, extractCourseCodes, isQuarterSlot, resolveCurrentQuarter, isDimmedForCurrentQuarter, findMissingCurrentSemester, findStaleDisplayedSemester, resolveSemester } from '../core/timetableLink'
-import { loadCourseOverrides, resolveViewSemester } from '../core/timetableView'
+import { loadCourseOverrides, resolveViewSemester, dayOfWeekOf, visibleDays } from '../core/timetableView'
 import { SyllabusContext } from '../core/syllabusContext'
 import { buildSyllabusUrl, academicYear } from '../core/syllabus'
 import { formatDateTime } from '../utils/date'
 
-const DAYS: DayOfWeek[] = ['mon', 'tue', 'wed', 'thu', 'fri']
 const DAY_LABELS: Record<DayOfWeek, string> = { mon: '月', tue: '火', wed: '水', thu: '木', fri: '金', sat: '土' }
-const JS_DAY_TO_DOW: Record<number, DayOfWeek | undefined> = { 1: 'mon', 2: 'tue', 3: 'wed', 4: 'thu', 5: 'fri' }
 const PERIODS = [1, 2, 3, 4, 5, 6, 7]
 
 export function TimetableSection({ courses, assignments, manualAssignments, newCodes }: {
@@ -106,7 +104,9 @@ export function TimetableSection({ courses, assignments, manualAssignments, newC
     return m
   }, [courses])
 
-  const todayDow = JS_DAY_TO_DOW[now.getDay()]
+  const todayDow = dayOfWeekOf(now)
+  /** 平日5列＋土曜に授業があるときだけ土曜の列。 */
+  const days = useMemo(() => visibleDays(slots), [slots])
 
   /** 表示学期を選ぶ。null＝自動（取得済み最新を使う）。前期/後期/自動の明示3択。 */
   async function chooseSemester(next: Semester | null) {
@@ -237,15 +237,15 @@ export function TimetableSection({ courses, assignments, manualAssignments, newC
         ) : slots.length === 0 ? (
           <p className="timetableEmpty">時間割を読み取れませんでした。ページを再読込して再度お試しください。</p>
         ) : (
-          <div className="timetableGrid" style={{ gridTemplateColumns: `28px repeat(${DAYS.length}, 1fr)` }}>
+          <div className="timetableGrid" style={{ gridTemplateColumns: `28px repeat(${days.length}, 1fr)` }}>
             <div />
-            {DAYS.map((d) => (
+            {days.map((d) => (
               <div key={d} className={`timetableDayHead ${d === todayDow ? 'today' : ''}`}>{DAY_LABELS[d]}</div>
             ))}
             {rows.map((period) => (
               <div key={`row-${period}`} style={{ display: 'contents' }}>
                 <div className="timetablePeriodHead">{period}</div>
-                {DAYS.map((d) => {
+                {days.map((d) => {
                   const list = grid.get(`${d}:${period}`)
                   if (!list || list.length === 0) return <div key={`${d}:${period}`} className={`timetableCell empty ${d === todayDow ? 'today' : ''}`} />
                   // 同一コマ2科目以上＝クォーター科目。全件描画する（以前は1件しか出ていなかった）。
