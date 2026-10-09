@@ -1,5 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { TABLE_MINIMAL, TABLE_STACKED_QUARTER } from './timetable.fixtures'
+import { TABLE_MINIMAL, TABLE_STACKED_QUARTER, TABLE_WITH_SATURDAY } from './timetable.fixtures'
+import { parseTimetable } from './timetable'
+import type { DayOfWeek, TimetableSlot } from './timetable'
 
 const store: Record<string, unknown> = {}
 vi.stubGlobal('chrome', {
@@ -15,7 +17,7 @@ vi.stubGlobal('chrome', {
   },
 })
 
-const { getCapturedCourseCodes, resolveDisplayDay, loadCourseOverrides, resolveViewSemester } = await import('./timetableView')
+const { getCapturedCourseCodes, resolveDisplayDay, loadCourseOverrides, resolveViewSemester, dayOfWeekOf, hasSaturdayClasses, visibleDays } = await import('./timetableView')
 
 beforeEach(() => { for (const k of Object.keys(store)) delete store[k] })
 
@@ -118,5 +120,75 @@ describe('resolveDisplayDay', () => {
     expect(resolveDisplayDay(new Date('2026-07-11T10:00:00+09:00')).day).toBe('mon') // 土曜
     expect(resolveDisplayDay(new Date('2026-07-12T10:00:00+09:00')).day).toBe('mon') // 日曜
     expect(resolveDisplayDay(new Date('2026-07-12T10:00:00+09:00')).label).toBe('月曜')
+  })
+})
+
+// 日付はすべてJST（vitest.setup.ts が TZ を固定）。2026-07-06=月曜、07-11=土曜、07-12=日曜。
+const at = (iso: string) => new Date(`${iso}T10:00:00+09:00`)
+const weekdayClass = { courseCode: '9970001', name: '試験科目', teachers: [], room: '野：101教室', isRemote: false, credits: 2, badges: [] }
+const slotOf = (day: DayOfWeek, period: number): TimetableSlot => ({ day, period, classes: [weekdayClass] })
+
+describe('dayOfWeekOf', () => {
+  it('月〜土を時間割の曜日へ対応づける', () => {
+    expect(dayOfWeekOf(at('2026-07-06'))).toBe('mon')
+    expect(dayOfWeekOf(at('2026-07-07'))).toBe('tue')
+    expect(dayOfWeekOf(at('2026-07-08'))).toBe('wed')
+    expect(dayOfWeekOf(at('2026-07-09'))).toBe('thu')
+    expect(dayOfWeekOf(at('2026-07-10'))).toBe('fri')
+    expect(dayOfWeekOf(at('2026-07-11'))).toBe('sat')
+  })
+  it('日曜は授業が無いので undefined', () => {
+    expect(dayOfWeekOf(at('2026-07-12'))).toBeUndefined()
+  })
+})
+
+describe('hasSaturdayClasses / visibleDays（土曜の授業があるときだけ6列目を足す）', () => {
+  it('土曜の授業が無ければ平日5列のまま（授業が無い人の見た目は変えない）', () => {
+    const slots = [slotOf('mon', 1), slotOf('tue', 4)]
+    expect(hasSaturdayClasses(slots)).toBe(false)
+    expect(visibleDays(slots)).toEqual(['mon', 'tue', 'wed', 'thu', 'fri'])
+  })
+  it('時間割が空でも平日5列', () => {
+    expect(visibleDays([])).toEqual(['mon', 'tue', 'wed', 'thu', 'fri'])
+  })
+  it('土曜に授業が1件でもあれば土曜を6列目に足す', () => {
+    const slots = [slotOf('mon', 1), slotOf('sat', 2)]
+    expect(hasSaturdayClasses(slots)).toBe(true)
+    expect(visibleDays(slots)).toEqual(['mon', 'tue', 'wed', 'thu', 'fri', 'sat'])
+  })
+  it('土曜の授業が空配列のコマ（授業なしセル）は数えない', () => {
+    const slots: TimetableSlot[] = [{ day: 'sat', period: 3, classes: [] }]
+    expect(hasSaturdayClasses(slots)).toBe(false)
+  })
+  it('実CLASS構造の時間割（土曜に授業あり）を解析した結果から土曜を検出する', () => {
+    const slots = parseTimetable(TABLE_WITH_SATURDAY)
+    expect(slots.find((s) => s.day === 'sat' && s.period === 2)?.classes[0].name).toBe('土曜の試験科目')
+    expect(hasSaturdayClasses(slots)).toBe(true)
+  })
+  it('負の対照: 平日だけの実CLASS時間割（土曜は全て授業なし）では土曜を足さない', () => {
+    const slots = parseTimetable(TABLE_MINIMAL)
+    expect(slots.length).toBeGreaterThan(0)
+    expect(hasSaturdayClasses(slots)).toBe(false)
+    expect(visibleDays(slots)).toEqual(['mon', 'tue', 'wed', 'thu', 'fri'])
+  })
+})
+
+describe('resolveDisplayDay（土曜に授業がある場合）', () => {
+  const withSaturday = [slotOf('mon', 1), slotOf('sat', 2)]
+  const weekdaysOnly = [slotOf('mon', 1), slotOf('tue', 4)]
+
+  it('土曜に授業があれば、土曜は当日（今日）を出す', () => {
+    expect(resolveDisplayDay(at('2026-07-11'), withSaturday)).toEqual({ day: 'sat', label: '今日' })
+  })
+  it('土曜でも授業が無い人は、従来どおり翌月曜を出す（変えない）', () => {
+    expect(resolveDisplayDay(at('2026-07-11'), weekdaysOnly)).toEqual({ day: 'mon', label: '月曜' })
+    expect(resolveDisplayDay(at('2026-07-11'), [])).toEqual({ day: 'mon', label: '月曜' })
+  })
+  it('日曜は土曜に授業があっても翌月曜（土曜は過ぎている）', () => {
+    expect(resolveDisplayDay(at('2026-07-12'), withSaturday)).toEqual({ day: 'mon', label: '月曜' })
+  })
+  it('平日は時間割に土曜があっても当日', () => {
+    expect(resolveDisplayDay(at('2026-07-08'), withSaturday)).toEqual({ day: 'wed', label: '今日' })
+    expect(resolveDisplayDay(at('2026-07-10'), withSaturday)).toEqual({ day: 'fri', label: '今日' })
   })
 })

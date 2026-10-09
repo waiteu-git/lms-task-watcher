@@ -26,20 +26,38 @@ export { extractCourseCodes } from './courseCode'
 export const extractCourseCode = firstCourseCode
 
 /**
- * 後期開始日はCLASSが公開せず年度ごとに変わる。判明した年度をここに追記する運用。
- * 未登録の年度は暫定的に旧来の月境界（4-9月=前期）にフォールバックする
- * （＝誤った早期ナッジより、今日と同じ挙動を優先。年1回、後期開始前にこの表を更新すること）。
+ * 後期開始日はCLASSが公開せず年度ごとに変わる。**確定した**年度だけをここに追記する運用
+ * （未確定の年度を推測で埋めない）。
+ *
+ * 未登録の年度は、登録済みの中で最も新しい年度の月日を推定値として流用する（確定値ではなく
+ * 目安）。旧実装は未登録年度を「4-9月=前期」という月境界へ丸ごとフォールバックしており、
+ * 実際の後期開始日を過ぎても9月いっぱい前期のまま判定される穴があった（2027年度で発覚）。
+ *
+ * 推定日が実際の開始日と一致する保証はない。実際が推定より早ければ、その日から推定日までは
+ * 督促が出ない（旧実装の「9月いっぱい」よりは短い）。**実際が推定より遅ければ、開始前に
+ * 「後期を取り込んで」という督促が出る**。
+ * ⚠履修未確定の空の後期表を取り込みうる既知の欠陥（capture() は classTable の有無しか見ない）は
+ * 未解消のまま。2026年度と同じ日付で督促する限り、そのリスクは2026年度と同程度で増減しない
+ * （9/11は後期の授業開始日そのものであり、履修が固まった後だという裏付けは無い）。
+ *
+ * この表を更新しなくても壊れない設計にしてあるが、確定値が分かれば追記した方が推定より正確になる。
  */
 const KOUKI_START_DATES: Record<number, { month: number; day: number }> = {
   2026: { month: 9, day: 11 }, // 東京理科大 2026年度後期開始日
 }
 
+/** 未登録年度の推定に使う月日＝登録済みの中で最も新しい年度のもの。 */
+function estimatedKoukiStart(): { month: number; day: number } {
+  const years = Object.keys(KOUKI_START_DATES).map(Number)
+  const latestYear = Math.max(...years)
+  return KOUKI_START_DATES[latestYear]
+}
+
 /** 日付だけから「今あるべき学期」を判定する（取得データは見ない）。 */
 function calendarSemester(now: Date): Semester {
   const year = academicYear(now)
-  const confirmed = KOUKI_START_DATES[year]
-  if (!confirmed) return now.getMonth() >= 3 && now.getMonth() <= 8 ? 'zenki' : 'kouki'
-  const koukiStart = new Date(year, confirmed.month - 1, confirmed.day)
+  const { month, day } = KOUKI_START_DATES[year] ?? estimatedKoukiStart()
+  const koukiStart = new Date(year, month - 1, day)
   return now >= koukiStart ? 'kouki' : 'zenki'
 }
 

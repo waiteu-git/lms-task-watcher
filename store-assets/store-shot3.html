@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<!-- 紹介画像「今日の授業と締切をワンクリックで」（1280×800）の生成元。PNG だけを直さない＝ここを直して描き直す。
+     2026-10-06: 旧PNG（2026-07-10・生成元なし・旧アイコン〔カレンダーにチェック〕）を現行マーク（足つきT・朱 #CF4E2A）で再現して置き換えた。
+     マークは原本 ~/dev/waiteu-brand/ltw-2026-09/svg/ltw-final.svg の <rect>+<path>。ポップアップの紫（#7c3aed）は拡張機能のUI自体の配色（Vite由来の #863bff ではない）。
+     中身はモックデータのみ（汎用科目名・実LETUS画面のキャプチャ不使用）。描画: ~/dev/litus-store-assets/tools/embed_fonts.py → render.sh（1280 800）。 -->
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<style>
+  @font-face { font-family: 'PlexJP'; font-weight: 400; src: url(FONT400) format('woff2'); }
+  @font-face { font-family: 'PlexJP'; font-weight: 700; src: url(FONT700) format('woff2'); }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { width: 1280px; height: 800px; overflow: hidden; }
+  .canvas { width: 1280px; height: 800px; position: relative; overflow: hidden; font-family: 'PlexJP', sans-serif; color: #161326;
+            background: radial-gradient(circle at 0% 22%, #dde7ff 0%, rgba(221,231,255,0) 42%),
+                        radial-gradient(circle at 100% 0%, #efe9ff 0%, rgba(239,233,255,0) 46%), #f3f5fc; }
+  /* 左: コピー */
+  .brand { position: absolute; left: 64px; top: 182px; display: flex; align-items: center; gap: 12px; }
+  .brand svg { width: 40px; height: 40px; display: block; filter: drop-shadow(0 6px 10px rgba(207,78,42,0.25)); }
+  .brand span { font-size: 17px; font-weight: 700; }
+  h1 { position: absolute; left: 64px; top: 238px; font-size: 52px; font-weight: 700; line-height: 62px; letter-spacing: -0.01em; }
+  h1 em { font-style: normal; color: #7c3aed; }
+  .sub { position: absolute; left: 64px; top: 370px; width: 430px; font-size: 18px; font-weight: 700; line-height: 31px; color: #475569; }
+  .feat { position: absolute; left: 64px; top: 456px; list-style: none; }
+  .feat li { display: flex; align-items: center; gap: 14px; height: 30px; margin-bottom: 14px; font-size: 17px; font-weight: 700; color: #334155; }
+  .feat .ic { width: 30px; height: 30px; border-radius: 9px; background: #ede9fe; display: flex; align-items: center; justify-content: center; font-size: 15px; }
+  /* 右: ポップアップのモック */
+  .pop { position: absolute; left: 775px; top: 114px; width: 440px; height: 573px; border-radius: 28px; background: #f4f4f5;
+         box-shadow: 0 30px 60px rgba(88,64,160,0.20), 0 0 0 1px rgba(255,255,255,0.7) inset; overflow: hidden; }
+  .pop .head { height: 66px; border-bottom: 1px solid #e4e4e7; }
+  .btn { position: absolute; left: 16px; top: 14px; width: 97px; height: 38px; border-radius: 10px; background: #7c3aed; color: #fff;
+         font-size: 14px; font-weight: 700; display: flex; align-items: center; justify-content: center; }
+  .last { position: absolute; right: 16px; top: 13px; width: 122px; height: 40px; border-radius: 10px; background: #fafafa; border: 1px solid #e4e4e7;
+          font-size: 12px; font-weight: 700; padding: 5px 0 0 11px; line-height: 15px; white-space: nowrap; }
+  .last b { display: block; color: #7c3aed; font-weight: 700; text-align: right; padding-right: 11px; }
+  .stat { position: absolute; top: 81px; width: 127px; height: 75px; border-radius: 14px; background: #fff; box-shadow: 0 2px 6px rgba(0,0,0,0.06); padding: 13px 0 0 13px; }
+  .stat small { display: block; font-size: 12px; font-weight: 700; color: #6b7280; }
+  .stat strong { display: block; margin-top: 6px; font-size: 27px; font-weight: 700; color: #111; line-height: 30px; }
+  .tt { position: absolute; left: 19px; top: 171px; width: 401px; height: 173px; border-radius: 14px; background: #fafafa; border: 1px solid #e4e4e7; }
+  .tt h3 { position: absolute; left: 14px; top: 14px; font-size: 14px; font-weight: 700; }
+  .row { position: absolute; left: 14px; right: 14px; height: 41px; display: flex; align-items: center; border-top: 1px solid #ececf0; }
+  .row .n { width: 24px; height: 24px; border-radius: 12px; background: #ede9fe; color: #7c3aed; font-size: 12px; font-weight: 700; display: flex; align-items: center; justify-content: center; margin-right: 10px; }
+  .row .t { flex: 1; font-size: 14px; font-weight: 700; color: #1f2937; }
+  .row .r { font-size: 13px; font-weight: 700; color: #6b7280; display: flex; align-items: center; gap: 8px; }
+  .dot { width: 8px; height: 8px; border-radius: 4px; background: #ea580c; }
+  .new { background: #059669; color: #fff; font-size: 10.5px; font-weight: 700; padding: 1px 6px; border-radius: 4px; letter-spacing: 0.03em; }
+  .sec { position: absolute; left: 19px; top: 359px; font-size: 16px; font-weight: 700; }
+  .cnt { position: absolute; right: 19px; top: 358px; padding: 2px 11px; border-radius: 12px; background: #ede9fe; color: #7c3aed; font-size: 12px; font-weight: 700; }
+  .due { position: absolute; left: 19px; top: 394px; width: 401px; height: 97px; border-radius: 14px; background: #fff; box-shadow: 0 2px 6px rgba(0,0,0,0.07); }
+  .due .d { position: absolute; left: 14px; top: 14px; font-size: 14px; font-weight: 700; }
+  .due .bd { position: absolute; right: 14px; top: 12px; padding: 4px 12px; border-radius: 14px; border: 1px solid #fdba74; background: #fff7ed; color: #ea580c; font-size: 13px; font-weight: 700; }
+  .due .ti { position: absolute; left: 14px; top: 41px; font-size: 15px; font-weight: 700; }
+  .due .co { position: absolute; left: 14px; top: 66px; font-size: 13px; font-weight: 700; color: #6b7280; }
+  .cta { position: absolute; left: 19px; top: 515px; width: 401px; height: 40px; border-radius: 10px; border: 1px solid #ddd6fe; background: #f4f4f5;
+         color: #7c3aed; font-size: 14px; font-weight: 700; display: flex; align-items: center; justify-content: center; }
+</style>
+</head>
+<body>
+  <div class="canvas">
+    <div class="brand">
+      <!-- 原本 ltw-final.svg の <rect>+<path>（足つきT・朱）。派生・手編集しない -->
+      <svg viewBox="64 64 896 896" aria-hidden="true"><rect x="64" y="64" width="896" height="896" rx="200" fill="#CF4E2A"/><path fill="#FFFFFF" d="M288 264 H704 A60 60 0 0 1 704 384 H560 V656 H704 A60 60 0 0 1 704 776 H492 A60 60 0 0 1 432 716 V384 H288 A60 60 0 0 1 288 264 Z"/></svg>
+      <span>LETUS Task Watcher</span>
+    </div>
+    <h1>今日の授業と締切を<br><em>ワンクリック</em>で</h1>
+    <p class="sub">ポップアップを開くだけ。今日の時間割と、迫った課題がひと目で。</p>
+    <ul class="feat">
+      <li><span class="ic">📅</span>今日の時間割をポップアップに常設</li>
+      <li><span class="ic">🔔</span>締切24h/3h/1h前にデスクトップ通知</li>
+      <li><span class="ic">🎨</span>ダークテーマ・課題メモも無料</li>
+      <li><span class="ic">🔒</span>データは端末内のみ・外部送信なし</li>
+    </ul>
+
+    <div class="pop">
+      <div class="head">
+        <div class="btn">今すぐ更新</div>
+        <div class="last">前回: 7/9 10:36<b>38分前</b></div>
+      </div>
+      <div class="stat" style="left:19px"><small>24時間以内</small><strong>1</strong></div>
+      <div class="stat" style="left:156px"><small>今週</small><strong>6</strong></div>
+      <div class="stat" style="left:293px"><small>対象コース</small><strong>9</strong></div>
+      <div class="tt">
+        <h3>火曜日（火）の時間割</h3>
+        <div class="row" style="top:42px"><span class="n">2</span><span class="t">Reading &amp; Writing 1</span><span class="r">K307</span></div>
+        <div class="row" style="top:83px"><span class="n">3</span><span class="t">基礎電気工学</span><span class="r"><i class="dot"></i>1211</span></div>
+        <div class="row" style="top:124px"><span class="n">4</span><span class="t">物理学実験A</span><span class="r"><span class="new">NEW</span>444</span></div>
+      </div>
+      <div class="sec">24時間以内</div><div class="cnt">1件</div>
+      <div class="due">
+        <div class="d">7/10 00:00</div><div class="bd">12時間44分</div>
+        <div class="ti">7月3日提示レポート 課題</div><div class="co">線形代数学1 （1組）</div>
+      </div>
+      <div class="cta">ダッシュボードを開く</div>
+    </div>
+  </div>
+</body>
+</html>

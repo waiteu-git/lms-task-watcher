@@ -143,3 +143,33 @@ export const TABLE_MINIMAL = `
     <td class="colYobi"><div class="jugyo-info jugyo-normal noClass"></div></td>
   </tr>
 </table>`
+
+/**
+ * 土曜に授業がある時間割（実CLASS構造＝月〜土の6列・空きは noClass）。月1限と土2限に授業がある。
+ * 科目名・教員・教室・科目IDは架空（実データではない）。土曜の表示不具合の回帰テスト用。
+ */
+const EMPTY_CELL = '<td class="colYobi"><div class="jugyo-info jugyo-normal noClass"></div></td>'
+const filledCell = (name: string, code: string, room: string) =>
+  `<td class="colYobi"><div class="jugyo-info jugyo-normal "><div class="fontB">${name}</div><div class="">試験　教員</div><div class=""><span>${room}</span></div><div class="">${code}</div><div class="taniSu">2.0単位</div></div></td>`
+export const TABLE_WITH_SATURDAY = `
+<table class="table table-bordered classTable">
+  <tr>
+    <th class="ui-widget-header headerJigen"></th>
+    <th class="ui-widget-header headerYobi">月曜日</th>
+    <th class="ui-widget-header headerYobi">火曜日</th>
+    <th class="ui-widget-header headerYobi">水曜日</th>
+    <th class="ui-widget-header headerYobi">木曜日</th>
+    <th class="ui-widget-header headerYobi">金曜日</th>
+    <th class="ui-widget-header headerYobi">土曜日</th>
+  </tr>
+  <tr>
+    <td class="colJigen ui-widget-header">1</td>
+    ${filledCell('月曜の試験科目', '9970001', '野：101教室')}
+    ${EMPTY_CELL}${EMPTY_CELL}${EMPTY_CELL}${EMPTY_CELL}${EMPTY_CELL}
+  </tr>
+  <tr>
+    <td class="colJigen ui-widget-header">2</td>
+    ${EMPTY_CELL}${EMPTY_CELL}${EMPTY_CELL}${EMPTY_CELL}${EMPTY_CELL}
+    ${filledCell('土曜の試験科目', '9970002', '野：202教室')}
+  </tr>
+</table>`

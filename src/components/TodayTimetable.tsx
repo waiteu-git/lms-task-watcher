@@ -16,7 +16,6 @@ export function TodayTimetable({ courses, assignments, manualAssignments, newCod
 }) {
   const now = new Date()
   const year = academicYear(now)
-  const { day, label } = resolveDisplayDay(now)
   const [rawHtml, setRawHtml] = useState<string | null>(null)
   const [overrides, setOverrides] = useState<Record<string, TimetableOverride>>({})
   const [loaded, setLoaded] = useState(false)
@@ -67,6 +66,9 @@ export function TodayTimetable({ courses, assignments, manualAssignments, newCod
     if (!rawHtml) return []
     return applyOverrides(parseTimetable(rawHtml), overrides)
   }, [rawHtml, overrides])
+
+  // 土曜は、土曜に授業がある時間割のときだけ当日を出す（授業が無い人は従来どおり翌月曜）。時間割を読んだ後で決める。
+  const { day, label } = resolveDisplayDay(now, slots)
 
   const { courseCodeUrgency } = useMemo(
     () => linkAssignmentsToSlots(slots, courses, assignments, manualAssignments, now),
