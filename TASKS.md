@@ -413,3 +413,4 @@
 - モバイルUAでCLASSがスマホ版へ誘導される場合の挙動（PC版UA固定 or スマホ版パーサーの判断）
 - Expo Push実機疎通（APNs/FCM）
 - LETUS収集ロジックのTS移植時、React Native環境での動作可否（DOMParser代替の要否）
+- ✅2026-10-12 土曜表示の報告者への返信: **送らない**（連絡手段なし・本人裁定）。下書きは `.claude/reporter-reply-draft.md`（gitignore）に残置。
