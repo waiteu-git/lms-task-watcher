@@ -109,6 +109,18 @@ describe('collectUnknownModuleTypes', () => {
     expect(collectUnknownModuleTypes(urls)).toEqual([])
   })
 
+  it('Moodle 4.5 コアの全アクティビティ型は未知として返さない（現行LETUS=4.5.8で恒久の誤警告を出さない）', () => {
+    // 一覧は GitHub moodle/moodle の MOODLE_405_STABLE の mod/ ディレクトリ（2026-10-12 取得）。
+    // 以前は bigbluebuttonbn と subsection が未登録で、コースに1つあるだけで infoノートが出続ける穴だった。
+    const MOODLE_405_CORE_MODS = [
+      'assign', 'bigbluebuttonbn', 'book', 'chat', 'choice', 'data', 'feedback', 'folder',
+      'forum', 'glossary', 'h5pactivity', 'imscp', 'label', 'lesson', 'lti', 'page', 'quiz',
+      'resource', 'scorm', 'subsection', 'survey', 'url', 'wiki', 'workshop',
+    ]
+    const urls = MOODLE_405_CORE_MODS.map((t) => `${BASE}/mod/${t}/view.php?id=1`)
+    expect(collectUnknownModuleTypes(urls)).toEqual([])
+  })
+
   it('既知非スキャン型は除外パスへ加えない（broadスキャンの既存挙動を変えない）', () => {
     // KNOWN_UNSCANNED は catch-all 診断の既知化専用。NON_ASSIGNMENT_PATHS に混入すると
     // broad の isAssignmentLikeLink から scorm 等が締切追跡不能になる（挙動後退）。

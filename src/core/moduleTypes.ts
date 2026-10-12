@@ -60,11 +60,13 @@ export const NON_ASSIGNMENT_MODULE_TYPES = [
  * 一切変えずに「未知型」誤警告だけを止める。フル対応は v1.4 のカバレッジ課題。
  */
 export const KNOWN_UNSCANNED_MODULE_TYPES = [
+  'bigbluebuttonbn',
   'chat',
   'data',
   'h5pactivity',
   'imscp',
   'scorm',
+  'subsection',
 ] as const
 
 /**

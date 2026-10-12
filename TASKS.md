@@ -414,3 +414,10 @@
 - Expo Push実機疎通（APNs/FCM）
 - LETUS収集ロジックのTS移植時、React Native環境での動作可否（DOMParser代替の要否）
 - ✅2026-10-12 土曜表示の報告者への返信: **送らない**（連絡手段なし・本人裁定）。下書きは `.claude/reporter-reply-draft.md`（gitignore）に残置。
+- ✅2026-10-12 「v1.4送り」5点の棚卸し（新バージョンLTW開発ハブ）:
+  - ④ **実装済み（未push）**: `KNOWN_UNSCANNED_MODULE_TYPES` に `bigbluebuttonbn`・`subsection` を追加（Moodle 4.5 コアの mod/ 全24型と照合＝GitHub MOODLE_405_STABLE。この2型だけ未登録で、コースに1つあれば現行LETUS(4.5.8)でも未対応モジュールの info ノートが出続ける穴だった）。コア全型を未知にしないテストを追加。
+  - ① BS5 lenient parse 切替: 判断は不要・**条件待ち**（TUS の LETUS が Moodle 5.x 化したら即時レーン。無認証カナリアが検知）。実5.x の画面データ無しでは書けない。
+  - ② feedback/choice の締切ラベル補完: **要る判断＝TUS のコースで feedback/choice を締切つきで使っているかの実物確認**（実画面の採取が要る）。使われていなければ見送りでよい。
+  - ③ quiz/feedback の fixture テスト固定: 元の fixture（`docs/fixtures-capture/`）は Mac 移行で消失。**要る判断＝LETUS 実画面の再採取（本人の操作）をするか**。個人情報を含むためスクラブが必須。
+  - ⑤ 締切スキャンのログアウト中断の非対称性: 実害なし・**未調査**（次に着手する候補・判断は不要）。
+
