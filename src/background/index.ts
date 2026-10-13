@@ -884,11 +884,17 @@ export async function scanDeadlinesInBackground(pacer: Pacer = letusPacer): Prom
     errorMessage: null,
   })
 
+  // 活動ページ取得中のログアウト（SSO失効）検知フラグ。課題スキャンの loggedOutDetected と同型:
+  // 未ログインHTML(200)から「締切null・状態unknown」を作って upsert すると、既存の締切と
+  // 提出状態が空で上書きされる。検知後は残りの候補を取得せず、何も書かずに中断する。
+  let loggedOutDetected = false
+
   try {
     await mapWithConcurrency(
       candidates,
       5,
       async (candidate) => {
+        if (loggedOutDetected) return null
         let response: Response
         try {
           await pacer.acquire()
@@ -909,6 +915,10 @@ export async function scanDeadlinesInBackground(pacer: Pacer = letusPacer): Prom
           hasLoginMarker: classification === 'logged_out',
         })) {
           diagnosticCodes.add(code)
+        }
+        if (classification === 'logged_out') {
+          loggedOutDetected = true
+          return null
         }
         const plainText = htmlToPlainText(html)
         const deadlineText = extractDeadlineText(plainText)
@@ -979,6 +989,29 @@ export async function scanDeadlinesInBackground(pacer: Pacer = letusPacer): Prom
         })
       },
     )
+
+    if (loggedOutDetected) {
+      // 検知前に読めた分は進捗コールバックで保存済み（有効な観測）。最終保存・通知は行わず、
+      // 既存の締切を空で上書きしないままログインエラーとして正直に報告する。
+      diagnosticCodes.add('LOGGED_OUT')
+      await saveDeadlineScanStatus({
+        state: 'error',
+        startedAt,
+        finishedAt: new Date().toISOString(),
+        totalItems: candidates.length,
+        completedItems: 0,
+        currentItemTitle: '',
+        detectedCount: assignments.filter((a) => a.deadline !== null).length,
+        errorMessage: NOT_LOGGED_IN_ERROR_MESSAGE,
+      })
+      return {
+        ok: false,
+        reason: 'login_required',
+        errorMessage: NOT_LOGGED_IN_ERROR_MESSAGE,
+        authProbe,
+        diagnostics: Array.from(diagnosticCodes),
+      }
+    }
 
     const finishedAt = new Date().toISOString()
     const candidateIds = new Set(candidates.map((c) => c.id))

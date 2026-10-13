@@ -790,6 +790,43 @@ describe('scanDeadlinesInBackground', () => {
     expect(status.errorMessage).toBe('LETUSにログインしていないため更新できませんでした。')
   })
 
+  it('スキャン途中でログアウトを検知したら、既存の締切・提出状態を空で上書きせずlogin_requiredを返す', async () => {
+    // 開始時の checkIsLoggedIn は通るが、活動ページの取得中にセッションが切れた場合
+    // （SSO失効）。未ログインHTML(200)から締切null・状態unknownを作って upsert すると、
+    // 既存の締切が全て消える。課題スキャン側と同じ「中断して何も書かない」結末にする。
+    store[COURSES_KEY] = [makeCourse()]
+    store[ASSIGNMENT_CANDIDATES_KEY] = [makeCandidate()]
+    const existing = makeAssignment({
+      title: '既存の課題',
+      deadline: '2026-12-01T14:59:00.000Z',
+      deadlineText: '2026年12月1日 23時59分',
+      deadlineSource: 'field',
+      submissionStatus: 'submitted',
+    })
+    store[ASSIGNMENTS_KEY] = [existing]
+
+    vi.stubGlobal('fetch', vi.fn(async (url: string) => {
+      if (url.includes('/course/view.php')) {
+        return {
+          ok: true,
+          url,
+          type: 'basic',
+          text: async () => '<script>M.cfg = {"wwwroot":"https:\\/\\/letus.ed.tus.ac.jp"};</script>',
+        }
+      }
+      return { ok: true, url, text: async () => '<span>あなたはログインしていません。</span>' }
+    }))
+
+    const result = await scanDeadlinesInBackground(noopPacer)
+
+    expect(result.ok).toBe(false)
+    expect(result.reason).toBe('login_required')
+    expect(result.diagnostics).toContain('LOGGED_OUT')
+    expect(store[ASSIGNMENTS_KEY]).toEqual([existing])
+    const status = store[DEADLINE_SCAN_STATUS_KEY] as { state: string }
+    expect(status.state).toBe('error')
+  })
+
   it('通信エラーの場合、assignmentsを変更せずエラー状態を保存する', async () => {
     store[COURSES_KEY] = [makeCourse()]
     store[ASSIGNMENT_CANDIDATES_KEY] = [makeCandidate()]
