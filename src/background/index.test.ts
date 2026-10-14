@@ -805,17 +805,16 @@ describe('scanDeadlinesInBackground', () => {
     })
     store[ASSIGNMENTS_KEY] = [existing]
 
-    vi.stubGlobal('fetch', vi.fn(async (url: string) => {
-      if (url.includes('/course/view.php')) {
-        return {
-          ok: true,
-          url,
-          type: 'basic',
-          text: async () => '<script>M.cfg = {"wwwroot":"https:\\/\\/letus.ed.tus.ac.jp"};</script>',
-        }
-      }
-      return { ok: true, url, text: async () => '<span>あなたはログインしていません。</span>' }
-    }))
+    const respond = (url: string, html: string) => ({
+      ok: true,
+      url,
+      text: async (): Promise<string> => html,
+    })
+    vi.stubGlobal('fetch', vi.fn(async (url: string) =>
+      url.includes('/course/view.php')
+        ? respond(url, '<script>M.cfg = {"wwwroot":"https:\\/\\/letus.ed.tus.ac.jp"};</script>')
+        : respond(url, '<span>あなたはログインしていません。</span>'),
+    ))
 
     const result = await scanDeadlinesInBackground(noopPacer)
 
@@ -1394,7 +1393,7 @@ describe('handleInstalled', () => {
     expect(chrome.tabs.create).not.toHaveBeenCalledWith({ url: 'welcome.html' })
   })
 
-  it.each(['1.4.3', '1.4.4'])('サイレントアップデート対象の版(%s)では、フラグ保存済みでもchangelog.htmlを開かない', async (version) => {
+  it.each(['1.4.3', '1.4.4', '1.4.5'])('サイレントアップデート対象の版(%s)では、フラグ保存済みでもchangelog.htmlを開かない', async (version) => {
     store[WELCOME_GUIDE_SHOWN_KEY] = true
     vi.mocked(chrome.runtime.getManifest).mockReturnValue({ version } as chrome.runtime.Manifest)
 

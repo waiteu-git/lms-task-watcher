@@ -1365,7 +1365,7 @@ export async function updateConsentBadge(): Promise<void> {
 }
 
 /** 利用者に見える機能変更を伴わない版はchangelog.htmlを開かない（サイレントアップデート）。1.4.3＝アイコン刷新、1.4.4＝内部の不具合修正と案内文の追記。 */
-const SILENT_UPDATE_VERSIONS = new Set(['1.4.3', '1.4.4'])
+const SILENT_UPDATE_VERSIONS = new Set(['1.4.3', '1.4.4', '1.4.5'])
 
 export async function handleInstalled(details: chrome.runtime.InstalledDetails): Promise<void> {
   chrome.alarms.create(ALARM_NAME, {
